@@ -152,7 +152,9 @@ class ProjectListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = Project.objects.filter(legal_entity=context.legal_entity).select_related("product")
+        queryset = Project.objects.filter(legal_entity=context.legal_entity).select_related(
+            "product"
+        )
         return Response(ProjectSerializer(queryset, many=True).data)
 
     def post(self, request):
@@ -218,7 +220,9 @@ class BudgetListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = Budget.objects.filter(legal_entity=context.legal_entity).prefetch_related("lines")
+        queryset = Budget.objects.filter(legal_entity=context.legal_entity).prefetch_related(
+            "lines"
+        )
         return Response(BudgetSerializer(queryset, many=True).data)
 
     def post(self, request):
