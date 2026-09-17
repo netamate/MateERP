@@ -20,7 +20,6 @@ import {
   ReceiptText,
   Search,
   Settings,
-  ShieldCheck,
   Users,
   WalletCards,
   X,
@@ -56,6 +55,7 @@ const navGroups = [
       { label: "Chart of Accounts", href: "/accounting/accounts", icon: BookOpen },
       { label: "Journal Entries", href: "/accounting/journals", icon: FileText },
       { label: "Fiscal Periods", href: "/accounting/periods", icon: CalendarDays },
+      { label: "Tax & FX", href: "/accounting/configuration", icon: Settings },
       { label: "Reports", href: "/reports", icon: BarChart3 },
     ],
   },
@@ -134,12 +134,6 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  useEffect(() => {
-    setMobileOpen(false);
-    setCommandOpen(false);
-    setQuickOpen(false);
-  }, [pathname]);
-
   async function changeOrganization(organizationId: string) {
     await onContextChange(organizationId, null);
   }
@@ -152,6 +146,11 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function closeNavigationUi() {
+    setMobileOpen(false);
+    setQuickOpen(false);
   }
 
   const sidebar = (
@@ -191,6 +190,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
                 }`}
                 href={href}
                 key={href}
+                onClick={closeNavigationUi}
               >
                 <Icon className="shrink-0 text-[#9fb1ca]" size={16} strokeWidth={1.75} />
                 {label}
@@ -247,7 +247,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
           </button>
 
           <div className="hidden min-w-32 text-xs text-[var(--color-text-muted)] xl:block">
-            MateERP / {navGroups.flatMap((group) => group.items).find((item) => isActive(item.href))?.label ?? "Dashboard"}
+            MateERP / {commandItems.find((item) => isActive(item.href))?.label ?? "Dashboard"}
           </div>
 
           <button
@@ -257,9 +257,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
           >
             <Search size={14} />
             <span className="truncate">Search MateERP...</span>
-            <span className="ml-auto hidden border border-[var(--color-border)] bg-white px-1.5 py-0.5 text-[9px] sm:inline">
-              Ctrl K
-            </span>
+            <span className="ml-auto hidden border border-[var(--color-border)] bg-white px-1.5 py-0.5 text-[9px] sm:inline">Ctrl K</span>
           </button>
 
           <select
@@ -269,9 +267,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             value={session.active_organization_id ?? ""}
           >
             {session.organizations.map((organization) => (
-              <option key={organization.id} value={organization.id}>
-                {organization.name}
-              </option>
+              <option key={organization.id} value={organization.id}>{organization.name}</option>
             ))}
           </select>
 
@@ -284,9 +280,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
           >
             <option value="">Organization scope</option>
             {session.active_legal_entities.map((entity) => (
-              <option key={entity.id} value={entity.id}>
-                {entity.name}
-              </option>
+              <option key={entity.id} value={entity.id}>{entity.name}</option>
             ))}
           </select>
 
@@ -301,14 +295,13 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             </button>
             {quickOpen ? (
               <div className="absolute right-0 top-10 z-40 w-56 border border-[var(--color-border-strong)] bg-white shadow-lg">
-                <div className="border-b border-[var(--color-border)] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                  Quick Add
-                </div>
+                <div className="border-b border-[var(--color-border)] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Quick Add</div>
                 {quickActions.map(([label, href]) => (
                   <Link
                     className="flex items-center gap-2 border-b border-[var(--color-border-soft)] px-3 py-2.5 text-sm last:border-b-0 hover:bg-[var(--color-surface-subtle)]"
                     href={href}
                     key={label}
+                    onClick={closeNavigationUi}
                   >
                     <Plus size={13} /> {label}
                   </Link>
@@ -317,16 +310,8 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             ) : null}
           </div>
 
-          <button aria-label="Notifications" className="erp-button !h-8 !min-h-8 !w-8 !p-0" type="button">
-            <Bell size={14} />
-          </button>
-
-          <button
-            className="erp-button !h-8 !min-h-8 max-w-44"
-            onClick={() => void onLogout()}
-            title="Sign out"
-            type="button"
-          >
+          <button aria-label="Notifications" className="erp-button !h-8 !min-h-8 !w-8 !p-0" type="button"><Bell size={14} /></button>
+          <button className="erp-button !h-8 !min-h-8 max-w-44" onClick={() => void onLogout()} title="Sign out" type="button">
             <span className="truncate">{session.user.display_name || session.user.email}</span>
             <ChevronDown className="shrink-0" size={12} />
           </button>
@@ -347,38 +332,26 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
                 placeholder="Search pages and actions..."
                 value={query}
               />
-              <button
-                aria-label="Close search"
-                className="grid h-12 w-12 place-items-center border-l border-[var(--color-border)]"
-                onClick={() => setCommandOpen(false)}
-                type="button"
-              >
-                <X size={16} />
-              </button>
+              <button aria-label="Close search" className="grid h-12 w-12 place-items-center border-l border-[var(--color-border)]" onClick={() => setCommandOpen(false)} type="button"><X size={16} /></button>
             </div>
             <div className="max-h-[55vh] overflow-y-auto py-2">
-              <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                Navigation
-              </div>
-              {filteredCommands.length ? (
-                filteredCommands.map((item) => (
-                  <button
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-[var(--color-surface-subtle)]"
-                    key={item.href}
-                    onClick={() => {
-                      router.push(item.href);
-                      setCommandOpen(false);
-                    }}
-                    type="button"
-                  >
-                    <span>{item.label}</span>
-                    <span className="text-xs text-[var(--color-text-muted)]">Open</span>
-                  </button>
-                ))
-              ) : (
-                <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-                  No matching MateERP page.
-                </div>
+              <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Navigation</div>
+              {filteredCommands.length ? filteredCommands.map((item) => (
+                <button
+                  className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-[var(--color-surface-subtle)]"
+                  key={item.href}
+                  onClick={() => {
+                    router.push(item.href);
+                    setCommandOpen(false);
+                    closeNavigationUi();
+                  }}
+                  type="button"
+                >
+                  <span>{item.label}</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">Open</span>
+                </button>
+              )) : (
+                <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">No matching MateERP page.</div>
               )}
             </div>
           </div>
