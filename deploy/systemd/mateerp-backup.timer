@@ -1,0 +1,12 @@
+# Create one daily MateERP database backup and catch up after downtime.
+[Unit]
+Description=Schedule MateERP PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 00:45:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+Unit=mateerp-backup.service
+
+[Install]
+WantedBy=timers.target

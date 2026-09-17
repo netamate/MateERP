@@ -2,7 +2,7 @@
 
 MateERP is NetaMate Solutions' enterprise financial and business operations ERP.
 
-**Phases 1 through 8 are complete.** Phase 8, **Reporting, Audit & Enterprise Hardening**, is the final application development phase. The next phase is **Phase 9: Production Deployment & Go-Live**.
+**Application development phases 1 through 8 are complete.** Phase 8, **Reporting, Audit & Enterprise Hardening**, is the final application-development phase. **Phase 9 is Production Deployment & Go-Live**, covering the production delivery, operations, validation, recovery, and go-live boundary.
 
 ## Repository structure
 
@@ -11,15 +11,15 @@ MateERP/
 ├── backend/        Django + Django REST Framework modular monolith
 ├── frontend/       Next.js App Router production frontend
 ├── docs/           Architecture, security, development, and phase documentation
-├── deploy/         Deployment assets and production handoff area
-├── .github/        CI workflows
+├── deploy/         Production Compose, Nginx, scheduler, backup, and recovery assets
+├── .github/        CI and production deployment workflows
 ├── compose.yaml    Local Docker development stack
 └── README.md
 ```
 
 ## Implemented product foundation
 
-MateERP now includes:
+MateERP includes:
 
 - UUID email-based identities, organizations, legal entities, memberships, and scoped RBAC
 - secure Django session authentication, CSRF protection, and request IDs
@@ -33,13 +33,13 @@ MateERP now includes:
 - financial-account reconciliation with immutable completed statements
 - targeted in-app renewal and approval notifications
 - responsive zero-radius production frontend with command palette and Quick Add
-- backend and frontend CI with Ruff, Django migration checks, pytest, OpenAPI validation, ESLint, TypeScript, Vitest, Next.js build, and Playwright
+- backend and frontend CI with Ruff, Django migration checks, pytest, OpenAPI validation, ESLint, TypeScript, Vitest, Next.js build, Playwright, and production Docker image builds
 
-## Final development boundary
+## Production deployment boundary
 
-Phase 8 closes application development and production hardening. It does **not** deploy MateERP.
+Phase 8 closes application development and production hardening. Phase 9 owns private GHCR image delivery, MateServer Docker Compose configuration, production PostgreSQL persistence and backup/restore validation, host-native Nginx, `erp.netamate.com` TLS, scheduled maintenance commands, migrations, smoke testing, rollback validation, and go-live.
 
-The next phase is **Phase 9: Production Deployment & Go-Live**, covering GHCR image delivery, MateServer Docker Compose configuration, production PostgreSQL persistence and backup/restore validation, host-native Nginx, domain/TLS, scheduled maintenance commands, migrations, smoke testing, rollback validation, and go-live.
+Production deployment assets live under `deploy/`, and the complete runbook is documented in `docs/phase-9-production-deployment.md`.
 
 ## Local development
 

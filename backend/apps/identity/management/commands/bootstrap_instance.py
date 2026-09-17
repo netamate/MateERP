@@ -15,8 +15,10 @@ class Command(BaseCommand):
         parser.add_argument("--email", required=True)
         parser.add_argument("--organization", required=True)
         parser.add_argument("--legal-entity")
+        parser.add_argument("--display-name")
         parser.add_argument("--timezone", default="UTC")
         parser.add_argument("--base-currency", default="USD")
+        parser.add_argument("--django-superuser", action="store_true")
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -28,16 +30,23 @@ class Command(BaseCommand):
         if not password:
             raise CommandError("MATEERP_BOOTSTRAP_PASSWORD must be set.")
 
+        email = options["email"].lower()
+        display_name = options["display_name"] or email.split("@", 1)[0]
         user, created = User.objects.get_or_create(
-            email=options["email"].lower(),
-            defaults={"display_name": options["email"].split("@", 1)[0]},
+            email=email,
+            defaults={"display_name": display_name},
         )
         if created:
             validate_password(password, user)
             user.set_password(password)
-            user.save(update_fields=["password"])
         elif not user.check_password(password):
             raise CommandError("Existing user password does not match bootstrap credentials.")
+
+        user.display_name = display_name
+        if options["django_superuser"]:
+            user.is_staff = True
+            user.is_superuser = True
+        user.save()
 
         organization, legal_entity, _ = create_organization_with_owner(
             owner=user,

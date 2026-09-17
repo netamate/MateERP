@@ -1,0 +1,30 @@
+# MateERP production backend image.
+# Keep runtime non-root, install only production dependencies, and let deployment run migrations/collectstatic explicitly.
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN groupadd --gid 10001 mateerp \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin mateerp
+
+COPY pyproject.toml ./
+RUN python -m pip install --upgrade pip \
+    && pip install .
+
+COPY --chown=mateerp:mateerp . .
+RUN mkdir -p /app/media /app/staticfiles \
+    && chown -R mateerp:mateerp /app/media /app/staticfiles
+
+USER mateerp
+
+EXPOSE 8000
+
+LABEL org.opencontainers.image.source="https://github.com/netamate/MateERP"
+LABEL org.opencontainers.image.description="MateERP production Django backend"
+
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]

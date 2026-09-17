@@ -1,0 +1,165 @@
+# Build private production images after green main CI, publish them to GHCR, then deploy the exact SHA to MateServer.
+name: Deploy Production
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      deploy_sha:
+        description: Existing commit-SHA image tag to deploy or roll back to
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: mateerp-production
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.ref.outputs.sha }}
+      build: ${{ steps.ref.outputs.build }}
+    steps:
+      - id: ref
+        shell: bash
+        env:
+          WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_SHA: ${{ inputs.deploy_sha }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            deploy_sha="$WORKFLOW_SHA"
+            build=true
+          else
+            deploy_sha="$INPUT_SHA"
+            build=false
+          fi
+          if [[ ! "$deploy_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "deploy_sha must be an exact 40-character lowercase Git SHA" >&2
+            exit 1
+          fi
+          echo "sha=$deploy_sha" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    needs: resolve
+    if: needs.resolve.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: backend
+            context: ./backend
+            file: ./backend/Dockerfile.production
+            image: ghcr.io/netamate/mateerp-backend
+          - name: frontend
+            context: ./frontend
+            file: ./frontend/Dockerfile.production
+            image: ghcr.io/netamate/mateerp-frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: |
+            ${{ matrix.image }}:${{ needs.resolve.outputs.sha }}
+            ${{ matrix.image }}:main
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: [resolve, build-and-push]
+    if: >-
+      always() &&
+      needs.resolve.result == 'success' &&
+      (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_SHA: ${{ needs.resolve.outputs.sha }}
+      RUN_MIGRATIONS: ${{ needs.resolve.outputs.build }}
+      VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        shell: bash
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > "$HOME/.ssh/id_ed25519"
+          ssh-keyscan -p "$VPS_PORT" "${{ secrets.VPS_HOST }}" >> "$HOME/.ssh/known_hosts"
+      - name: Stage deployment assets
+        shell: bash
+        run: |
+          ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'sudo mkdir -p /opt/MateERP/scripts'
+          scp -P "$VPS_PORT" deploy/docker-compose.yml \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/mateerp-docker-compose.yml"
+          scp -P "$VPS_PORT" deploy/scripts/backup-db.sh deploy/scripts/validate-restore.sh \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/"
+          ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'sudo install -m 640 /tmp/mateerp-docker-compose.yml /opt/MateERP/docker-compose.yml &&
+             sudo install -m 750 /tmp/backup-db.sh /opt/MateERP/scripts/backup-db.sh &&
+             sudo install -m 750 /tmp/validate-restore.sh /opt/MateERP/scripts/validate-restore.sh'
+      - name: Authenticate MateServer to private GHCR
+        shell: bash
+        run: |
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" | \
+            ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+              "sudo docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+      - name: Deploy exact image SHA
+        shell: bash
+        run: |
+          ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "DEPLOY_SHA='$DEPLOY_SHA' RUN_MIGRATIONS='$RUN_MIGRATIONS' sudo -E bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/MateERP
+          test -f .env
+          sed -i -E "s|^MATEERP_BACKEND_IMAGE=.*|MATEERP_BACKEND_IMAGE=ghcr.io/netamate/mateerp-backend:${DEPLOY_SHA}|" .env
+          sed -i -E "s|^MATEERP_FRONTEND_IMAGE=.*|MATEERP_FRONTEND_IMAGE=ghcr.io/netamate/mateerp-frontend:${DEPLOY_SHA}|" .env
+          chmod 600 .env
+          docker compose pull
+          docker compose up -d database
+          for _ in $(seq 1 30); do
+            state="$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1 2>/dev/null || true)"
+            [[ "$state" == "healthy" ]] && break
+            sleep 2
+          done
+          [[ "$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1)" == "healthy" ]]
+          if [[ "$RUN_MIGRATIONS" == "true" ]]; then
+            docker compose run --rm backend python manage.py migrate --noinput
+            docker compose run --rm backend python manage.py backfill_document_metadata
+          fi
+          docker compose run --rm backend python manage.py collectstatic --noinput
+          docker compose up -d
+          docker compose ps
+          curl --fail --silent --show-error http://127.0.0.1:8035/api/v1/health/ >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:3035/ >/dev/null
+          REMOTE
+      - name: Logout private GHCR credential
+        if: always()
+        shell: bash
+        run: |
+          ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'sudo docker logout ghcr.io >/dev/null 2>&1 || true'
