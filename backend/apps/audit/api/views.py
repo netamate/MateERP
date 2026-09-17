@@ -1,7 +1,6 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.identity.models import Membership, MembershipStatus
