@@ -4,43 +4,79 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  Building2,
   ChevronDown,
+  CircleDollarSign,
+  FileText,
+  FolderKanban,
   Landmark,
   LayoutDashboard,
+  Menu,
+  PackageOpen,
   Plus,
   ReceiptText,
   Search,
   Settings,
   ShieldCheck,
   Users,
+  WalletCards,
+  X,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { SessionPayload } from "@/lib/api";
 
-const operationsNavigation = [
-  { label: "Finance Overview", icon: LayoutDashboard },
-  { label: "Vendors", icon: Users },
-  { label: "Expenses", icon: ReceiptText },
-  { label: "Income", icon: Landmark },
-  { label: "Accounts & Transfers", icon: BarChart3 },
-  { label: "Reimbursements", icon: ReceiptText },
-  { label: "Founder Funding", icon: Landmark },
-  { label: "Approvals & Documents", icon: ShieldCheck },
+const navGroups = [
+  {
+    label: "Overview",
+    items: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }],
+  },
+  {
+    label: "Finance",
+    items: [
+      { label: "Expenses", href: "/expenses", icon: ReceiptText },
+      { label: "Income", href: "/income", icon: CircleDollarSign },
+      { label: "Transfers", href: "/transfers", icon: WalletCards },
+      { label: "Financial Accounts", href: "/accounts", icon: Landmark },
+      { label: "Vendors", href: "/vendors", icon: Building2 },
+      { label: "Reimbursements", href: "/reimbursements", icon: ReceiptText },
+    ],
+  },
+  {
+    label: "Accounting",
+    items: [
+      { label: "Chart of Accounts", href: "/accounting/accounts", icon: BookOpen },
+      { label: "Journal Entries", href: "/accounting/journals", icon: FileText },
+      { label: "Reports", href: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { label: "Members & Access", href: "/administration/members", icon: Users },
+      { label: "Settings", href: "/administration/settings", icon: Settings },
+    ],
+  },
+] as const;
+
+const futureItems = [
+  { label: "Subscriptions", icon: PackageOpen },
+  { label: "Infrastructure", icon: Landmark },
+  { label: "Domains & Renewals", icon: FolderKanban },
+  { label: "Budgets & Planning", icon: BarChart3 },
 ];
 
-const accountingNavigation = [
-  { label: "Chart of Accounts", icon: BookOpen },
-  { label: "Journal Entries", icon: ReceiptText },
-  { label: "Fiscal Periods", icon: Landmark },
-  { label: "Financial Reports", icon: BarChart3 },
-];
+const commandItems = navGroups.flatMap((group) => group.items);
 
-const adminNavigation = [
-  { label: "Organization", icon: Settings },
-  { label: "Members", icon: Users },
-  { label: "Security", icon: ShieldCheck },
-];
+const quickActions = [
+  ["Expense", "/expenses?new=1"],
+  ["Income", "/income?new=1"],
+  ["Transfer", "/transfers?new=1"],
+  ["Vendor", "/vendors?new=1"],
+  ["Reimbursement", "/reimbursements?new=1"],
+] as const;
 
 type AppShellProps = {
   children: ReactNode;
@@ -53,9 +89,47 @@ type AppShellProps = {
 };
 
 export function AppShell({ children, session, onLogout, onContextChange }: AppShellProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
   const activeOrganization = session.organizations.find(
     (organization) => organization.id === session.active_organization_id,
   );
+  const activeEntity = session.active_legal_entities.find(
+    (entity) => entity.id === session.active_legal_entity_id,
+  );
+
+  const filteredCommands = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return commandItems;
+    return commandItems.filter((item) => item.label.toLowerCase().includes(normalized));
+  }, [query]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+      if (event.key === "Escape") {
+        setCommandOpen(false);
+        setQuickOpen(false);
+        setMobileOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+    setCommandOpen(false);
+    setQuickOpen(false);
+  }, [pathname]);
 
   async function changeOrganization(organizationId: string) {
     await onContextChange(organizationId, null);
@@ -66,132 +140,241 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
     await onContextChange(session.active_organization_id, legalEntityId || null);
   }
 
+  function isActive(href: string) {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const sidebar = (
+    <aside className="erp-scrollbar flex h-full w-[var(--sidebar-width)] flex-col overflow-y-auto border-r border-[#202938] bg-[var(--color-sidebar)] text-[var(--color-sidebar-text)]">
+      <div className="flex h-[72px] shrink-0 items-center border-b border-[#253044] px-[18px]">
+        <div>
+          <div className="text-[19px] font-extrabold tracking-[0.04em] text-white">MateERP</div>
+          <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            NetaMate Solutions
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-[#253044] p-3">
+        <div className="border border-[#2c374a] bg-[#0d1524] px-3 py-2">
+          <div className="truncate text-xs font-semibold text-white">
+            {activeOrganization?.name ?? "Select organization"}
+          </div>
+          <div className="mt-1 truncate text-[10px] uppercase tracking-[0.08em] text-slate-400">
+            {activeEntity?.name ?? "Organization scope"}
+          </div>
+        </div>
+      </div>
+
+      <nav className="pb-6" aria-label="Primary navigation">
+        {navGroups.map((group) => (
+          <div className="pt-3" key={group.label}>
+            <div className="px-[17px] pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7f8ba3]">
+              {group.label}
+            </div>
+            {group.items.map(({ label, href, icon: Icon }) => (
+              <Link
+                className={`flex min-h-9 items-center gap-2.5 border-l-[3px] px-4 py-2 text-[13px] transition-colors ${
+                  isActive(href)
+                    ? "border-[#2e78ff] bg-[var(--color-sidebar-active)] text-white"
+                    : "border-transparent text-[#c5cedd] hover:bg-[#172133] hover:text-white"
+                }`}
+                href={href}
+                key={href}
+              >
+                <Icon className="shrink-0 text-[#9fb1ca]" size={16} strokeWidth={1.75} />
+                {label}
+              </Link>
+            ))}
+          </div>
+        ))}
+
+        <div className="pt-3">
+          <div className="flex items-center justify-between px-[17px] pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7f8ba3]">
+            <span>Phase 7</span>
+            <span className="border border-[#39455a] px-1.5 py-0.5 text-[8px]">NEXT</span>
+          </div>
+          {futureItems.map(({ label, icon: Icon }) => (
+            <div
+              className="flex min-h-9 items-center gap-2.5 border-l-[3px] border-transparent px-4 py-2 text-[13px] text-[#68758a]"
+              key={label}
+              title="Scheduled for Phase 7"
+            >
+              <Icon size={16} strokeWidth={1.75} />
+              {label}
+            </div>
+          ))}
+        </div>
+      </nav>
+    </aside>
+  );
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
-      <aside className="fixed inset-y-0 left-0 w-[var(--sidebar-width)] overflow-y-auto border-r border-black/30 bg-[var(--color-sidebar)] text-[var(--color-sidebar-text)]">
-        <div className="flex h-[var(--header-height)] items-center border-b border-white/10 px-4">
-          <div>
-            <div className="text-base font-bold tracking-wide text-white">MateERP</div>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
-              NetaMate Solutions
+      <div className="fixed inset-y-0 left-0 z-30 hidden lg:block">{sidebar}</div>
+
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            aria-label="Close navigation"
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileOpen(false)}
+            type="button"
+          />
+          <div className="relative h-full w-[var(--sidebar-width)]">{sidebar}</div>
+        </div>
+      ) : null}
+
+      <div className="lg:pl-[var(--sidebar-width)]">
+        <header className="sticky top-0 z-20 flex min-h-[var(--header-height)] items-center gap-2 border-b border-[var(--color-border)] bg-white px-3 lg:px-[18px]">
+          <button
+            aria-label="Open navigation"
+            className="erp-button !h-8 !min-h-8 !w-8 !p-0 lg:hidden"
+            onClick={() => setMobileOpen(true)}
+            type="button"
+          >
+            <Menu size={16} />
+          </button>
+
+          <div className="hidden min-w-32 text-xs text-[var(--color-text-muted)] xl:block">
+            MateERP / {navGroups.flatMap((group) => group.items).find((item) => isActive(item.href))?.label ?? "Dashboard"}
+          </div>
+
+          <button
+            className="ml-auto flex h-8 min-w-0 flex-1 items-center gap-2 border border-[var(--color-border)] bg-[#fbfcfd] px-3 text-left text-xs text-[var(--color-text-muted)] sm:max-w-[330px]"
+            onClick={() => setCommandOpen(true)}
+            type="button"
+          >
+            <Search size={14} />
+            <span className="truncate">Search MateERP...</span>
+            <span className="ml-auto hidden border border-[var(--color-border)] bg-white px-1.5 py-0.5 text-[9px] sm:inline">
+              Ctrl K
+            </span>
+          </button>
+
+          <select
+            aria-label="Organization"
+            className="hidden h-8 max-w-48 border border-[var(--color-border)] bg-white px-2 text-xs md:block"
+            onChange={(event) => void changeOrganization(event.target.value)}
+            value={session.active_organization_id ?? ""}
+          >
+            {session.organizations.map((organization) => (
+              <option key={organization.id} value={organization.id}>
+                {organization.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Legal entity"
+            className="hidden h-8 max-w-48 border border-[var(--color-border)] bg-white px-2 text-xs md:block"
+            disabled={!activeOrganization}
+            onChange={(event) => void changeLegalEntity(event.target.value)}
+            value={session.active_legal_entity_id ?? ""}
+          >
+            <option value="">Organization scope</option>
+            {session.active_legal_entities.map((entity) => (
+              <option key={entity.id} value={entity.id}>
+                {entity.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="relative">
+            <button
+              className="erp-button erp-button-primary !h-8 !min-h-8"
+              onClick={() => setQuickOpen((value) => !value)}
+              type="button"
+            >
+              <Plus size={14} />
+              <span className="hidden sm:inline">Add</span>
+            </button>
+            {quickOpen ? (
+              <div className="absolute right-0 top-10 z-40 w-56 border border-[var(--color-border-strong)] bg-white shadow-lg">
+                <div className="border-b border-[var(--color-border)] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                  Quick Add
+                </div>
+                {quickActions.map(([label, href]) => (
+                  <Link
+                    className="flex items-center gap-2 border-b border-[var(--color-border-soft)] px-3 py-2.5 text-sm last:border-b-0 hover:bg-[var(--color-surface-subtle)]"
+                    href={href}
+                    key={label}
+                  >
+                    <Plus size={13} /> {label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <button aria-label="Notifications" className="erp-button !h-8 !min-h-8 !w-8 !p-0" type="button">
+            <Bell size={14} />
+          </button>
+
+          <button
+            className="erp-button !h-8 !min-h-8 max-w-44"
+            onClick={() => void onLogout()}
+            title="Sign out"
+            type="button"
+          >
+            <span className="truncate">{session.user.display_name || session.user.email}</span>
+            <ChevronDown className="shrink-0" size={12} />
+          </button>
+        </header>
+
+        <main>{children}</main>
+      </div>
+
+      {commandOpen ? (
+        <div className="fixed inset-0 z-[70] bg-black/50 px-4 pt-[12vh]" role="presentation">
+          <div className="mx-auto max-w-2xl border border-[var(--color-border-strong)] bg-white shadow-2xl">
+            <div className="flex items-center border-b border-[var(--color-border)]">
+              <Search className="ml-4 text-[var(--color-text-muted)]" size={17} />
+              <input
+                autoFocus
+                className="h-12 flex-1 border-0 px-3 outline-none"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search pages and actions..."
+                value={query}
+              />
+              <button
+                aria-label="Close search"
+                className="grid h-12 w-12 place-items-center border-l border-[var(--color-border)]"
+                onClick={() => setCommandOpen(false)}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto py-2">
+              <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                Navigation
+              </div>
+              {filteredCommands.length ? (
+                filteredCommands.map((item) => (
+                  <button
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-[var(--color-surface-subtle)]"
+                    key={item.href}
+                    onClick={() => {
+                      router.push(item.href);
+                      setCommandOpen(false);
+                    }}
+                    type="button"
+                  >
+                    <span>{item.label}</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">Open</span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
+                  No matching MateERP page.
+                </div>
+              )}
             </div>
           </div>
         </div>
-        <nav className="p-2" aria-label="Primary navigation">
-          <div className="px-2 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            Finance Operations
-          </div>
-          {operationsNavigation.map(({ label, icon: Icon }, index) => (
-            <button
-              className={`mb-1 flex w-full items-center gap-3 border px-3 py-2 text-left text-sm ${
-                index === 0
-                  ? "border-white/10 bg-white/10 text-white"
-                  : "border-transparent text-slate-300 hover:border-white/10 hover:bg-white/5"
-              }`}
-              key={label}
-              type="button"
-            >
-              <Icon size={16} strokeWidth={1.75} />
-              {label}
-            </button>
-          ))}
-          <div className="px-2 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            Accounting
-          </div>
-          {accountingNavigation.map(({ label, icon: Icon }) => (
-            <button
-              className="mb-1 flex w-full items-center gap-3 border border-transparent px-3 py-2 text-left text-sm text-slate-300 hover:border-white/10 hover:bg-white/5"
-              key={label}
-              type="button"
-            >
-              <Icon size={16} strokeWidth={1.75} />
-              {label}
-            </button>
-          ))}
-          <div className="px-2 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            Administration
-          </div>
-          {adminNavigation.map(({ label, icon: Icon }) => (
-            <button
-              className="mb-1 flex w-full items-center gap-3 border border-transparent px-3 py-2 text-left text-sm text-slate-300 hover:border-white/10 hover:bg-white/5"
-              key={label}
-              type="button"
-            >
-              <Icon size={16} strokeWidth={1.75} />
-              {label}
-            </button>
-          ))}
-        </nav>
-      </aside>
-      <div className="pl-[var(--sidebar-width)]">
-        <header className="sticky top-0 z-10 flex h-[var(--header-height)] items-center justify-between border-b border-[var(--color-border)] bg-white px-5">
-          <div className="flex items-center gap-2">
-            <button
-              className="flex h-8 min-w-64 items-center gap-2 border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 text-left text-sm text-[var(--color-text-muted)]"
-              type="button"
-            >
-              <Search size={15} />
-              Search MateERP
-              <span className="ml-auto border border-[var(--color-border)] bg-white px-1.5 py-0.5 text-[10px]">
-                Ctrl K
-              </span>
-            </button>
-            <select
-              aria-label="Organization"
-              className="h-8 min-w-48 border border-[var(--color-border)] bg-white px-2 text-xs"
-              onChange={(event) => void changeOrganization(event.target.value)}
-              value={session.active_organization_id ?? ""}
-            >
-              {session.organizations.map((organization) => (
-                <option key={organization.id} value={organization.id}>
-                  {organization.name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Legal entity"
-              className="h-8 min-w-48 border border-[var(--color-border)] bg-white px-2 text-xs"
-              disabled={!activeOrganization}
-              onChange={(event) => void changeLegalEntity(event.target.value)}
-              value={session.active_legal_entity_id ?? ""}
-            >
-              <option value="">Organization scope</option>
-              {session.active_legal_entities.map((entity) => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className="h-8 border border-[var(--color-border)] bg-white px-3 text-xs font-semibold"
-              type="button"
-            >
-              <span className="flex items-center gap-1.5">
-                <Plus size={14} /> Quick Add
-              </span>
-            </button>
-            <button
-              className="grid h-8 w-8 place-items-center border border-[var(--color-border)] bg-white"
-              aria-label="Notifications"
-              type="button"
-            >
-              <Bell size={15} />
-            </button>
-            <button
-              className="flex h-8 items-center gap-2 border border-[var(--color-border)] bg-white px-2 text-xs"
-              onClick={() => void onLogout()}
-              title="Sign out"
-              type="button"
-            >
-              {session.user.display_name || session.user.email}
-              <ChevronDown size={13} />
-            </button>
-          </div>
-        </header>
-        <main>{children}</main>
-      </div>
+      ) : null}
     </div>
   );
 }
