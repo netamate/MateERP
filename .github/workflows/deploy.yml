@@ -132,7 +132,7 @@ jobs:
         shell: bash
         run: |
           ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-            "DEPLOY_SHA='$DEPLOY_SHA' RUN_MIGRATIONS='$RUN_MIGRATIONS' sudo -E bash -s" <<'REMOTE'
+            "sudo env DEPLOY_SHA='$DEPLOY_SHA' RUN_MIGRATIONS='$RUN_MIGRATIONS' bash -s" <<'REMOTE'
           set -euo pipefail
           cd /opt/MateERP
           test -f .env
