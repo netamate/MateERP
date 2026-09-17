@@ -148,11 +148,20 @@ jobs:
           done
           [[ "$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1)" == "healthy" ]]
           if [[ "$RUN_MIGRATIONS" == "true" ]]; then
-            docker compose run --rm backend python manage.py migrate --noinput
-            docker compose run --rm backend python manage.py backfill_document_metadata
+            docker compose run --rm -T backend python manage.py migrate --noinput </dev/null
+            docker compose run --rm -T backend python manage.py backfill_document_metadata </dev/null
           fi
-          docker compose run --rm backend python manage.py collectstatic --noinput
-          docker compose up -d
+          docker compose run --rm -T backend python manage.py collectstatic --noinput </dev/null
+          docker compose up -d --force-recreate backend frontend
+          for service in backend frontend; do
+            cid="$(docker compose ps -q "$service")"
+            for _ in $(seq 1 30); do
+              state="$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || true)"
+              [[ "$state" == "healthy" ]] && break
+              sleep 2
+            done
+            [[ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" == "healthy" ]]
+          done
           docker compose ps
           curl --fail --silent --show-error http://127.0.0.1:8035/api/v1/health/ >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:3035/ >/dev/null
