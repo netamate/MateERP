@@ -2,19 +2,24 @@
 
 :root {
   --radius: 0px;
-  --color-bg: #f4f6f8;
+  --color-bg: #f3f5f8;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f8fafc;
-  --color-border: #d7dde5;
-  --color-border-strong: #aab4c0;
-  --color-text: #172033;
-  --color-text-muted: #667085;
-  --color-brand: #0b4a7d;
-  --color-brand-strong: #06375f;
-  --color-sidebar: #0f1724;
-  --color-sidebar-text: #dce5ee;
-  --header-height: 52px;
-  --sidebar-width: 240px;
+  --color-surface-subtle: #f7f8fa;
+  --color-border: #d9dee7;
+  --color-border-soft: #e7eaf0;
+  --color-border-strong: #bfc6d1;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-brand: #0b4dbb;
+  --color-brand-strong: #083b8c;
+  --color-sidebar: #111827;
+  --color-sidebar-active: #172a49;
+  --color-sidebar-text: #d5dbea;
+  --color-success: #16803c;
+  --color-warning: #b7791f;
+  --color-danger: #c62828;
+  --header-height: 58px;
+  --sidebar-width: 252px;
 }
 
 * {
@@ -31,19 +36,173 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
 }
 
 button,
 input,
 select,
 textarea {
+  color: inherit;
   font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
+}
+
+.erp-panel {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.erp-panel-header {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border);
+  padding: 10px 14px;
+}
+
+.erp-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.erp-button-primary {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.erp-button-danger {
+  border-color: #d9a2a2;
+  color: var(--color-danger);
+}
+
+.erp-field {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  padding: 8px 10px;
+}
+
+.erp-label {
+  margin-bottom: 6px;
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.erp-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.erp-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.erp-table th,
+.erp-table td {
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: 10px 11px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.erp-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom-color: var(--color-border-strong);
+  background: var(--color-surface-subtle);
+  color: #5a6576;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.erp-table tbody tr:hover {
+  background: #fafcff;
+}
+
+.erp-num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-status {
+  display: inline-block;
+  border: 1px solid var(--color-border-strong);
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.erp-status-success {
+  border-color: #9bcaa9;
+  background: #f4fbf6;
+  color: var(--color-success);
+}
+
+.erp-status-warning {
+  border-color: #d8be87;
+  background: #fffaf0;
+  color: var(--color-warning);
+}
+
+.erp-status-danger {
+  border-color: #e0a8a8;
+  background: #fff6f6;
+  color: var(--color-danger);
+}
+
+.erp-status-muted {
+  background: #f7f8fa;
+  color: var(--color-text-muted);
+}
+
+.erp-scrollbar {
+  scrollbar-color: #6b7280 #111827;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --sidebar-width: 232px;
+  }
 }
