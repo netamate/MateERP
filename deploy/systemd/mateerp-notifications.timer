@@ -1,0 +1,12 @@
+# Refresh MateERP notifications once per day and catch up after downtime.
+[Unit]
+Description=Schedule MateERP notification refresh
+
+[Timer]
+OnCalendar=*-*-* 00:15:00 UTC
+Persistent=true
+RandomizedDelaySec=5m
+Unit=mateerp-notifications.service
+
+[Install]
+WantedBy=timers.target
