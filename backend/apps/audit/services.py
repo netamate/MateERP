@@ -24,11 +24,7 @@ def record_audit_event(
     request_id = ""
     if request is not None:
         forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        ip_address = (
-            forwarded.split(",")[0].strip()
-            if forwarded
-            else request.META.get("REMOTE_ADDR")
-        )
+        ip_address = forwarded.split(",")[0].strip() if forwarded else request.META.get("REMOTE_ADDR")
         user_agent = request.META.get("HTTP_USER_AGENT", "")
         request_id = getattr(request, "request_id", "")
 

@@ -51,10 +51,7 @@ class MembershipSerializer(serializers.ModelSerializer):
         ]
 
     def get_permissions(self, obj):
-        return sorted(
-            permission.value
-            for permission in ROLE_PERMISSIONS.get(obj.role, frozenset())
-        )
+        return sorted(permission.value for permission in ROLE_PERMISSIONS.get(obj.role, frozenset()))
 
     def get_legal_entity_ids(self, obj):
         if obj.all_legal_entities:

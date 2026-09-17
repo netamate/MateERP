@@ -50,9 +50,7 @@ class AuditEvent(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(
-                fields=["organization", "created_at"], name="audit_org_created_idx"
-            ),
+            models.Index(fields=["organization", "created_at"], name="audit_org_created_idx"),
             models.Index(fields=["object_type", "object_id"], name="audit_object_idx"),
             models.Index(fields=["action", "created_at"], name="audit_action_created_idx"),
         ]

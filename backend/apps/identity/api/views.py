@@ -159,9 +159,7 @@ class LegalEntityListView(APIView):
         if not has_permission(context.membership, Permission.VIEW_LEGAL_ENTITY):
             return Response(status=status.HTTP_403_FORBIDDEN)
         return Response(
-            LegalEntitySerializer(
-                accessible_legal_entities(context.membership), many=True
-            ).data
+            LegalEntitySerializer(accessible_legal_entities(context.membership), many=True).data
         )
 
 
@@ -177,9 +175,11 @@ class MembershipListView(APIView):
         )
         if not has_permission(context.membership, Permission.VIEW_MEMBERS):
             return Response(status=status.HTTP_403_FORBIDDEN)
-        queryset = Membership.objects.filter(
-            organization=context.membership.organization
-        ).select_related("user").prefetch_related("legal_entities")
+        queryset = (
+            Membership.objects.filter(organization=context.membership.organization)
+            .select_related("user")
+            .prefetch_related("legal_entities")
+        )
         return Response(MembershipSerializer(queryset, many=True).data)
 
 
@@ -193,10 +193,14 @@ class MembershipRoleView(APIView):
             organization_id=organization_id,
             legal_entity_id=None,
         )
-        target = Membership.objects.filter(
-            id=membership_id,
-            organization=context.membership.organization,
-        ).select_related("user", "organization").first()
+        target = (
+            Membership.objects.filter(
+                id=membership_id,
+                organization=context.membership.organization,
+            )
+            .select_related("user", "organization")
+            .first()
+        )
         if target is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -220,10 +224,14 @@ class MembershipScopeView(APIView):
             organization_id=organization_id,
             legal_entity_id=None,
         )
-        target = Membership.objects.filter(
-            id=membership_id,
-            organization=context.membership.organization,
-        ).select_related("organization", "user").first()
+        target = (
+            Membership.objects.filter(
+                id=membership_id,
+                organization=context.membership.organization,
+            )
+            .select_related("organization", "user")
+            .first()
+        )
         if target is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
