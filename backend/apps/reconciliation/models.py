@@ -85,7 +85,9 @@ class AccountReconciliation(models.Model):
             self.financial_account_id
             and self.financial_account.legal_entity_id != self.legal_entity_id
         ):
-            raise ValidationError("Financial account must belong to the reconciliation legal entity.")
+            raise ValidationError(
+                "Financial account must belong to the reconciliation legal entity."
+            )
 
 
 class ReconciliationItem(models.Model):
@@ -129,6 +131,10 @@ class ReconciliationItem(models.Model):
         if line.account_id != account.ledger_account_id:
             raise ValidationError("Journal line must belong to the reconciled financial account.")
         if line.journal_entry.entry_date > self.reconciliation.end_date:
-            raise ValidationError("Journal line must not be later than the reconciliation end date.")
+            raise ValidationError(
+                "Journal line must not be later than the reconciliation end date."
+            )
         if line.currency != account.currency:
-            raise ValidationError("Journal line currency must match the financial account currency.")
+            raise ValidationError(
+                "Journal line currency must match the financial account currency."
+            )
