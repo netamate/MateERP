@@ -32,33 +32,30 @@ def trial_balance(legal_entity, *, start_date=None, end_date=None):
     return result
 
 
+def _sum_account_type(rows, account_type, *, debit_normal):
+    total = Decimal("0")
+    for row in rows:
+        if row["account__account_type"] != account_type:
+            continue
+        if debit_normal:
+            total += row["debit"] - row["credit"]
+        else:
+            total += row["credit"] - row["debit"]
+    return total
+
+
 def profit_and_loss(legal_entity, *, start_date, end_date):
     rows = trial_balance(legal_entity, start_date=start_date, end_date=end_date)
-    revenue = sum(
-        (row["credit"] - row["debit"] for row in rows if row["account__account_type"] == AccountType.REVENUE),
-        Decimal("0"),
-    )
-    expenses = sum(
-        (row["debit"] - row["credit"] for row in rows if row["account__account_type"] == AccountType.EXPENSE),
-        Decimal("0"),
-    )
+    revenue = _sum_account_type(rows, AccountType.REVENUE, debit_normal=False)
+    expenses = _sum_account_type(rows, AccountType.EXPENSE, debit_normal=True)
     return {"revenue": revenue, "expenses": expenses, "net_income": revenue - expenses}
 
 
 def balance_sheet(legal_entity, *, as_of):
     rows = trial_balance(legal_entity, end_date=as_of)
-    assets = sum(
-        (row["debit"] - row["credit"] for row in rows if row["account__account_type"] == AccountType.ASSET),
-        Decimal("0"),
-    )
-    liabilities = sum(
-        (row["credit"] - row["debit"] for row in rows if row["account__account_type"] == AccountType.LIABILITY),
-        Decimal("0"),
-    )
-    equity = sum(
-        (row["credit"] - row["debit"] for row in rows if row["account__account_type"] == AccountType.EQUITY),
-        Decimal("0"),
-    )
+    assets = _sum_account_type(rows, AccountType.ASSET, debit_normal=True)
+    liabilities = _sum_account_type(rows, AccountType.LIABILITY, debit_normal=False)
+    equity = _sum_account_type(rows, AccountType.EQUITY, debit_normal=False)
     retained = profit_and_loss(legal_entity, start_date=None, end_date=as_of)["net_income"]
     return {
         "assets": assets,
@@ -80,4 +77,8 @@ def cash_flow_summary(legal_entity, *, start_date, end_date):
     totals = lines.aggregate(debit=Sum("base_debit"), credit=Sum("base_credit"))
     inflow = totals["debit"] or Decimal("0")
     outflow = totals["credit"] or Decimal("0")
-    return {"cash_inflow": inflow, "cash_outflow": outflow, "net_cash_change": inflow - outflow}
+    return {
+        "cash_inflow": inflow,
+        "cash_outflow": outflow,
+        "net_cash_change": inflow - outflow,
+    }

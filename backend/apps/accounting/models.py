@@ -71,18 +71,18 @@ class Account(models.Model):
             ),
         ]
 
-    def clean(self):
-        if self.parent_id and self.parent.legal_entity_id != self.legal_entity_id:
-            raise ValidationError("Parent account must belong to the same legal entity.")
-        if self.parent_id == self.id:
-            raise ValidationError("An account cannot be its own parent.")
+    def __str__(self) -> str:
+        return f"{self.code} - {self.name}"
 
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    def __str__(self) -> str:
-        return f"{self.code} - {self.name}"
+    def clean(self):
+        if self.parent_id and self.parent.legal_entity_id != self.legal_entity_id:
+            raise ValidationError("Parent account must belong to the same legal entity.")
+        if self.parent_id == self.id:
+            raise ValidationError("An account cannot be its own parent.")
 
 
 class FiscalPeriod(models.Model):
@@ -120,6 +120,13 @@ class FiscalPeriod(models.Model):
             )
         ]
 
+    def __str__(self) -> str:
+        return f"{self.legal_entity}: {self.name}"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def clean(self):
         if self.start_date and self.end_date and self.start_date > self.end_date:
             raise ValidationError("Fiscal period start date must be before end date.")
@@ -131,10 +138,6 @@ class FiscalPeriod(models.Model):
             ).exclude(pk=self.pk)
             if overlap.exists():
                 raise ValidationError("Fiscal periods cannot overlap.")
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
 
 
 class TaxCode(models.Model):
@@ -173,15 +176,18 @@ class TaxCode(models.Model):
             )
         ]
 
-    def clean(self):
-        for account in (self.input_account, self.output_account):
-            if account and account.legal_entity_id != self.legal_entity_id:
-                raise ValidationError("Tax accounts must belong to the same legal entity.")
+    def __str__(self) -> str:
+        return f"{self.code} - {self.name}"
 
     def save(self, *args, **kwargs):
         self.code = self.code.upper()
         self.full_clean()
         super().save(*args, **kwargs)
+
+    def clean(self):
+        for account in (self.input_account, self.output_account):
+            if account and account.legal_entity_id != self.legal_entity_id:
+                raise ValidationError("Tax accounts must belong to the same legal entity.")
 
 
 class ExchangeRate(models.Model):
@@ -212,17 +218,20 @@ class ExchangeRate(models.Model):
             )
         ]
 
-    def clean(self):
-        if self.rate <= 0:
-            raise ValidationError("Exchange rate must be greater than zero.")
-        if self.from_currency.upper() == self.to_currency.upper():
-            raise ValidationError("Exchange rate currencies must be different.")
+    def __str__(self) -> str:
+        return f"{self.from_currency}/{self.to_currency} {self.rate_date}"
 
     def save(self, *args, **kwargs):
         self.from_currency = self.from_currency.upper()
         self.to_currency = self.to_currency.upper()
         self.full_clean()
         super().save(*args, **kwargs)
+
+    def clean(self):
+        if self.rate <= 0:
+            raise ValidationError("Exchange rate must be greater than zero.")
+        if self.from_currency.upper() == self.to_currency.upper():
+            raise ValidationError("Exchange rate currencies must be different.")
 
 
 class JournalSequence(models.Model):
@@ -233,6 +242,9 @@ class JournalSequence(models.Model):
         related_name="journal_sequence",
     )
     next_number = models.PositiveBigIntegerField(default=1)
+
+    def __str__(self) -> str:
+        return f"{self.legal_entity} next journal {self.next_number}"
 
 
 class JournalEntry(models.Model):
@@ -284,6 +296,9 @@ class JournalEntry(models.Model):
             )
         ]
 
+    def __str__(self) -> str:
+        return self.number
+
     def delete(self, *args, **kwargs):
         if self.status != JournalStatus.DRAFT:
             raise ValidationError("Posted or reversed journal entries cannot be deleted.")
@@ -321,6 +336,21 @@ class JournalLine(models.Model):
     class Meta:
         ordering = ["created_at"]
 
+    def __str__(self) -> str:
+        return f"{self.journal_entry.number}: {self.account.code}"
+
+    def save(self, *args, **kwargs):
+        self.currency = self.currency.upper()
+        self.base_debit = (self.debit * self.fx_rate).quantize(Decimal("0.01"))
+        self.base_credit = (self.credit * self.fx_rate).quantize(Decimal("0.01"))
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.journal_entry.status != JournalStatus.DRAFT:
+            raise ValidationError("Posted journal lines are immutable.")
+        return super().delete(*args, **kwargs)
+
     def clean(self):
         if self.journal_entry_id and self.journal_entry.status != JournalStatus.DRAFT:
             raise ValidationError("Posted journal lines are immutable.")
@@ -338,15 +368,3 @@ class JournalLine(models.Model):
             raise ValidationError("Debit and credit amounts cannot be negative.")
         if self.fx_rate <= 0:
             raise ValidationError("FX rate must be greater than zero.")
-
-    def save(self, *args, **kwargs):
-        self.currency = self.currency.upper()
-        self.base_debit = (self.debit * self.fx_rate).quantize(Decimal("0.01"))
-        self.base_credit = (self.credit * self.fx_rate).quantize(Decimal("0.01"))
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        if self.journal_entry.status != JournalStatus.DRAFT:
-            raise ValidationError("Posted journal lines are immutable.")
-        return super().delete(*args, **kwargs)

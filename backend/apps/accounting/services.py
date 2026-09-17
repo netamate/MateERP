@@ -26,13 +26,11 @@ def _require_permission(membership: Membership, permission: Permission) -> None:
         raise PermissionDenied("You do not have permission for this accounting action.")
 
 
-def _require_same_entity(membership: Membership, legal_entity_id) -> None:
-    if membership.organization_id != membership.organization_id:
-        raise PermissionDenied("Cross-organization accounting access is not allowed.")
-    if not membership.all_legal_entities:
-        allowed = membership.legal_entities.filter(id=legal_entity_id).exists()
-        if not allowed:
-            raise PermissionDenied("You do not have access to this legal entity.")
+def _require_entity_scope(membership: Membership, legal_entity_id) -> None:
+    if membership.all_legal_entities:
+        return
+    if not membership.legal_entities.filter(id=legal_entity_id).exists():
+        raise PermissionDenied("You do not have access to this legal entity.")
 
 
 def _require_open_period(legal_entity, entry_date: date) -> FiscalPeriod:
@@ -71,7 +69,7 @@ def create_journal(
     request=None,
 ) -> JournalEntry:
     _require_permission(membership, Permission.POST_JOURNAL)
-    _require_same_entity(membership, legal_entity.id)
+    _require_entity_scope(membership, legal_entity.id)
     if legal_entity.organization_id != membership.organization_id:
         raise PermissionDenied("Legal entity does not belong to the active organization.")
     _require_open_period(legal_entity, entry_date)
@@ -144,7 +142,7 @@ def post_journal(*, membership: Membership, journal: JournalEntry, request=None)
     _require_permission(membership, Permission.POST_JOURNAL)
     if journal.legal_entity.organization_id != membership.organization_id:
         raise PermissionDenied("Cross-organization posting is not allowed.")
-    _require_same_entity(membership, journal.legal_entity_id)
+    _require_entity_scope(membership, journal.legal_entity_id)
     if journal.status != JournalStatus.DRAFT:
         raise ValidationError("Only draft journals can be posted.")
     _require_open_period(journal.legal_entity, journal.entry_date)
@@ -179,7 +177,7 @@ def reverse_journal(
     _require_permission(membership, Permission.REVERSE_JOURNAL)
     if journal.legal_entity.organization_id != membership.organization_id:
         raise PermissionDenied("Cross-organization reversal is not allowed.")
-    _require_same_entity(membership, journal.legal_entity_id)
+    _require_entity_scope(membership, journal.legal_entity_id)
     if journal.status != JournalStatus.POSTED:
         raise ValidationError("Only posted journals can be reversed.")
     if hasattr(journal, "reversal_entry"):
@@ -234,7 +232,7 @@ def close_period(
     _require_permission(membership, Permission.CLOSE_PERIOD)
     if period.legal_entity.organization_id != membership.organization_id:
         raise PermissionDenied("Cross-organization period close is not allowed.")
-    _require_same_entity(membership, period.legal_entity_id)
+    _require_entity_scope(membership, period.legal_entity_id)
     period.status = PeriodStatus.HARD_CLOSED if hard_close else PeriodStatus.SOFT_CLOSED
     period.closed_by = membership.user
     period.closed_at = timezone.now()

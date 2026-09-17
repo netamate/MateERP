@@ -13,7 +13,7 @@ from apps.accounting.models import (
 )
 from apps.accounting.selectors import trial_balance
 from apps.accounting.services import create_journal, post_journal, reverse_journal
-from apps.identity.models import Membership, Organization, Role, User, LegalEntity
+from apps.identity.models import LegalEntity, Membership, Organization, Role, User
 
 
 @pytest.fixture

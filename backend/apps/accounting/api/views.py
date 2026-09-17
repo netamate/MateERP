@@ -101,9 +101,9 @@ class JournalListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = JournalEntry.objects.filter(legal_entity=context.legal_entity).prefetch_related(
-            "lines"
-        )
+        queryset = JournalEntry.objects.filter(
+            legal_entity=context.legal_entity
+        ).prefetch_related("lines")
         return Response(JournalEntrySerializer(queryset, many=True).data)
 
     def post(self, request):
@@ -211,7 +211,12 @@ class ProfitLossView(APIView):
         end_date = request.query_params.get("end_date")
         if not start_date or not end_date:
             raise ValidationError("start_date and end_date are required.")
-        return Response(profit_and_loss(context.legal_entity, start_date=start_date, end_date=end_date))
+        report = profit_and_loss(
+            context.legal_entity,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return Response(report)
 
 
 class BalanceSheetView(APIView):
@@ -232,4 +237,9 @@ class CashFlowView(APIView):
         end_date = request.query_params.get("end_date")
         if not start_date or not end_date:
             raise ValidationError("start_date and end_date are required.")
-        return Response(cash_flow_summary(context.legal_entity, start_date=start_date, end_date=end_date))
+        report = cash_flow_summary(
+            context.legal_entity,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return Response(report)
