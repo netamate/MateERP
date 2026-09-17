@@ -1,0 +1,93 @@
+# MateERP production stack for MateServer.
+# Only backend/frontend bind to localhost; PostgreSQL stays private on the dedicated bridge network.
+name: mateerp
+
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - mateerp_pgdata:/var/lib/postgresql/data
+    networks:
+      - mateerp_internal
+
+  backend:
+    image: ${MATEERP_BACKEND_IMAGE:-ghcr.io/netamate/mateerp-backend:main}
+    restart: unless-stopped
+    init: true
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-false}
+      DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-0}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+    ports:
+      - "127.0.0.1:${MATEERP_BACKEND_PORT:-8035}:8000"
+    volumes:
+      - ./data/media:/app/media
+      - ./data/static:/app/staticfiles
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=5).read()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - mateerp_internal
+
+  frontend:
+    image: ${MATEERP_FRONTEND_IMAGE:-ghcr.io/netamate/mateerp-frontend:main}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      MATEERP_BACKEND_URL: ${MATEERP_BACKEND_URL:-http://backend:8000}
+    ports:
+      - "127.0.0.1:${MATEERP_FRONTEND_PORT:-3035}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - mateerp_internal
+
+volumes:
+  mateerp_pgdata:
+    name: mateerp_pgdata
+
+networks:
+  mateerp_internal:
+    name: mateerp_internal
+    driver: bridge
