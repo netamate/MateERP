@@ -28,9 +28,14 @@ def upsert_notification(
             "message": message,
             "link": link,
             "due_date": due_date,
+            "resolved_at": None,
         },
     )
     return notification
+
+
+def resolve_notifications(queryset) -> int:
+    return queryset.filter(resolved_at__isnull=True).update(resolved_at=timezone.now())
 
 
 def mark_notification_read(notification: Notification) -> Notification:
