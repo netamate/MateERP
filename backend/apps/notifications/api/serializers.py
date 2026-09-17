@@ -15,6 +15,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "link",
             "due_date",
             "read_at",
+            "resolved_at",
             "created_at",
         ]
         read_only_fields = fields
