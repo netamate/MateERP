@@ -33,7 +33,9 @@ def _inbox(request, membership):
     )
     legal_entity_id = request.session.get("active_legal_entity_id")
     if legal_entity_id:
-        queryset = queryset.filter(Q(legal_entity_id=legal_entity_id) | Q(legal_entity__isnull=True))
+        queryset = queryset.filter(
+            Q(legal_entity_id=legal_entity_id) | Q(legal_entity__isnull=True)
+        )
     return queryset
 
 
