@@ -1,7 +1,7 @@
 """MateERP Django settings.
 
-Phase 3 adds the identity, organization, legal-entity, RBAC, session-authentication,
-request-tracing, and append-only audit foundations while preserving the Phase 2 stack.
+Phase 4 adds the financial accounting engine on top of the Phase 3 identity,
+organization, legal-entity, RBAC, session-authentication, and audit foundations.
 """
 
 import os
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.identity",
     "apps.audit",
+    "apps.accounting",
 ]
 
 MIDDLEWARE = [

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Home from "./page";
 
-describe("MateERP Phase 3 home", () => {
+describe("MateERP Phase 4 home", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
@@ -17,7 +17,6 @@ describe("MateERP Phase 3 home", () => {
 
   it("renders the secure sign-in gate for an anonymous browser", async () => {
     render(<Home />);
-
     expect(await screen.findByRole("heading", { name: /MateERP/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
