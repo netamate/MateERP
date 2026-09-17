@@ -1,4 +1,4 @@
-# Phase 2 CI verifies both monorepo applications without deploying anything.
+# Phase 3 CI validates the monorepo security foundation without deploying anything.
 name: CI
 
 on:
@@ -44,7 +44,9 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
+      - run: python manage.py makemigrations --check
       - run: python manage.py migrate --noinput
+      - run: python manage.py check --deploy
       - run: pytest
       - run: python manage.py spectacular --validate --file schema.yml
 

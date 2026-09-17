@@ -2,7 +2,7 @@
 
 MateERP is NetaMate Solutions' enterprise financial and business operations ERP.
 
-This repository is the production monorepo. The current development stage is **Phase 2: Project Bootstrap & Engineering Foundation**.
+The production monorepo is currently in **Phase 3: Identity, Organization & Security Core**.
 
 ## Repository structure
 
@@ -10,16 +10,28 @@ This repository is the production monorepo. The current development stage is **P
 MateERP/
 ├── backend/        Django + Django REST Framework API
 ├── frontend/       Next.js App Router frontend
-├── docs/           Architecture and development documentation
-├── deploy/         Deployment assets added as Phase 2/9 work requires
+├── docs/           Architecture, security, and development documentation
+├── deploy/         Deployment assets
 ├── .github/        CI workflows
 ├── compose.yaml    Local Docker development stack
 └── README.md
 ```
 
-## Phase 2 boundaries
+## Phase 3 scope
 
-Phase 2 establishes the engineering foundation only. It does not implement the accounting engine, organization/security domain, finance operations, or other later-phase business modules.
+The current codebase establishes:
+
+- UUID email-based user identities
+- organizations and legal entities
+- organization memberships and legal-entity access scope
+- centralized RBAC policy
+- Django session authentication and CSRF protection
+- server-side active organization/legal-entity context
+- append-only audit events and request IDs
+- secure initial instance bootstrap
+- authenticated frontend shell and context selectors
+
+Financial accounting and operational finance modules are intentionally not implemented yet.
 
 ## Local development
 
@@ -31,17 +43,20 @@ Phase 2 establishes the engineering foundation only. It does not implement the a
 ### Start
 
 1. Copy `.env.example` to `.env`.
-2. Start the stack:
+2. Set local-only development values in `.env`.
+3. Start the stack:
 
 ```powershell
 docker compose up --build
 ```
 
-3. Open:
+4. Bootstrap the first owner and organization from the backend container or a local backend environment. Set `MATEERP_BOOTSTRAP_PASSWORD` first. Never commit that value.
+
+5. Open:
 
 - Frontend: http://localhost:3000
 - API health: http://localhost:8000/api/v1/health/
 - OpenAPI schema: http://localhost:8000/api/schema/
 - Swagger UI: http://localhost:8000/api/docs/
 
-See `docs/development.md` for non-Docker commands and quality checks.
+See `docs/development.md`, `docs/security.md`, and `docs/phase-3.md`.

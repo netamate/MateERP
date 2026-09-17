@@ -1,37 +1,43 @@
-# Architecture Baseline
+# MateERP architecture
 
-## Application style
-
-MateERP is a modular monolith with a single transactional backend boundary.
+MateERP is a modular monolith with a single transactional PostgreSQL boundary.
 
 ```text
 Browser
-  -> Next.js frontend
+  -> Host Nginx in production
+  -> Next.js
   -> Django REST API
   -> PostgreSQL
 ```
 
-The production deployment will sit behind host-native Nginx on MateServer.
+## Backend modules established through Phase 3
 
-## Backend module shape
+### `core`
 
-Future domain apps should prefer:
+Cross-cutting application infrastructure such as health checks and request ID propagation.
 
-```text
-apps/<domain>/
-├── api/
-├── models/
-├── selectors/
-├── services/
-└── tests/
-```
+### `identity`
 
-Business writes belong in services. Complex reads and reports belong in selectors. API views and serializers should remain thin.
+Owns the UUID user identity, organizations, legal entities, memberships, legal-entity
+scope, centralized role/permission policy, session context services, and browser
+authentication APIs.
 
-## Phase 2 scope
+### `audit`
 
-The bootstrap includes only a small `core` app for technical health and API foundation. It intentionally does not introduce organization, identity, ledger, expenses, income, payments, transfers, or other future domains.
+Owns append-only `AuditEvent` records. Financial modules added in later phases must use
+this audit foundation for sensitive actions.
 
-## Frontend design baseline
+## Security boundary
 
-The production frontend is desktop-first and data-first. Normal UI geometry is sharp and uses zero-radius surfaces. Borders are preferred over decorative shadows.
+Django is authoritative for authentication, authorization, organization membership,
+legal-entity access, and later financial permissions. The Next.js frontend may hide or
+disable controls for usability, but it never grants access.
+
+The active organization/legal entity is stored in the server-side session and revalidated
+against membership scope before use.
+
+## Future domain modules
+
+Accounting, finance operations, planning, assets, reporting, and other domain apps are
+added only in their scheduled phases. They must reuse the Phase 3 identity, scope, RBAC,
+and audit foundations rather than implementing parallel security rules.

@@ -1,7 +1,11 @@
-"""MateERP Django settings for the Phase 2 engineering foundation."""
+"""MateERP Django settings.
 
-from pathlib import Path
+Phase 3 adds the identity, organization, legal-entity, RBAC, session-authentication,
+request-tracing, and append-only audit foundations while preserving the Phase 2 stack.
+"""
+
 import os
+from pathlib import Path
 
 import dj_database_url
 
@@ -33,10 +37,13 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_filters",
     "apps.core",
+    "apps.identity",
+    "apps.audit",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.RequestIdMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -71,6 +78,8 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+
+AUTH_USER_MODEL = "identity.User"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -114,7 +123,9 @@ SPECTACULAR_SETTINGS = {
 }
 
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = "Lax"
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
