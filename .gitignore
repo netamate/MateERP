@@ -1,4 +1,4 @@
-# MateERP monorepo ignores local-only state, generated artifacts, and secrets.
+# MateERP monorepo ignores local-only state, generated artifacts, uploads, and secrets.
 .env
 .env.*
 !.env.example
@@ -10,6 +10,7 @@ __pycache__/
 coverage.xml
 htmlcov/
 backend/staticfiles/
+backend/media/
 frontend/node_modules/
 frontend/.next/
 frontend/coverage/
