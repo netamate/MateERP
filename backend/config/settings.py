@@ -1,7 +1,7 @@
 """MateERP Django settings.
 
-Phase 5 adds core finance operations on top of the Phase 4 accounting engine and the
-Phase 3 identity, legal-entity, RBAC, session-authentication, and audit foundations.
+Phase 7 adds operations, planning, and asset-management domains on top of the
+existing identity, accounting, finance, audit, and production frontend foundations.
 """
 
 import os
@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.accounting",
     "apps.finance",
+    "apps.planning",
+    "apps.operations",
 ]
 
 MIDDLEWARE = [
