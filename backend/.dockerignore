@@ -1,0 +1,12 @@
+# Keep production image context small and prevent local/runtime data from entering the image.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+.env
+media/
+staticfiles/
+htmlcov/
+.coverage
