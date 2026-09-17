@@ -1,0 +1,8 @@
+# Keep production image context small and exclude local build/test artifacts.
+node_modules/
+.next/
+.env
+.env.*
+coverage/
+playwright-report/
+test-results/
