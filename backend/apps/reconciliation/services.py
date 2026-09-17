@@ -120,7 +120,9 @@ def replace_reconciliation_items(
         if line.journal_entry.entry_date > reconciliation.end_date:
             raise ValidationError("Journal line is later than the reconciliation statement date.")
         if line.currency != account.currency:
-            raise ValidationError("Journal line currency must match the financial account currency.")
+            raise ValidationError(
+                "Journal line currency must match the financial account currency."
+            )
 
     reconciliation.items.all().delete()
     for line in lines:
