@@ -7,7 +7,6 @@ from apps.finance.models import FinancialAccountType
 
 from .models import AccountReconciliation, ReconciliationItem, ReconciliationStatus
 
-
 LEDGER_STATUSES = [JournalStatus.POSTED, JournalStatus.REVERSED]
 
 
@@ -31,8 +30,7 @@ def reconciliation_candidates(reconciliation: AccountReconciliation):
         .order_by("journal_entry__entry_date", "created_at")
     )
     queryset = queryset.filter(
-        Q(reconciliation_item__isnull=True)
-        | Q(reconciliation_item__reconciliation=reconciliation)
+        Q(reconciliation_item__isnull=True) | Q(reconciliation_item__reconciliation=reconciliation)
     )
     selected_ids = set(reconciliation.items.values_list("journal_line_id", flat=True))
     return [
