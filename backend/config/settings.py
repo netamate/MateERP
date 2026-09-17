@@ -1,7 +1,7 @@
 """MateERP Django settings.
 
-Phase 4 adds the financial accounting engine on top of the Phase 3 identity,
-organization, legal-entity, RBAC, session-authentication, and audit foundations.
+Phase 5 adds core finance operations on top of the Phase 4 accounting engine and the
+Phase 3 identity, legal-entity, RBAC, session-authentication, and audit foundations.
 """
 
 import os
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.identity",
     "apps.audit",
     "apps.accounting",
+    "apps.finance",
 ]
 
 MIDDLEWARE = [
@@ -96,6 +97,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
