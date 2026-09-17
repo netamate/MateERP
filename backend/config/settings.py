@@ -18,9 +18,7 @@ if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = "unsafe-local-development-key"
     else:
-        raise ImproperlyConfigured(
-            "DJANGO_SECRET_KEY is required when DJANGO_DEBUG is false."
-        )
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY is required when DJANGO_DEBUG is false.")
 
 ALLOWED_HOSTS = [
     host.strip()
