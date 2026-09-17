@@ -25,6 +25,10 @@ class Permission(StrEnum):
     APPROVE_FINANCE = "APPROVE_FINANCE"
     PAY_FINANCE = "PAY_FINANCE"
     MANAGE_FINANCE_DOCUMENTS = "MANAGE_FINANCE_DOCUMENTS"
+    VIEW_OPERATIONS = "VIEW_OPERATIONS"
+    MANAGE_OPERATIONS = "MANAGE_OPERATIONS"
+    VIEW_PLANNING = "VIEW_PLANNING"
+    MANAGE_PLANNING = "MANAGE_PLANNING"
 
 
 FINANCE_PERMISSIONS = frozenset(
@@ -46,6 +50,10 @@ FINANCE_PERMISSIONS = frozenset(
         Permission.APPROVE_FINANCE,
         Permission.PAY_FINANCE,
         Permission.MANAGE_FINANCE_DOCUMENTS,
+        Permission.VIEW_OPERATIONS,
+        Permission.MANAGE_OPERATIONS,
+        Permission.VIEW_PLANNING,
+        Permission.MANAGE_PLANNING,
     }
 )
 
@@ -62,6 +70,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.POST_JOURNAL,
             Permission.VIEW_FINANCE,
             Permission.APPROVE_FINANCE,
+            Permission.VIEW_OPERATIONS,
+            Permission.VIEW_PLANNING,
         }
     ),
     Role.MEMBER: frozenset(
@@ -73,6 +83,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_FINANCE,
             Permission.SUBMIT_FINANCE,
             Permission.MANAGE_FINANCE_DOCUMENTS,
+            Permission.VIEW_OPERATIONS,
+            Permission.VIEW_PLANNING,
         }
     ),
     Role.VIEWER: frozenset(
@@ -82,6 +94,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_LEGAL_ENTITY,
             Permission.VIEW_ACCOUNTING,
             Permission.VIEW_FINANCE,
+            Permission.VIEW_OPERATIONS,
+            Permission.VIEW_PLANNING,
         }
     ),
 }

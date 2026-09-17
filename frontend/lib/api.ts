@@ -209,6 +209,199 @@ export type ReportRow = {
   [key: string]: unknown;
 };
 
+export type CostCenter = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Product = CostCenter;
+
+export type Project = {
+  id: string;
+  product: string | null;
+  code: string;
+  name: string;
+  client_name: string;
+  description: string;
+  start_date: string | null;
+  end_date: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExpenseAllocation = {
+  id: string;
+  expense: string;
+  cost_center: string | null;
+  product: string | null;
+  project: string | null;
+  amount: string;
+  base_amount: string;
+  note: string;
+  created_at: string;
+};
+
+export type Budget = {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  notes: string;
+  line_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BudgetLine = {
+  id: string;
+  expense_account: string | null;
+  expense_account_name: string | null;
+  cost_center: string | null;
+  cost_center_name: string | null;
+  product: string | null;
+  product_name: string | null;
+  project: string | null;
+  project_name: string | null;
+  amount: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BudgetActualLine = {
+  id: string;
+  expense_account_id: string | null;
+  expense_account_name: string | null;
+  cost_center_id: string | null;
+  cost_center_name: string | null;
+  product_id: string | null;
+  product_name: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  budget_amount: string;
+  actual_amount: string;
+  variance: string;
+  utilization_percent: string;
+  notes: string;
+};
+
+export type BudgetActuals = {
+  budget_id: string;
+  name: string;
+  base_currency: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  total_budget: string;
+  total_actual: string;
+  total_variance: string;
+  lines: BudgetActualLine[];
+};
+
+export type Subscription = {
+  id: string;
+  vendor: string | null;
+  vendor_name: string | null;
+  product: string | null;
+  product_name: string | null;
+  cost_center: string | null;
+  cost_center_name: string | null;
+  payment_account: string | null;
+  expense_account: string | null;
+  payable_account: string | null;
+  name: string;
+  category: string;
+  description: string;
+  amount: string;
+  currency: string;
+  billing_cycle: string;
+  started_on: string | null;
+  next_renewal_date: string | null;
+  auto_renew: boolean;
+  status: string;
+  notes: string;
+};
+
+export type DomainRecord = {
+  id: string;
+  product: string | null;
+  product_name: string | null;
+  payment_account: string | null;
+  expense_account: string | null;
+  payable_account: string | null;
+  domain_name: string;
+  registrar: string;
+  dns_provider: string;
+  purpose: string;
+  purchase_date: string | null;
+  expiry_date: string;
+  renewal_amount: string;
+  currency: string;
+  auto_renew: boolean;
+  status: string;
+  notes: string;
+  renewal_count: number;
+};
+
+export type DomainRenewal = {
+  id: string;
+  domain: string;
+  expense: string | null;
+  renewed_on: string;
+  previous_expiry_date: string;
+  new_expiry_date: string;
+  amount: string;
+  currency: string;
+  fx_rate: string;
+  notes: string;
+  created_at: string;
+};
+
+export type InfrastructureAsset = {
+  id: string;
+  vendor: string | null;
+  vendor_name: string | null;
+  product: string | null;
+  product_name: string | null;
+  cost_center: string | null;
+  cost_center_name: string | null;
+  payment_account: string | null;
+  expense_account: string | null;
+  payable_account: string | null;
+  name: string;
+  asset_type: string;
+  provider_reference: string;
+  purpose: string;
+  started_on: string | null;
+  next_renewal_date: string | null;
+  renewal_amount: string;
+  currency: string;
+  billing_cycle: string;
+  auto_renew: boolean;
+  status: string;
+  notes: string;
+};
+
+export type RenewalItem = {
+  source_type: "SUBSCRIPTION" | "DOMAIN" | "INFRASTRUCTURE";
+  source_id: string;
+  name: string;
+  renewal_date: string;
+  amount: string;
+  currency: string;
+  auto_renew: boolean;
+  vendor_name: string | null;
+  product_name: string | null;
+  cost_center_name: string | null;
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -223,11 +416,25 @@ async function ensureCsrfToken(): Promise<string> {
     credentials: "include",
     cache: "no-store",
   });
-  if (!response.ok) {
-    throw new ApiError("Unable to initialize secure request token.", response.status);
-  }
+  if (!response.ok) throw new ApiError("Unable to initialize secure request token.", response.status);
   const data = (await response.json()) as { csrf_token: string };
   return data.csrf_token;
+}
+
+function extractErrorMessage(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const data = body as Record<string, unknown>;
+  if (typeof data.detail === "string") return data.detail;
+  if (Array.isArray(data.non_field_errors) && typeof data.non_field_errors[0] === "string") {
+    return data.non_field_errors[0];
+  }
+  for (const [field, value] of Object.entries(data)) {
+    if (Array.isArray(value) && typeof value[0] === "string") {
+      return `${field.replaceAll("_", " ")}: ${value[0]}`;
+    }
+    if (typeof value === "string") return `${field.replaceAll("_", " ")}: ${value}`;
+  }
+  return null;
 }
 
 export async function request<T>(
@@ -237,34 +444,20 @@ export async function request<T>(
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
-  if (init.body && !(init.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (csrfProtected) {
-    headers.set("X-CSRFToken", await ensureCsrfToken());
-  }
+  if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  if (csrfProtected) headers.set("X-CSRFToken", await ensureCsrfToken());
 
-  const response = await fetch(url, {
-    ...init,
-    headers,
-    credentials: "include",
-    cache: "no-store",
-  });
-
+  const response = await fetch(url, { ...init, headers, credentials: "include", cache: "no-store" });
   if (!response.ok) {
     let message = "Request failed.";
     try {
-      const body = (await response.json()) as { detail?: string; non_field_errors?: string[] };
-      message = body.detail ?? body.non_field_errors?.[0] ?? message;
+      message = extractErrorMessage(await response.json()) ?? message;
     } catch {
-      // Keep the safe generic message for non-JSON error responses.
+      // Keep the safe generic message for non-JSON responses.
     }
     throw new ApiError(message, response.status);
   }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
@@ -290,10 +483,7 @@ export function setContext(
 ): Promise<SessionPayload> {
   return request<SessionPayload>(
     "/api/v1/session/context/",
-    {
-      method: "POST",
-      body: JSON.stringify({ organization_id: organizationId, legal_entity_id: legalEntityId }),
-    },
+    { method: "POST", body: JSON.stringify({ organization_id: organizationId, legal_entity_id: legalEntityId }) },
     true,
   );
 }
@@ -305,42 +495,14 @@ export const financeApi = {
   income: () => request<Income[]>("/api/v1/finance/income/"),
   transfers: () => request<Transfer[]>("/api/v1/finance/transfers/"),
   reimbursements: () => request<Reimbursement[]>("/api/v1/finance/reimbursements/"),
-  createVendor: (body: Record<string, unknown>) =>
-    request<Vendor>("/api/v1/finance/vendors/", { method: "POST", body: JSON.stringify(body) }, true),
-  createExpense: (body: Record<string, unknown>) =>
-    request<Expense>("/api/v1/finance/expenses/", { method: "POST", body: JSON.stringify(body) }, true),
-  expenseWorkflow: (id: string, action: "submit" | "approve" | "reject", comment = "") =>
-    request<Expense>(
-      `/api/v1/finance/expenses/${id}/workflow/`,
-      { method: "POST", body: JSON.stringify({ action, comment }) },
-      true,
-    ),
-  payExpense: (id: string, body: Record<string, unknown>) =>
-    request<ExpensePayment>(
-      `/api/v1/finance/expenses/${id}/payments/`,
-      { method: "POST", body: JSON.stringify(body) },
-      true,
-    ),
-  createIncome: (body: Record<string, unknown>) =>
-    request<Income>("/api/v1/finance/income/", { method: "POST", body: JSON.stringify(body) }, true),
-  createTransfer: (body: Record<string, unknown>) =>
-    request<Transfer>("/api/v1/finance/transfers/", { method: "POST", body: JSON.stringify(body) }, true),
-  createReimbursement: (body: Record<string, unknown>) =>
-    request<Reimbursement>(
-      "/api/v1/finance/reimbursements/",
-      { method: "POST", body: JSON.stringify(body) },
-      true,
-    ),
-  reimbursementWorkflow: (
-    id: string,
-    action: "submit" | "approve" | "reject",
-    comment = "",
-  ) =>
-    request<Reimbursement>(
-      `/api/v1/finance/reimbursements/${id}/workflow/`,
-      { method: "POST", body: JSON.stringify({ action, comment }) },
-      true,
-    ),
+  createVendor: (body: Record<string, unknown>) => request<Vendor>("/api/v1/finance/vendors/", { method: "POST", body: JSON.stringify(body) }, true),
+  createExpense: (body: Record<string, unknown>) => request<Expense>("/api/v1/finance/expenses/", { method: "POST", body: JSON.stringify(body) }, true),
+  expenseWorkflow: (id: string, action: "submit" | "approve" | "reject", comment = "") => request<Expense>(`/api/v1/finance/expenses/${id}/workflow/`, { method: "POST", body: JSON.stringify({ action, comment }) }, true),
+  payExpense: (id: string, body: Record<string, unknown>) => request<ExpensePayment>(`/api/v1/finance/expenses/${id}/payments/`, { method: "POST", body: JSON.stringify(body) }, true),
+  createIncome: (body: Record<string, unknown>) => request<Income>("/api/v1/finance/income/", { method: "POST", body: JSON.stringify(body) }, true),
+  createTransfer: (body: Record<string, unknown>) => request<Transfer>("/api/v1/finance/transfers/", { method: "POST", body: JSON.stringify(body) }, true),
+  createReimbursement: (body: Record<string, unknown>) => request<Reimbursement>("/api/v1/finance/reimbursements/", { method: "POST", body: JSON.stringify(body) }, true),
+  reimbursementWorkflow: (id: string, action: "submit" | "approve" | "reject", comment = "") => request<Reimbursement>(`/api/v1/finance/reimbursements/${id}/workflow/`, { method: "POST", body: JSON.stringify({ action, comment }) }, true),
 };
 
 export const accountingApi = {
@@ -351,6 +513,47 @@ export const accountingApi = {
   profitLoss: () => request<ReportRow[] | Record<string, unknown>>("/api/v1/accounting/reports/profit-loss/"),
   balanceSheet: () => request<ReportRow[] | Record<string, unknown>>("/api/v1/accounting/reports/balance-sheet/"),
   cashFlow: () => request<ReportRow[] | Record<string, unknown>>("/api/v1/accounting/reports/cash-flow/"),
+};
+
+export const planningApi = {
+  costCenters: () => request<CostCenter[]>("/api/v1/planning/cost-centers/"),
+  products: () => request<Product[]>("/api/v1/planning/products/"),
+  projects: () => request<Project[]>("/api/v1/planning/projects/"),
+  budgets: () => request<Budget[]>("/api/v1/planning/budgets/"),
+  budget: (id: string) => request<Budget & { lines: BudgetLine[] }>(`/api/v1/planning/budgets/${id}/`),
+  budgetActuals: (id: string) => request<BudgetActuals>(`/api/v1/planning/budgets/${id}/actuals/`),
+  createCostCenter: (body: Record<string, unknown>) => request<CostCenter>("/api/v1/planning/cost-centers/", { method: "POST", body: JSON.stringify(body) }, true),
+  updateCostCenter: (id: string, body: Record<string, unknown>) => request<CostCenter>(`/api/v1/planning/cost-centers/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  createProduct: (body: Record<string, unknown>) => request<Product>("/api/v1/planning/products/", { method: "POST", body: JSON.stringify(body) }, true),
+  updateProduct: (id: string, body: Record<string, unknown>) => request<Product>(`/api/v1/planning/products/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  createProject: (body: Record<string, unknown>) => request<Project>("/api/v1/planning/projects/", { method: "POST", body: JSON.stringify(body) }, true),
+  updateProject: (id: string, body: Record<string, unknown>) => request<Project>(`/api/v1/planning/projects/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  createBudget: (body: Record<string, unknown>) => request<Budget>("/api/v1/planning/budgets/", { method: "POST", body: JSON.stringify(body) }, true),
+  updateBudget: (id: string, body: Record<string, unknown>) => request<Budget>(`/api/v1/planning/budgets/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  createBudgetLine: (budgetId: string, body: Record<string, unknown>) => request<BudgetLine>(`/api/v1/planning/budgets/${budgetId}/lines/`, { method: "POST", body: JSON.stringify(body) }, true),
+  expenseAllocations: (expenseId: string) => request<ExpenseAllocation[]>(`/api/v1/planning/expenses/${expenseId}/allocations/`),
+  replaceExpenseAllocations: (expenseId: string, allocations: Array<Record<string, unknown>>) => request<ExpenseAllocation[]>(`/api/v1/planning/expenses/${expenseId}/allocations/`, { method: "PUT", body: JSON.stringify({ allocations }) }, true),
+};
+
+export const operationsApi = {
+  subscriptions: () => request<Subscription[]>("/api/v1/operations/subscriptions/"),
+  domains: () => request<DomainRecord[]>("/api/v1/operations/domains/"),
+  infrastructure: () => request<InfrastructureAsset[]>("/api/v1/operations/infrastructure/"),
+  renewals: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<RenewalItem[]>(`/api/v1/operations/renewals/${suffix}`);
+  },
+  domainRenewals: (domainId: string) => request<DomainRenewal[]>(`/api/v1/operations/domains/${domainId}/renewals/`),
+  createSubscription: (body: Record<string, unknown>) => request<Subscription>("/api/v1/operations/subscriptions/", { method: "POST", body: JSON.stringify(body) }, true),
+  updateSubscription: (id: string, body: Record<string, unknown>) => request<Subscription>(`/api/v1/operations/subscriptions/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  createDomain: (body: Record<string, unknown>) => request<DomainRecord>("/api/v1/operations/domains/", { method: "POST", body: JSON.stringify(body) }, true),
+  updateDomain: (id: string, body: Record<string, unknown>) => request<DomainRecord>(`/api/v1/operations/domains/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  createInfrastructure: (body: Record<string, unknown>) => request<InfrastructureAsset>("/api/v1/operations/infrastructure/", { method: "POST", body: JSON.stringify(body) }, true),
+  updateInfrastructure: (id: string, body: Record<string, unknown>) => request<InfrastructureAsset>(`/api/v1/operations/infrastructure/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  renewDomain: (domainId: string, body: Record<string, unknown>) => request<DomainRenewal>(`/api/v1/operations/domains/${domainId}/renew/`, { method: "POST", body: JSON.stringify(body) }, true),
 };
 
 export const adminApi = {
