@@ -1,0 +1,9 @@
+# Create a native PostgreSQL backup for MateERP using the production Compose database service.
+[Unit]
+Description=MateERP PostgreSQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/MateERP/scripts/backup-db.sh
