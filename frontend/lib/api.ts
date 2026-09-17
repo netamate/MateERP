@@ -45,6 +45,170 @@ export type SessionPayload = {
   active_legal_entities: LegalEntity[];
 };
 
+export type Vendor = {
+  id: string;
+  code: string;
+  name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  payment_terms_days: number;
+  status: string;
+  default_expense_account: string | null;
+  payable_account: string | null;
+};
+
+export type FinancialAccount = {
+  id: string;
+  name: string;
+  account_type: string;
+  currency: string;
+  ledger_account: string;
+  institution_name: string;
+  last_four: string;
+  is_active: boolean;
+};
+
+export type Expense = {
+  id: string;
+  vendor: string | null;
+  expense_date: string;
+  due_date: string | null;
+  description: string;
+  reference: string;
+  amount: string;
+  tax_amount: string;
+  currency: string;
+  fx_rate: string;
+  expense_account: string;
+  payable_account: string;
+  tax_code: string | null;
+  status: string;
+  journal_entry: string | null;
+  approved_at: string | null;
+  rejection_reason: string;
+  payments: ExpensePayment[];
+};
+
+export type ExpensePayment = {
+  id: string;
+  expense: string;
+  financial_account: string;
+  payment_date: string;
+  amount: string;
+  currency: string;
+  fx_rate: string;
+  base_amount: string;
+  reference: string;
+  journal_entry: string;
+  created_at: string;
+};
+
+export type Income = {
+  id: string;
+  income_date: string;
+  payer_name: string;
+  description: string;
+  reference: string;
+  amount: string;
+  currency: string;
+  fx_rate: string;
+  revenue_account: string;
+  financial_account: string;
+  status: string;
+  journal_entry: string | null;
+};
+
+export type Transfer = {
+  id: string;
+  transfer_date: string;
+  from_account: string;
+  to_account: string;
+  source_amount: string;
+  destination_amount: string;
+  source_fx_rate: string;
+  destination_fx_rate: string;
+  reference: string;
+  memo: string;
+  status: string;
+  journal_entry: string | null;
+};
+
+export type Reimbursement = {
+  id: string;
+  claimant: string;
+  expense_date: string;
+  description: string;
+  amount: string;
+  currency: string;
+  fx_rate: string;
+  expense_account: string;
+  payable_account: string;
+  status: string;
+  journal_entry: string | null;
+  approved_at: string | null;
+  rejection_reason: string;
+  payments: ReimbursementPayment[];
+};
+
+export type ReimbursementPayment = {
+  id: string;
+  reimbursement: string;
+  financial_account: string;
+  payment_date: string;
+  amount: string;
+  currency: string;
+  fx_rate: string;
+  base_amount: string;
+  reference: string;
+  journal_entry: string;
+  created_at: string;
+};
+
+export type LedgerAccount = {
+  id: string;
+  code: string;
+  name: string;
+  account_type: string;
+  normal_balance: string;
+  is_active: boolean;
+  parent: string | null;
+};
+
+export type JournalEntry = {
+  id: string;
+  number: string;
+  entry_date: string;
+  memo: string;
+  status: string;
+  source_type: string;
+  source_id: string;
+  posted_at: string | null;
+  lines: Array<{
+    id: string;
+    account: string;
+    description: string;
+    debit: string;
+    credit: string;
+    currency: string;
+    fx_rate: string;
+    base_debit: string;
+    base_credit: string;
+  }>;
+};
+
+export type ReportRow = {
+  account_id?: string;
+  account_code?: string;
+  account_name?: string;
+  debit?: string;
+  credit?: string;
+  balance?: string;
+  amount?: string;
+  label?: string;
+  [key: string]: unknown;
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -66,15 +230,14 @@ async function ensureCsrfToken(): Promise<string> {
   return data.csrf_token;
 }
 
-async function request<T>(
+export async function request<T>(
   url: string,
   init: RequestInit = {},
   csrfProtected = false,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
-
-  if (init.body) {
+  if (init.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   if (csrfProtected) {
@@ -91,8 +254,8 @@ async function request<T>(
   if (!response.ok) {
     let message = "Request failed.";
     try {
-      const body = (await response.json()) as { detail?: string };
-      message = body.detail ?? message;
+      const body = (await response.json()) as { detail?: string; non_field_errors?: string[] };
+      message = body.detail ?? body.non_field_errors?.[0] ?? message;
     } catch {
       // Keep the safe generic message for non-JSON error responses.
     }
@@ -112,10 +275,7 @@ export function getSession(): Promise<SessionPayload> {
 export function login(email: string, password: string): Promise<SessionPayload> {
   return request<SessionPayload>(
     "/api/v1/auth/login/",
-    {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    },
+    { method: "POST", body: JSON.stringify({ email, password }) },
     true,
   );
 }
@@ -132,11 +292,68 @@ export function setContext(
     "/api/v1/session/context/",
     {
       method: "POST",
-      body: JSON.stringify({
-        organization_id: organizationId,
-        legal_entity_id: legalEntityId,
-      }),
+      body: JSON.stringify({ organization_id: organizationId, legal_entity_id: legalEntityId }),
     },
     true,
   );
 }
+
+export const financeApi = {
+  vendors: () => request<Vendor[]>("/api/v1/finance/vendors/"),
+  accounts: () => request<FinancialAccount[]>("/api/v1/finance/accounts/"),
+  expenses: () => request<Expense[]>("/api/v1/finance/expenses/"),
+  income: () => request<Income[]>("/api/v1/finance/income/"),
+  transfers: () => request<Transfer[]>("/api/v1/finance/transfers/"),
+  reimbursements: () => request<Reimbursement[]>("/api/v1/finance/reimbursements/"),
+  createVendor: (body: Record<string, unknown>) =>
+    request<Vendor>("/api/v1/finance/vendors/", { method: "POST", body: JSON.stringify(body) }, true),
+  createExpense: (body: Record<string, unknown>) =>
+    request<Expense>("/api/v1/finance/expenses/", { method: "POST", body: JSON.stringify(body) }, true),
+  expenseWorkflow: (id: string, action: "submit" | "approve" | "reject", comment = "") =>
+    request<Expense>(
+      `/api/v1/finance/expenses/${id}/workflow/`,
+      { method: "POST", body: JSON.stringify({ action, comment }) },
+      true,
+    ),
+  payExpense: (id: string, body: Record<string, unknown>) =>
+    request<ExpensePayment>(
+      `/api/v1/finance/expenses/${id}/payments/`,
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  createIncome: (body: Record<string, unknown>) =>
+    request<Income>("/api/v1/finance/income/", { method: "POST", body: JSON.stringify(body) }, true),
+  createTransfer: (body: Record<string, unknown>) =>
+    request<Transfer>("/api/v1/finance/transfers/", { method: "POST", body: JSON.stringify(body) }, true),
+  createReimbursement: (body: Record<string, unknown>) =>
+    request<Reimbursement>(
+      "/api/v1/finance/reimbursements/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  reimbursementWorkflow: (
+    id: string,
+    action: "submit" | "approve" | "reject",
+    comment = "",
+  ) =>
+    request<Reimbursement>(
+      `/api/v1/finance/reimbursements/${id}/workflow/`,
+      { method: "POST", body: JSON.stringify({ action, comment }) },
+      true,
+    ),
+};
+
+export const accountingApi = {
+  accounts: () => request<LedgerAccount[]>("/api/v1/accounting/accounts/"),
+  journals: () => request<JournalEntry[]>("/api/v1/accounting/journals/"),
+  periods: () => request<Array<Record<string, unknown>>>("/api/v1/accounting/periods/"),
+  trialBalance: () => request<ReportRow[] | Record<string, unknown>>("/api/v1/accounting/reports/trial-balance/"),
+  profitLoss: () => request<ReportRow[] | Record<string, unknown>>("/api/v1/accounting/reports/profit-loss/"),
+  balanceSheet: () => request<ReportRow[] | Record<string, unknown>>("/api/v1/accounting/reports/balance-sheet/"),
+  cashFlow: () => request<ReportRow[] | Record<string, unknown>>("/api/v1/accounting/reports/cash-flow/"),
+};
+
+export const adminApi = {
+  members: () => request<Array<Record<string, unknown>>>("/api/v1/memberships/"),
+  legalEntities: () => request<LegalEntity[]>("/api/v1/legal-entities/"),
+};
