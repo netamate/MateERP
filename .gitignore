@@ -1,0 +1,20 @@
+# MateERP monorepo ignores local-only state, generated artifacts, and secrets.
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+coverage.xml
+htmlcov/
+backend/staticfiles/
+frontend/node_modules/
+frontend/.next/
+frontend/coverage/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

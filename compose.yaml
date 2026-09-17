@@ -1,0 +1,62 @@
+# Phase 2 local development stack.
+# Only development web ports are published. PostgreSQL remains internal to Docker.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: mateerp
+      POSTGRES_USER: mateerp
+      POSTGRES_PASSWORD: mateerp
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mateerp -d mateerp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mateerp_dev_pgdata:/var/lib/postgresql/data
+    networks:
+      - mateerp_dev
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mateerp_dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command: npm run dev -- --hostname 0.0.0.0
+    volumes:
+      - ./frontend:/app
+      - mateerp_frontend_node_modules:/app/node_modules
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - mateerp_dev
+
+volumes:
+  mateerp_dev_pgdata:
+  mateerp_frontend_node_modules:
+
+networks:
+  mateerp_dev:
+    driver: bridge
