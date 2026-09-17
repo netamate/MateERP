@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from apps.finance.models import FinanceDocument
@@ -38,11 +39,16 @@ class FinanceDocumentIntegritySerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+    def validate_file(self, upload):
+        if upload.size > 25 * 1024 * 1024:
+            raise serializers.ValidationError("Finance documents cannot exceed 25 MB.")
+        return upload
+
     @staticmethod
     def _metadata(obj):
         try:
             return obj.integrity_metadata
-        except (AttributeError, FinanceDocument.integrity_metadata.RelatedObjectDoesNotExist):
+        except (AttributeError, ObjectDoesNotExist):
             return None
 
     def get_mime_type(self, obj):
