@@ -39,7 +39,10 @@ def test_owner_has_all_declared_permissions():
 def test_administrator_cannot_grant_owner_role():
     organization = Organization.objects.create(name="Example", slug="example")
     admin_user = User.objects.create_user(email="admin@example.com", password="safe-test-password")
-    member_user = User.objects.create_user(email="member@example.com", password="safe-test-password")
+    member_user = User.objects.create_user(
+        email="member@example.com",
+        password="safe-test-password",
+    )
     admin = Membership.objects.create(
         organization=organization,
         user=admin_user,
