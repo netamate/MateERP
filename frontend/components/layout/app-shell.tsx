@@ -56,6 +56,7 @@ const navGroups: NavGroup[] = [
       { label: "Income", href: "/income", icon: CircleDollarSign },
       { label: "Transfers", href: "/transfers", icon: WalletCards },
       { label: "Financial Accounts", href: "/accounts", icon: Landmark },
+      { label: "Reconciliation", href: "/reconciliation", icon: FileCheck2 },
       { label: "Vendors", href: "/vendors", icon: Building2 },
       { label: "Reimbursements", href: "/reimbursements", icon: ReceiptText },
       { label: "Founder Funding", href: "/founder-funding", icon: Landmark },
@@ -82,19 +83,27 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Accounting",
+    label: "Accounting & Reporting",
     items: [
       { label: "Chart of Accounts", href: "/accounting/accounts", icon: BookOpen },
       { label: "Journal Entries", href: "/accounting/journals", icon: FileText },
       { label: "Fiscal Periods", href: "/accounting/periods", icon: CalendarDays },
       { label: "Tax & FX", href: "/accounting/configuration", icon: Settings },
-      { label: "Reports", href: "/reports", icon: BarChart3 },
+      { label: "Financial Statements", href: "/reports", icon: BarChart3 },
+      { label: "Enterprise Reports", href: "/reporting", icon: BarChart3 },
     ],
   },
   {
     label: "Administration",
     items: [
       { label: "Members & Access", href: "/administration/members", icon: Users },
+      { label: "Audit Log", href: "/administration/audit", icon: FileText },
+      { label: "Notifications", href: "/administration/notifications", icon: Bell },
+      {
+        label: "Document Integrity",
+        href: "/administration/document-integrity",
+        icon: FileCheck2,
+      },
       { label: "Settings", href: "/administration/settings", icon: Settings },
     ],
   },
@@ -114,6 +123,7 @@ const quickActions: Array<[string, string]> = [
   ["Domain", "/operations/domains"],
   ["Infrastructure Asset", "/operations/infrastructure"],
   ["Budget", "/planning/budgets"],
+  ["Reconciliation", "/reconciliation"],
 ];
 
 type AppShellProps = {
@@ -322,7 +332,13 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             ) : null}
           </div>
 
-          <button aria-label="Notifications" className="erp-button !h-8 !min-h-8 !w-8 !p-0" type="button"><Bell size={14} /></button>
+          <Link
+            aria-label="Notifications"
+            className="erp-button !h-8 !min-h-8 !w-8 !p-0"
+            href="/administration/notifications"
+          >
+            <Bell size={14} />
+          </Link>
           <button className="erp-button !h-8 !min-h-8 max-w-44" onClick={() => void onLogout()} title="Sign out" type="button">
             <span className="truncate">{session.user.display_name || session.user.email}</span>
             <ChevronDown className="shrink-0" size={12} />
