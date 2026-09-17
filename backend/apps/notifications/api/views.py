@@ -40,8 +40,14 @@ def _inbox(request, membership):
 class NotificationListView(APIView):
     def get(self, request):
         membership = _membership(request)
-        queryset = _inbox(request, membership)
-        unread_count = queryset.filter(read_at__isnull=True).count()
+        all_notifications = _inbox(request, membership)
+        unread_count = all_notifications.filter(
+            read_at__isnull=True,
+            resolved_at__isnull=True,
+        ).count()
+        queryset = all_notifications
+        if request.query_params.get("include_resolved") not in {"1", "true", "yes"}:
+            queryset = queryset.filter(resolved_at__isnull=True)
         paginator = PageNumberPagination()
         paginator.page_size = 50
         page = paginator.paginate_queryset(queryset, request)
@@ -63,5 +69,7 @@ class NotificationReadView(APIView):
 class NotificationReadAllView(APIView):
     def post(self, request):
         membership = _membership(request)
-        count = mark_all_notifications_read(_inbox(request, membership))
+        count = mark_all_notifications_read(
+            _inbox(request, membership).filter(resolved_at__isnull=True)
+        )
         return Response({"marked_read": count})
