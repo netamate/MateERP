@@ -48,11 +48,12 @@ class Notification(models.Model):
     link = models.CharField(max_length=255, blank=True)
     due_date = models.DateField(null=True, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["read_at", "-created_at"]
+        ordering = ["resolved_at", "read_at", "-created_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "recipient", "dedupe_key"],
@@ -61,7 +62,7 @@ class Notification(models.Model):
         ]
         indexes = [
             models.Index(
-                fields=["recipient", "read_at", "created_at"],
+                fields=["recipient", "resolved_at", "read_at", "created_at"],
                 name="notification_inbox_idx",
             ),
             models.Index(
