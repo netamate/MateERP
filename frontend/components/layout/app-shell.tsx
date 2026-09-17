@@ -23,6 +23,7 @@ import {
   Users,
   WalletCards,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -30,7 +31,18 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { SessionPayload } from "@/lib/api";
 
-const navGroups = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
   {
     label: "Overview",
     items: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }],
@@ -66,18 +78,18 @@ const navGroups = [
       { label: "Settings", href: "/administration/settings", icon: Settings },
     ],
   },
-] as const;
+];
 
-const futureItems = [
+const futureItems: Array<{ label: string; icon: LucideIcon }> = [
   { label: "Subscriptions", icon: PackageOpen },
   { label: "Infrastructure", icon: Landmark },
   { label: "Domains & Renewals", icon: FolderKanban },
   { label: "Budgets & Planning", icon: BarChart3 },
 ];
 
-const commandItems = navGroups.flatMap((group) => group.items);
+const commandItems: NavItem[] = navGroups.flatMap((group) => group.items);
 
-const quickActions = [
+const quickActions: Array<[string, string]> = [
   ["Expense", "/expenses?new=1"],
   ["Income", "/income?new=1"],
   ["Transfer", "/transfers?new=1"],
@@ -85,7 +97,7 @@ const quickActions = [
   ["Reimbursement", "/reimbursements?new=1"],
   ["Founder Funding", "/founder-funding?new=1"],
   ["Finance Document", "/documents?new=1"],
-] as const;
+];
 
 type AppShellProps = {
   children: ReactNode;
