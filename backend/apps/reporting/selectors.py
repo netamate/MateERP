@@ -8,7 +8,6 @@ from apps.accounting.selectors import cash_flow_summary, profit_and_loss, trial_
 from apps.finance.models import Expense, FounderFunding, Income, RecordStatus
 from apps.planning.models import ExpenseAllocation
 
-
 POSTED_STATUSES = [JournalStatus.POSTED, JournalStatus.REVERSED]
 
 
