@@ -76,7 +76,9 @@ def test_enterprise_reports_derive_from_posted_finance_and_allocations():
         ledger_account=cash,
     )
     vendor = Vendor.objects.create(legal_entity=entity, code="VPS", name="Hosting Vendor")
-    cost_center = CostCenter.objects.create(legal_entity=entity, code="INFRA", name="Infrastructure")
+    cost_center = CostCenter.objects.create(
+        legal_entity=entity, code="INFRA", name="Infrastructure"
+    )
     product = Product.objects.create(legal_entity=entity, code="MATEDESK", name="MateDesk")
 
     expense = create_expense(
