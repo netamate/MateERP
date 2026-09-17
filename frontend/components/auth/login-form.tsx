@@ -111,7 +111,6 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         <div className="relative z-10 w-full max-w-[470px]">
           <MateERPBrand
             className="mb-10 text-[#091a31] lg:hidden"
-            heading
             logoClassName="h-10 w-11 shrink-0 text-[#0b4dbb]"
             subtitle="by NetaMate Solutions"
             wordmarkClassName="text-[29px] tracking-[0.035em]"
