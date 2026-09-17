@@ -4,6 +4,7 @@ const backendUrl = process.env.MATEERP_BACKEND_URL ?? "http://localhost:8000";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  output: "standalone",
   async rewrites() {
     return [
       {
