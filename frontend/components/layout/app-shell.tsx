@@ -30,6 +30,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { MateERPBrand } from "@/components/brand/mateerp-brand";
 import type { SessionPayload } from "@/lib/api";
 
 type NavItem = {
@@ -194,13 +195,13 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
 
   const sidebar = (
     <aside className="erp-scrollbar flex h-full w-[var(--sidebar-width)] flex-col overflow-y-auto border-r border-[#202938] bg-[var(--color-sidebar)] text-[var(--color-sidebar-text)]">
-      <div className="flex h-[72px] shrink-0 items-center border-b border-[#253044] px-[18px]">
-        <div>
-          <div className="text-[19px] font-extrabold tracking-[0.04em] text-white">MateERP</div>
-          <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            NetaMate Solutions
-          </div>
-        </div>
+      <div className="flex h-[76px] shrink-0 items-center border-b border-[#253044] px-[18px]">
+        <MateERPBrand
+          className="text-white"
+          logoClassName="h-8 w-9 shrink-0"
+          subtitle="NetaMate Solutions"
+          wordmarkClassName="text-[22px] tracking-[0.04em]"
+        />
       </div>
 
       <div className="border-b border-[#253044] p-3">
