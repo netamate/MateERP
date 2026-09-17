@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  Boxes,
   Building2,
   CalendarDays,
   ChevronDown,
@@ -62,6 +63,25 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Operations",
+    items: [
+      { label: "Subscriptions", href: "/operations/subscriptions", icon: PackageOpen },
+      { label: "Domains", href: "/operations/domains", icon: FolderKanban },
+      { label: "Infrastructure", href: "/operations/infrastructure", icon: Landmark },
+      { label: "Renewals", href: "/operations/renewals", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Planning",
+    items: [
+      { label: "Budgets", href: "/planning/budgets", icon: BarChart3 },
+      { label: "Cost Centers", href: "/planning/cost-centers", icon: Building2 },
+      { label: "Products", href: "/planning/products", icon: Boxes },
+      { label: "Projects", href: "/planning/projects", icon: FileText },
+      { label: "Expense Allocations", href: "/planning/allocations", icon: ArrowLeftRight },
+    ],
+  },
+  {
     label: "Accounting",
     items: [
       { label: "Chart of Accounts", href: "/accounting/accounts", icon: BookOpen },
@@ -80,13 +100,6 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const futureItems: Array<{ label: string; icon: LucideIcon }> = [
-  { label: "Subscriptions", icon: PackageOpen },
-  { label: "Infrastructure", icon: Landmark },
-  { label: "Domains & Renewals", icon: FolderKanban },
-  { label: "Budgets & Planning", icon: BarChart3 },
-];
-
 const commandItems: NavItem[] = navGroups.flatMap((group) => group.items);
 
 const quickActions: Array<[string, string]> = [
@@ -97,6 +110,10 @@ const quickActions: Array<[string, string]> = [
   ["Reimbursement", "/reimbursements?new=1"],
   ["Founder Funding", "/founder-funding?new=1"],
   ["Finance Document", "/documents?new=1"],
+  ["Subscription", "/operations/subscriptions"],
+  ["Domain", "/operations/domains"],
+  ["Infrastructure Asset", "/operations/infrastructure"],
+  ["Budget", "/planning/budgets"],
 ];
 
 type AppShellProps = {
@@ -210,23 +227,6 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             ))}
           </div>
         ))}
-
-        <div className="pt-3">
-          <div className="flex items-center justify-between px-[17px] pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7f8ba3]">
-            <span>Phase 7</span>
-            <span className="border border-[#39455a] px-1.5 py-0.5 text-[8px]">NEXT</span>
-          </div>
-          {futureItems.map(({ label, icon: Icon }) => (
-            <div
-              className="flex min-h-9 items-center gap-2.5 border-l-[3px] border-transparent px-4 py-2 text-[13px] text-[#68758a]"
-              key={label}
-              title="Scheduled for Phase 7"
-            >
-              <Icon size={16} strokeWidth={1.75} />
-              {label}
-            </div>
-          ))}
-        </div>
       </nav>
     </aside>
   );
