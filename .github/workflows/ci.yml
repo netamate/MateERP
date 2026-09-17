@@ -1,4 +1,4 @@
-# Phase 6 CI validates the full production frontend and all underlying backend foundations.
+# CI validates backend, frontend, and the production container build boundary before deployment.
 name: CI
 
 on:
@@ -67,3 +67,27 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  production-images:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - context: backend
+            dockerfile: backend/Dockerfile.production
+            tag: mateerp-backend-ci
+          - context: frontend
+            dockerfile: frontend/Dockerfile.production
+            tag: mateerp-frontend-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          tags: ${{ matrix.tag }}:${{ github.sha }}
+          cache-from: type=gha,scope=ci-${{ matrix.tag }}
+          cache-to: type=gha,mode=max,scope=ci-${{ matrix.tag }}
