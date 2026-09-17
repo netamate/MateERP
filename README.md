@@ -2,7 +2,7 @@
 
 MateERP is NetaMate Solutions' enterprise financial and business operations ERP.
 
-The product development roadmap is currently in **Phase 8: Reporting, Audit & Enterprise Hardening**, the final development phase before **Phase 9: Production Deployment & Go-Live**.
+**Phases 1 through 8 are complete.** Phase 8, **Reporting, Audit & Enterprise Hardening**, is the final application development phase. The next phase is **Phase 9: Production Deployment & Go-Live**.
 
 ## Repository structure
 
