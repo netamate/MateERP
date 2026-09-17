@@ -694,9 +694,7 @@ def pay_reimbursement(
 
     payment_base = _base_amount(amount, fx_rate)
     total_base = _base_amount(reimbursement.amount, reimbursement.fx_rate)
-    paid_base = reimbursement.payments.aggregate(total=Sum("base_amount"))["total"] or Decimal(
-        "0"
-    )
+    paid_base = reimbursement.payments.aggregate(total=Sum("base_amount"))["total"] or Decimal("0")
     if payment_base <= 0 or paid_base + payment_base > total_base:
         raise ValidationError("Payment exceeds the outstanding reimbursement balance.")
 

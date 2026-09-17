@@ -258,9 +258,9 @@ class ReimbursementListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = Reimbursement.objects.filter(
-            legal_entity=context.legal_entity
-        ).prefetch_related("payments")
+        queryset = Reimbursement.objects.filter(legal_entity=context.legal_entity).prefetch_related(
+            "payments"
+        )
         return Response(ReimbursementSerializer(queryset, many=True).data)
 
     def post(self, request):

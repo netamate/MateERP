@@ -137,9 +137,7 @@ class WorkflowActionSerializer(serializers.Serializer):
 
 
 class PaymentCreateSerializer(serializers.Serializer):
-    financial_account = serializers.PrimaryKeyRelatedField(
-        queryset=FinancialAccount.objects.all()
-    )
+    financial_account = serializers.PrimaryKeyRelatedField(queryset=FinancialAccount.objects.all())
     payment_date = serializers.DateField()
     amount = serializers.DecimalField(max_digits=20, decimal_places=2)
     currency = serializers.CharField(max_length=3)
