@@ -28,9 +28,7 @@ class AccountReconciliationSerializer(serializers.ModelSerializer):
 
 
 class ReconciliationCreateSerializer(serializers.Serializer):
-    financial_account = serializers.PrimaryKeyRelatedField(
-        queryset=FinancialAccount.objects.all()
-    )
+    financial_account = serializers.PrimaryKeyRelatedField(queryset=FinancialAccount.objects.all())
     start_date = serializers.DateField()
     end_date = serializers.DateField()
     statement_ending_balance = serializers.DecimalField(max_digits=20, decimal_places=2)
