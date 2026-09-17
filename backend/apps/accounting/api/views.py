@@ -101,9 +101,9 @@ class JournalListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = JournalEntry.objects.filter(
-            legal_entity=context.legal_entity
-        ).prefetch_related("lines")
+        queryset = JournalEntry.objects.filter(legal_entity=context.legal_entity).prefetch_related(
+            "lines"
+        )
         return Response(JournalEntrySerializer(queryset, many=True).data)
 
     def post(self, request):
