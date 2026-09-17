@@ -127,7 +127,9 @@ class DomainListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = Domain.objects.filter(legal_entity=context.legal_entity).select_related("product")
+        queryset = Domain.objects.filter(legal_entity=context.legal_entity).select_related(
+            "product"
+        )
         return Response(DomainSerializer(queryset, many=True).data)
 
     def post(self, request):
