@@ -71,7 +71,9 @@ def replace_expense_allocations(
             raise ValidationError("Each allocation requires at least one planning dimension.")
         for dimension in (item.get("cost_center"), item.get("product"), item.get("project")):
             if dimension and dimension.legal_entity_id != expense.legal_entity_id:
-                raise ValidationError("Allocation dimensions must belong to the expense legal entity.")
+                raise ValidationError(
+                    "Allocation dimensions must belong to the expense legal entity."
+                )
 
     expense.allocations.all().delete()
     created = [
