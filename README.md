@@ -2,36 +2,44 @@
 
 MateERP is NetaMate Solutions' enterprise financial and business operations ERP.
 
-The production monorepo is currently in **Phase 3: Identity, Organization & Security Core**.
+The product development roadmap is currently in **Phase 8: Reporting, Audit & Enterprise Hardening**, the final development phase before **Phase 9: Production Deployment & Go-Live**.
 
 ## Repository structure
 
 ```text
 MateERP/
-├── backend/        Django + Django REST Framework API
-├── frontend/       Next.js App Router frontend
-├── docs/           Architecture, security, and development documentation
-├── deploy/         Deployment assets
+├── backend/        Django + Django REST Framework modular monolith
+├── frontend/       Next.js App Router production frontend
+├── docs/           Architecture, security, development, and phase documentation
+├── deploy/         Deployment assets and production handoff area
 ├── .github/        CI workflows
 ├── compose.yaml    Local Docker development stack
 └── README.md
 ```
 
-## Phase 3 scope
+## Implemented product foundation
 
-The current codebase establishes:
+MateERP now includes:
 
-- UUID email-based user identities
-- organizations and legal entities
-- organization memberships and legal-entity access scope
-- centralized RBAC policy
-- Django session authentication and CSRF protection
-- server-side active organization/legal-entity context
-- append-only audit events and request IDs
-- secure initial instance bootstrap
-- authenticated frontend shell and context selectors
+- UUID email-based identities, organizations, legal entities, memberships, and scoped RBAC
+- secure Django session authentication, CSRF protection, and request IDs
+- append-only audit events with a production audit-log workspace
+- double-entry accounting, Chart of Accounts, journals, fiscal periods, tax and FX foundations
+- Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, and enterprise management reports
+- vendors, expenses, payments, income, transfers, financial accounts, reimbursements, and founder funding
+- approval workflows and document uploads with SHA-256 integrity metadata
+- subscriptions, domains, domain-renewal history, infrastructure assets, and aggregated renewals
+- cost centers, products, projects, expense allocations, budgets, and Budget vs Actual
+- financial-account reconciliation with immutable completed statements
+- targeted in-app renewal and approval notifications
+- responsive zero-radius production frontend with command palette and Quick Add
+- backend and frontend CI with Ruff, Django migration checks, pytest, OpenAPI validation, ESLint, TypeScript, Vitest, Next.js build, and Playwright
 
-Financial accounting and operational finance modules are intentionally not implemented yet.
+## Final development boundary
+
+Phase 8 closes application development and production hardening. It does **not** deploy MateERP.
+
+The next phase is **Phase 9: Production Deployment & Go-Live**, covering GHCR image delivery, MateServer Docker Compose configuration, production PostgreSQL persistence and backup/restore validation, host-native Nginx, domain/TLS, scheduled maintenance commands, migrations, smoke testing, rollback validation, and go-live.
 
 ## Local development
 
@@ -51,7 +59,6 @@ docker compose up --build
 ```
 
 4. Bootstrap the first owner and organization from the backend container or a local backend environment. Set `MATEERP_BOOTSTRAP_PASSWORD` first. Never commit that value.
-
 5. Open:
 
 - Frontend: http://localhost:3000
@@ -59,4 +66,4 @@ docker compose up --build
 - OpenAPI schema: http://localhost:8000/api/schema/
 - Swagger UI: http://localhost:8000/api/docs/
 
-See `docs/development.md`, `docs/security.md`, and `docs/phase-3.md`.
+See `docs/development.md`, `docs/security.md`, and the phase documentation under `docs/`.
