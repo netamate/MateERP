@@ -98,6 +98,7 @@ jobs:
     environment: production
     env:
       DEPLOY_SHA: ${{ needs.resolve.outputs.sha }}
+      RUN_MIGRATIONS: ${{ needs.resolve.outputs.build }}
       VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
     steps:
       - uses: actions/checkout@v4
@@ -131,7 +132,7 @@ jobs:
         shell: bash
         run: |
           ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-            "DEPLOY_SHA='$DEPLOY_SHA' sudo -E bash -s" <<'REMOTE'
+            "DEPLOY_SHA='$DEPLOY_SHA' RUN_MIGRATIONS='$RUN_MIGRATIONS' sudo -E bash -s" <<'REMOTE'
           set -euo pipefail
           cd /opt/MateERP
           test -f .env
@@ -146,9 +147,11 @@ jobs:
             sleep 2
           done
           [[ "$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1)" == "healthy" ]]
-          docker compose run --rm backend python manage.py migrate --noinput
+          if [[ "$RUN_MIGRATIONS" == "true" ]]; then
+            docker compose run --rm backend python manage.py migrate --noinput
+            docker compose run --rm backend python manage.py backfill_document_metadata
+          fi
           docker compose run --rm backend python manage.py collectstatic --noinput
-          docker compose run --rm backend python manage.py backfill_document_metadata
           docker compose up -d
           docker compose ps
           curl --fail --silent --show-error http://127.0.0.1:8035/api/v1/health/ >/dev/null
