@@ -1,18 +1,24 @@
 """MateERP Django settings.
 
-Phase 7 adds operations, planning, and asset-management domains on top of the
-existing identity, accounting, finance, audit, and production frontend foundations.
+Phase 8 is the final development hardening layer. Production security values remain
+environment-driven so deployment can fail fast instead of silently using unsafe defaults.
 """
 
 import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "unsafe-local-development-key")
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "unsafe-local-development-key"
+    else:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY is required when DJANGO_DEBUG is false.")
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -43,6 +49,10 @@ INSTALLED_APPS = [
     "apps.finance",
     "apps.planning",
     "apps.operations",
+    "apps.reporting",
+    "apps.reconciliation",
+    "apps.notifications",
+    "apps.documents",
 ]
 
 MIDDLEWARE = [
@@ -123,7 +133,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "MateERP API",
-    "DESCRIPTION": "MateERP production REST API",
+    "DESCRIPTION": "MateERP enterprise financial and business operations REST API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
@@ -132,8 +142,15 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "false").lower() == "true"
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+    SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
