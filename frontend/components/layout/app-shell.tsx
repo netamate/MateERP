@@ -1,12 +1,15 @@
 "use client";
 
 import {
+  ArrowLeftRight,
   BarChart3,
   Bell,
   BookOpen,
   Building2,
+  CalendarDays,
   ChevronDown,
   CircleDollarSign,
+  FileCheck2,
   FileText,
   FolderKanban,
   Landmark,
@@ -36,12 +39,15 @@ const navGroups = [
   {
     label: "Finance",
     items: [
+      { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
       { label: "Expenses", href: "/expenses", icon: ReceiptText },
       { label: "Income", href: "/income", icon: CircleDollarSign },
       { label: "Transfers", href: "/transfers", icon: WalletCards },
       { label: "Financial Accounts", href: "/accounts", icon: Landmark },
       { label: "Vendors", href: "/vendors", icon: Building2 },
       { label: "Reimbursements", href: "/reimbursements", icon: ReceiptText },
+      { label: "Founder Funding", href: "/founder-funding", icon: Landmark },
+      { label: "Documents & Approvals", href: "/documents", icon: FileCheck2 },
     ],
   },
   {
@@ -49,6 +55,7 @@ const navGroups = [
     items: [
       { label: "Chart of Accounts", href: "/accounting/accounts", icon: BookOpen },
       { label: "Journal Entries", href: "/accounting/journals", icon: FileText },
+      { label: "Fiscal Periods", href: "/accounting/periods", icon: CalendarDays },
       { label: "Reports", href: "/reports", icon: BarChart3 },
     ],
   },
@@ -76,6 +83,8 @@ const quickActions = [
   ["Transfer", "/transfers?new=1"],
   ["Vendor", "/vendors?new=1"],
   ["Reimbursement", "/reimbursements?new=1"],
+  ["Founder Funding", "/founder-funding?new=1"],
+  ["Finance Document", "/documents?new=1"],
 ] as const;
 
 type AppShellProps = {
