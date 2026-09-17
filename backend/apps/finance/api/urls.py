@@ -5,7 +5,6 @@ from .views import (
     ExpenseListCreateView,
     ExpensePaymentCreateView,
     ExpenseWorkflowView,
-    FinanceDocumentListCreateView,
     FinancialAccountListCreateView,
     FinancialAccountTransactionView,
     FounderFundingListCreateView,
@@ -66,10 +65,5 @@ urlpatterns = [
         "finance/approvals/",
         ApprovalActionListView.as_view(),
         name="finance-approvals",
-    ),
-    path(
-        "finance/documents/",
-        FinanceDocumentListCreateView.as_view(),
-        name="finance-documents",
     ),
 ]
