@@ -113,9 +113,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={
-                "ordering": ["journal_line__journal_entry__entry_date", "created_at"],
-            },
+            options={"ordering": ["created_at"]},
         ),
         migrations.AddConstraint(
             model_name="accountreconciliation",
