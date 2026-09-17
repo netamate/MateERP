@@ -18,7 +18,9 @@ def inspect_upload(upload):
         upload.seek(0)
     mime_type = getattr(upload, "content_type", "") or ""
     if not mime_type:
-        mime_type = mimetypes.guess_type(getattr(upload, "name", ""))[0] or "application/octet-stream"
+        mime_type = (
+            mimetypes.guess_type(getattr(upload, "name", ""))[0] or "application/octet-stream"
+        )
     return {
         "mime_type": mime_type,
         "size_bytes": size_bytes,
