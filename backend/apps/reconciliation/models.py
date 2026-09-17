@@ -103,7 +103,7 @@ class ReconciliationItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["journal_line__journal_entry__entry_date", "created_at"]
+        ordering = ["created_at"]
 
     def __str__(self) -> str:
         return f"{self.reconciliation_id}: {self.journal_line_id}"
@@ -128,11 +128,7 @@ class ReconciliationItem(models.Model):
             raise ValidationError("Journal line must belong to the reconciliation legal entity.")
         if line.account_id != account.ledger_account_id:
             raise ValidationError("Journal line must belong to the reconciled financial account.")
-        if not (
-            self.reconciliation.start_date
-            <= line.journal_entry.entry_date
-            <= self.reconciliation.end_date
-        ):
-            raise ValidationError("Journal line must fall inside the reconciliation period.")
+        if line.journal_entry.entry_date > self.reconciliation.end_date:
+            raise ValidationError("Journal line must not be later than the reconciliation end date.")
         if line.currency != account.currency:
             raise ValidationError("Journal line currency must match the financial account currency.")
