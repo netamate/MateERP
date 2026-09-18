@@ -147,6 +147,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           ) : null}
 
           <button
+            aria-label="Sign in"
             className="group flex h-12 w-full items-center justify-center gap-2 border border-[#3b82f6] bg-[#245fd2] px-4 text-xs font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#1d53bd] disabled:opacity-60"
             disabled={submitting}
             type="submit"
