@@ -15,6 +15,7 @@ import {
   FolderKanban,
   Landmark,
   LayoutDashboard,
+  LogOut,
   Menu,
   PackageOpen,
   Plus,
@@ -143,6 +144,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   const activeOrganization = session.organizations.find(
@@ -150,6 +152,9 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
   );
   const activeEntity = session.active_legal_entities.find(
     (entity) => entity.id === session.active_legal_entity_id,
+  );
+  const activeMembership = session.memberships.find(
+    (membership) => membership.organization_id === session.active_organization_id,
   );
 
   const filteredCommands = useMemo(() => {
@@ -167,6 +172,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
       if (event.key === "Escape") {
         setCommandOpen(false);
         setQuickOpen(false);
+        setUserMenuOpen(false);
         setMobileOpen(false);
       }
     }
@@ -191,6 +197,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
   function closeNavigationUi() {
     setMobileOpen(false);
     setQuickOpen(false);
+    setUserMenuOpen(false);
   }
 
   const sidebar = (
@@ -340,10 +347,69 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
           >
             <Bell size={14} />
           </Link>
-          <button className="erp-button !h-8 !min-h-8 max-w-44" onClick={() => void onLogout()} title="Sign out" type="button">
-            <span className="truncate">{session.user.display_name || session.user.email}</span>
-            <ChevronDown className="shrink-0" size={12} />
-          </button>
+          <div className="relative">
+            <button
+              aria-expanded={userMenuOpen}
+              aria-haspopup="menu"
+              className="erp-button !h-8 !min-h-8 max-w-44"
+              onClick={() => {
+                setUserMenuOpen((value) => !value);
+                setQuickOpen(false);
+              }}
+              type="button"
+            >
+              <span className="truncate">{session.user.display_name || session.user.email}</span>
+              <ChevronDown
+                className={`shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
+                size={12}
+              />
+            </button>
+
+            {userMenuOpen ? (
+              <div
+                className="absolute right-0 top-10 z-50 w-64 border border-[var(--color-border-strong)] bg-white shadow-lg"
+                role="menu"
+              >
+                <div className="border-b border-[var(--color-border)] px-4 py-3">
+                  <div className="truncate text-sm font-semibold text-[var(--color-text)]">
+                    {session.user.display_name || "MateERP User"}
+                  </div>
+                  <div className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
+                    {session.user.email}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                    <span>{activeOrganization?.name ?? "Organization"}</span>
+                    {activeMembership?.role ? (
+                      <>
+                        <span aria-hidden="true">•</span>
+                        <span>{activeMembership.role}</span>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+
+                <Link
+                  className="flex items-center px-4 py-2.5 text-sm hover:bg-[var(--color-surface-subtle)]"
+                  href="/administration/settings"
+                  onClick={() => setUserMenuOpen(false)}
+                  role="menuitem"
+                >
+                  <Settings className="mr-2.5 text-[var(--color-text-muted)]" size={15} />
+                  Organization settings
+                </Link>
+
+                <button
+                  className="flex w-full items-center border-t border-[var(--color-border)] px-4 py-2.5 text-left text-sm text-[var(--color-danger)] hover:bg-[#fff6f6]"
+                  onClick={() => void onLogout()}
+                  role="menuitem"
+                  type="button"
+                >
+                  <LogOut className="mr-2.5" size={15} />
+                  Sign out
+                </button>
+              </div>
+            ) : null}
+          </div>
         </header>
 
         <main>{children}</main>
