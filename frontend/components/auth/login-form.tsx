@@ -53,7 +53,6 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
               className="text-white"
               heading
               logoClassName="h-10 w-11 shrink-0 text-[#4d8cff]"
-              subtitle="NetaMate Solutions"
               wordmarkClassName="text-[29px] tracking-[0.04em]"
             />
             <div className="mt-1 flex shrink-0 items-center gap-2 border border-[#704548] bg-[#25181d] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#ff9da3]">
@@ -185,9 +184,6 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         </div>
       </section>
 
-      <div className="relative z-10 mt-6 text-center text-[9px] font-semibold uppercase tracking-[0.14em] text-[#41526a]">
-        Powered by NetaMate Solutions
-      </div>
     </main>
   );
 }
