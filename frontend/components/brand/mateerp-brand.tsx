@@ -4,7 +4,6 @@ type MateERPBrandProps = {
   className?: string;
   logoClassName?: string;
   wordmarkClassName?: string;
-  subtitle?: string;
   heading?: boolean;
 };
 
@@ -33,7 +32,6 @@ export function MateERPBrand({
   className = "",
   logoClassName = "",
   wordmarkClassName = "",
-  subtitle,
   heading = false,
 }: MateERPBrandProps) {
   const Wordmark: ElementType = heading ? "h1" : "div";
@@ -45,7 +43,6 @@ export function MateERPBrand({
         <Wordmark className={`mateerp-wordmark leading-none ${wordmarkClassName}`}>
           MateERP
         </Wordmark>
-        {subtitle ? <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em]">{subtitle}</div> : null}
       </div>
     </div>
   );
