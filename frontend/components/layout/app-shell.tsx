@@ -206,7 +206,6 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
         <MateERPBrand
           className="text-white"
           logoClassName="h-8 w-9 shrink-0"
-          subtitle="NetaMate Solutions"
           wordmarkClassName="text-[22px] tracking-[0.04em]"
         />
       </div>
