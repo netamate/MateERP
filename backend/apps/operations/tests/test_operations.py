@@ -6,7 +6,7 @@ import pytest
 from apps.accounting.models import Account, AccountType, NormalBalance
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
-from apps.operations.models import Domain, InfrastructureAsset, Subscription
+from apps.operations.models import Domain, InfrastructureAsset, ServiceType, Subscription
 from apps.operations.selectors import renewal_calendar
 from apps.operations.services import renew_domain
 from apps.planning.models import CostCenter, Product
@@ -87,17 +87,21 @@ def test_domain_renewal_preserves_history_and_can_generate_expense(operations_co
 
 
 @pytest.mark.django_db
-def test_renewal_calendar_aggregates_without_duplicate_renewal_records(operations_context):
+def test_renewal_calendar_uses_unified_subscription_source(operations_context):
     context = operations_context
     Subscription.objects.create(
         legal_entity=context["entity"],
         name="GitHub Team",
+        service_type=ServiceType.SAAS,
         amount=Decimal("16.00"),
         currency="USD",
         next_renewal_date=date(2026, 9, 24),
-        product=context["product"],
-        cost_center=context["cost_center"],
+        payment_method="Business card",
+        reference="github-team",
     )
+
+    # Legacy records may remain during the safe cleanup window, but they no longer
+    # contribute duplicate items to the renewal calendar.
     Domain.objects.create(
         legal_entity=context["entity"],
         domain_name="mateassist.site",
@@ -123,9 +127,10 @@ def test_renewal_calendar_aggregates_without_duplicate_renewal_records(operation
         end_date=date(2026, 10, 10),
     )
 
-    assert [row["source_type"] for row in rows] == [
-        "INFRASTRUCTURE",
-        "SUBSCRIPTION",
-        "DOMAIN",
-    ]
-    assert {row["name"] for row in rows} == {"MateServer", "GitHub Team", "mateassist.site"}
+    assert len(rows) == 1
+    assert rows[0]["source_type"] == "SUBSCRIPTION"
+    assert rows[0]["service_type"] == ServiceType.SAAS
+    assert rows[0]["name"] == "GitHub Team"
+    assert rows[0]["payment_method"] == "Business card"
+    assert rows[0]["reference"] == "github-team"
+
