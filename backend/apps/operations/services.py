@@ -114,9 +114,7 @@ def record_subscription_payment(
     subscription.next_renewal_date = next_due_date
     subscription.amount = payment_amount
     subscription.currency = payment_currency
-    subscription.save(
-        update_fields=["next_renewal_date", "amount", "currency", "updated_at"]
-    )
+    subscription.save(update_fields=["next_renewal_date", "amount", "currency", "updated_at"])
 
     resolve_notifications(
         Notification.objects.filter(
