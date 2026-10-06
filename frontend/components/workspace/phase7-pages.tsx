@@ -379,53 +379,170 @@ export function SubscriptionsPage({ session }: { session: SessionPayload }) {
   const entity = activeEntity(session);
   const viewAllowed = can(session, "VIEW_OPERATIONS");
   const manageAllowed = can(session, "MANAGE_OPERATIONS");
-  const subscriptions = useQuery({ queryKey: ["subscriptions", entity?.id], queryFn: operationsApi.subscriptions, enabled: Boolean(entity && viewAllowed) });
-  const vendors = useQuery({ queryKey: ["vendors", entity?.id], queryFn: financeApi.vendors, enabled: Boolean(entity && viewAllowed) });
-  const products = useQuery({ queryKey: ["products", entity?.id], queryFn: planningApi.products, enabled: Boolean(entity && viewAllowed) });
-  const costCenters = useQuery({ queryKey: ["cost-centers", entity?.id], queryFn: planningApi.costCenters, enabled: Boolean(entity && viewAllowed) });
-  const create = useMutation({ mutationFn: operationsApi.createSubscription, onSuccess: async () => { setCreating(false); await queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] }); await queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] }); } });
-  const archive = useMutation({ mutationFn: (id: string) => operationsApi.updateSubscription(id, { status: "ARCHIVED" }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] }); queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] }); } });
+  const subscriptions = useQuery({
+    queryKey: ["subscriptions", entity?.id],
+    queryFn: operationsApi.subscriptions,
+    enabled: Boolean(entity && viewAllowed),
+  });
+  const vendors = useQuery({
+    queryKey: ["vendors", entity?.id],
+    queryFn: financeApi.vendors,
+    enabled: Boolean(entity && viewAllowed),
+  });
+  const create = useMutation({
+    mutationFn: operationsApi.createSubscription,
+    onSuccess: async () => {
+      setCreating(false);
+      await queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] });
+    },
+  });
+  const archive = useMutation({
+    mutationFn: (id: string) => operationsApi.updateSubscription(id, { status: "ARCHIVED" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] });
+      queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] });
+    },
+  });
+
   const columns: TableColumn<Subscription>[] = [
-    { key: "name", label: "Subscription", render: (row) => <div><strong>{row.name}</strong><div className="text-[11px] text-[var(--color-text-muted)]">{row.category || "Uncategorized"}</div></div> },
+    {
+      key: "name",
+      label: "Subscription",
+      render: (row) => (
+        <div>
+          <strong>{row.name}</strong>
+          <div className="text-[11px] text-[var(--color-text-muted)]">{row.description || "Recurring business cost"}</div>
+        </div>
+      ),
+    },
+    { key: "type", label: "Type", render: (row) => row.category || "Other" },
     { key: "vendor", label: "Vendor", render: (row) => row.vendor_name || "—" },
-    { key: "dimension", label: "Allocation", render: (row) => row.product_name || row.cost_center_name || "—" },
     { key: "cycle", label: "Billing", render: (row) => row.billing_cycle.replaceAll("_", " ") },
-    { key: "renewal", label: "Next Renewal", render: (row) => shortDate(row.next_renewal_date) },
+    { key: "renewal", label: "Next Payment", render: (row) => shortDate(row.next_renewal_date) },
     { key: "amount", label: "Amount", numeric: true, render: (row) => money(row.amount, row.currency) },
+    { key: "auto", label: "Auto Renew", render: (row) => <StatusBadge value={row.auto_renew ? "ON" : "OFF"} /> },
     { key: "status", label: "Status", render: (row) => <StatusBadge value={row.status} /> },
-    { key: "actions", label: "Actions", render: (row) => row.status === "ACTIVE" && manageAllowed ? <button className="erp-button !h-7 !min-h-7 text-[11px]" onClick={() => archive.mutate(row.id)} type="button"><Archive size={12} /> Archive</button> : "—" },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (row) =>
+        row.status === "ACTIVE" && manageAllowed ? (
+          <button
+            className="erp-button !h-7 !min-h-7 text-[11px]"
+            onClick={() => archive.mutate(row.id)}
+            type="button"
+          >
+            <Archive size={12} /> Archive
+          </button>
+        ) : "—",
+    },
   ];
 
   return (
     <>
-      <OperationalDependencies session={session} />
-      <PageHeader actions={manageAllowed ? <button className="erp-button erp-button-primary" onClick={() => setCreating(true)} type="button"><Plus size={13} /> Add Subscription</button> : undefined} description="Manage recurring software, platform, service, and business obligations without turning subscriptions into accounting journals." eyebrow="Operations" title="Subscriptions" />
+      <PageHeader
+        actions={
+          manageAllowed ? (
+            <button
+              className="erp-button erp-button-primary"
+              onClick={() => setCreating(true)}
+              type="button"
+            >
+              <Plus size={13} /> Add Subscription
+            </button>
+          ) : undefined
+        }
+        description="Track every recurring business cost in one place, including domains, VPS, cloud, software, APIs, hosting, storage, and other services."
+        eyebrow="Management"
+        title="Subscriptions"
+      />
       <ScopeGate permission="VIEW_OPERATIONS" session={session}>
         <PageBody>
           {creating ? (
-            <CreatePanel description="Record the operational contract. Financial expenses remain separate accounting documents." onClose={() => setCreating(false)} title="Add Subscription">
-              <form className="grid gap-4 p-4 sm:grid-cols-2" onSubmit={(event) => {
-                event.preventDefault(); const data = new FormData(event.currentTarget);
-                create.mutate({ name: String(data.get("name")), category: String(data.get("category") ?? ""), vendor: nullable(data, "vendor"), product: nullable(data, "product"), cost_center: nullable(data, "cost_center"), amount: String(data.get("amount")), currency: String(data.get("currency")), billing_cycle: String(data.get("billing_cycle")), started_on: nullable(data, "started_on"), next_renewal_date: nullable(data, "next_renewal_date"), auto_renew: data.get("auto_renew") === "on", description: String(data.get("description") ?? ""), status: "ACTIVE" });
-              }}>
+            <CreatePanel
+              description="Add the service once, choose its type and billing cycle, then track its next payment or renewal date."
+              onClose={() => setCreating(false)}
+              title="Add Subscription"
+            >
+              <form
+                className="grid gap-4 p-4 sm:grid-cols-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const data = new FormData(event.currentTarget);
+                  create.mutate({
+                    name: String(data.get("name")),
+                    category: String(data.get("category") ?? "Other"),
+                    vendor: nullable(data, "vendor"),
+                    amount: String(data.get("amount")),
+                    currency: String(data.get("currency")),
+                    billing_cycle: String(data.get("billing_cycle")),
+                    started_on: nullable(data, "started_on"),
+                    next_renewal_date: nullable(data, "next_renewal_date"),
+                    auto_renew: data.get("auto_renew") === "on",
+                    description: String(data.get("description") ?? ""),
+                    notes: String(data.get("notes") ?? ""),
+                    status: "ACTIVE",
+                  });
+                }}
+              >
                 <Field label="Name" name="name" required />
-                <Field label="Category" name="category" />
-                <Field label="Vendor" name="vendor"><Select name="vendor"><option value="">No vendor</option>{(vendors.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-                <Field label="Product" name="product"><Select name="product"><option value="">No product</option>{(products.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-                <Field label="Cost center" name="cost_center"><Select name="cost_center"><option value="">No cost center</option>{(costCenters.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-                <Field label="Billing cycle" name="billing_cycle"><Select defaultValue="MONTHLY" name="billing_cycle"><option value="MONTHLY">Monthly</option><option value="QUARTERLY">Quarterly</option><option value="SEMIANNUAL">Semiannual</option><option value="ANNUAL">Annual</option><option value="CUSTOM">Custom</option></Select></Field>
+                <Field label="Type" name="category">
+                  <Select defaultValue="SaaS / Software" name="category" required>
+                    <option value="Domain">Domain</option>
+                    <option value="VPS / Server">VPS / Server</option>
+                    <option value="Cloud">Cloud</option>
+                    <option value="Hosting">Hosting</option>
+                    <option value="SaaS / Software">SaaS / Software</option>
+                    <option value="API / Usage Service">API / Usage Service</option>
+                    <option value="Storage / Backup">Storage / Backup</option>
+                    <option value="Email Service">Email Service</option>
+                    <option value="AI Service">AI Service</option>
+                    <option value="Other">Other</option>
+                  </Select>
+                </Field>
+                <Field label="Vendor" name="vendor">
+                  <Select name="vendor">
+                    <option value="">No vendor</option>
+                    {(vendors.data ?? [])
+                      .filter((item) => item.status === "ACTIVE")
+                      .map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Billing cycle" name="billing_cycle">
+                  <Select defaultValue="MONTHLY" name="billing_cycle">
+                    <option value="MONTHLY">Monthly</option>
+                    <option value="QUARTERLY">Quarterly</option>
+                    <option value="SEMIANNUAL">Semiannual</option>
+                    <option value="ANNUAL">Annual</option>
+                    <option value="CUSTOM">Custom</option>
+                  </Select>
+                </Field>
                 <Field label="Amount" name="amount" required step="0.01" type="number" />
                 <Field defaultValue={entity?.base_currency ?? "USD"} label="Currency" name="currency" required />
                 <Field label="Started on" name="started_on" type="date" />
-                <Field label="Next renewal" name="next_renewal_date" type="date" />
-                <label className="flex items-center gap-2 pt-6 text-sm"><input defaultChecked name="auto_renew" type="checkbox" /> Auto renew</label>
+                <Field label="Next payment / renewal" name="next_renewal_date" type="date" />
+                <label className="flex items-center gap-2 pt-6 text-sm">
+                  <input defaultChecked name="auto_renew" type="checkbox" /> Auto renew
+                </label>
                 <Field full label="Description" name="description" />
+                <Field full label="Notes" name="notes" />
                 <SubmitRow pending={create.isPending} />
               </form>
             </CreatePanel>
           ) : null}
           <MutationError error={create.error ?? archive.error} />
-          {subscriptions.isLoading ? <LoadingState /> : subscriptions.error ? <ErrorState message={errorMessage(subscriptions.error)} /> : <DataTable columns={columns} rowKey={(row) => row.id} rows={subscriptions.data ?? []} />}
+          {subscriptions.isLoading ? (
+            <LoadingState />
+          ) : subscriptions.error ? (
+            <ErrorState message={errorMessage(subscriptions.error)} />
+          ) : (
+            <DataTable
+              columns={columns}
+              rowKey={(row) => row.id}
+              rows={subscriptions.data ?? []}
+            />
+          )}
         </PageBody>
       </ScopeGate>
     </>
