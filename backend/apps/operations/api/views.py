@@ -82,9 +82,9 @@ class SubscriptionListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = Subscription.objects.filter(legal_entity=context.legal_entity).select_related(
-            "vendor", "product", "cost_center"
-        )
+        queryset = Subscription.objects.filter(
+            legal_entity=context.legal_entity
+        ).select_related("vendor")
         return Response(SubscriptionSerializer(queryset, many=True).data)
 
     def post(self, request):
