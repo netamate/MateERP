@@ -5,8 +5,6 @@ from ..models import Domain, DomainRenewal, InfrastructureAsset, Subscription
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source="vendor.name", read_only=True)
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    cost_center_name = serializers.CharField(source="cost_center.name", read_only=True)
 
     class Meta:
         model = Subscription
