@@ -87,7 +87,7 @@ def integration_settings_payload(organization) -> dict:
             "hermes_token_configured": bool(configured.hermes_token_encrypted),
             "hermes_default_target": configured.hermes_default_target,
             "hermes_source": "ERP",
-            "updated_at": configured.updated_at,
+            "updated_at": configured.updated_at.isoformat() if configured.updated_at else None,
         }
 
     return {
