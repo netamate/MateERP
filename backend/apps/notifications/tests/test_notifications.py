@@ -1,6 +1,11 @@
 from datetime import timedelta
 
 import pytest
+from django.core import mail
+from django.core.management import call_command
+from django.test import Client, override_settings
+from django.utils import timezone
+
 from apps.audit.models import AuditEvent
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
@@ -14,10 +19,6 @@ from apps.notifications.models import (
     NotificationKind,
 )
 from apps.operations.models import ServiceType, Subscription
-from django.core import mail
-from django.core.management import call_command
-from django.test import Client, override_settings
-from django.utils import timezone
 
 
 @pytest.mark.django_db
