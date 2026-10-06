@@ -105,7 +105,9 @@ class SubscriptionDetailView(APIView):
     def get(self, request, object_id):
         context = _context(request)
         _require_view(context)
-        return Response(SubscriptionSerializer(_get_scoped(Subscription, context, object_id)).data)
+        return Response(
+            SubscriptionSerializer(_get_scoped(Subscription, context, object_id)).data
+        )
 
     def patch(self, request, object_id):
         context = _context(request)
