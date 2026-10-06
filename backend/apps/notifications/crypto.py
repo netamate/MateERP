@@ -17,7 +17,7 @@ def _fernet() -> Fernet:
             ) from exc
 
     digest = hashlib.sha256(
-        f"mateerp-integration-settings:v1:{settings.SECRET_KEY}".encode("utf-8")
+        f"mateerp-integration-settings:v1:{settings.SECRET_KEY}".encode()
     ).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
 
