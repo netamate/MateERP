@@ -1,4 +1,5 @@
 import json
+from email.utils import parseaddr
 from urllib import error, request
 
 from django.conf import settings
@@ -97,8 +98,8 @@ def integration_settings_payload(organization) -> dict:
         "smtp_password_configured": bool(settings.EMAIL_HOST_PASSWORD),
         "smtp_use_tls": settings.EMAIL_USE_TLS,
         "smtp_use_ssl": settings.EMAIL_USE_SSL,
-        "smtp_from_name": "MateERP",
-        "smtp_from_email": settings.DEFAULT_FROM_EMAIL,
+        "smtp_from_name": parseaddr(settings.DEFAULT_FROM_EMAIL)[0] or "MateERP",
+        "smtp_from_email": parseaddr(settings.DEFAULT_FROM_EMAIL)[1],
         "smtp_source": "ENV" if settings.EMAIL_HOST else "NONE",
         "hermes_enabled": bool(settings.MATEERP_HERMES_WEBHOOK_URL),
         "hermes_webhook_url": settings.MATEERP_HERMES_WEBHOOK_URL,
