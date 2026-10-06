@@ -3,10 +3,13 @@ from datetime import date, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q
 
 from apps.audit.services import record_audit_event
 from apps.identity.models import Membership
 from apps.identity.policy import Permission, has_permission
+from apps.notifications.models import Notification, NotificationKind
+from apps.notifications.services import resolve_notifications
 
 from .models import BillingCycle, Subscription, SubscriptionPayment
 
@@ -113,6 +116,17 @@ def record_subscription_payment(
     subscription.currency = payment_currency
     subscription.save(
         update_fields=["next_renewal_date", "amount", "currency", "updated_at"]
+    )
+
+    resolve_notifications(
+        Notification.objects.filter(
+            legal_entity=subscription.legal_entity,
+            kind=NotificationKind.RENEWAL_DUE,
+            resolved_at__isnull=True,
+        ).filter(
+            Q(dedupe_key__startswith=f"{subscription.id}:")
+            | Q(dedupe_key__contains=f":{subscription.id}:")
+        )
     )
 
     audit_operations_change(
