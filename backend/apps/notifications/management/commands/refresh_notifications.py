@@ -45,9 +45,7 @@ class Command(BaseCommand):
         sent = 0
         failed = 0
 
-        for entity in LegalEntity.objects.filter(status="ACTIVE").select_related(
-            "organization"
-        ):
+        for entity in LegalEntity.objects.filter(status="ACTIVE").select_related("organization"):
             viewers = self._viewers(entity)
             subscriptions = (
                 Subscription.objects.filter(
@@ -111,9 +109,7 @@ class Command(BaseCommand):
             self._resolve_stale_in_app(entity, viewers)
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Reminder refresh complete: {sent} sent, {failed} failed."
-            )
+            self.style.SUCCESS(f"Reminder refresh complete: {sent} sent, {failed} failed.")
         )
 
     @staticmethod
