@@ -163,6 +163,23 @@ export type NotificationInbox = Paginated<Notification> & {
   unread_count: number;
 };
 
+export type NotificationDelivery = {
+  id: string;
+  subscription: string;
+  subscription_name: string;
+  channel: "IN_APP" | "EMAIL" | "HERMES";
+  destination: string;
+  reminder_days_before: number;
+  due_date: string;
+  title: string;
+  message: string;
+  status: "PENDING" | "SENT" | "FAILED";
+  attempt_count: number;
+  last_error: string;
+  sent_at: string | null;
+  created_at: string;
+};
+
 export type FinanceDocumentIntegrity = {
   id: string;
   document_type: string;
@@ -276,6 +293,8 @@ export const notificationApi = {
     request<Notification>(`/api/v1/notifications/${id}/read/`, { method: "POST" }, true),
   markAllRead: () =>
     request<{ marked_read: number }>("/api/v1/notifications/read-all/", { method: "POST" }, true),
+  deliveries: () =>
+    request<Paginated<NotificationDelivery>>("/api/v1/notifications/deliveries/"),
 };
 
 export const documentIntegrityApi = {
