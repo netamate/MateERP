@@ -180,6 +180,25 @@ export type NotificationDelivery = {
   created_at: string;
 };
 
+export type NotificationIntegrationSettings = {
+  smtp_enabled: boolean;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password_configured: boolean;
+  smtp_use_tls: boolean;
+  smtp_use_ssl: boolean;
+  smtp_from_name: string;
+  smtp_from_email: string;
+  smtp_source: "ERP" | "ENV" | "NONE";
+  hermes_enabled: boolean;
+  hermes_webhook_url: string;
+  hermes_token_configured: boolean;
+  hermes_default_target: string;
+  hermes_source: "ERP" | "ENV" | "NONE";
+  updated_at: string | null;
+};
+
 export type FinanceDocumentIntegrity = {
   id: string;
   document_type: string;
@@ -295,6 +314,26 @@ export const notificationApi = {
     request<{ marked_read: number }>("/api/v1/notifications/read-all/", { method: "POST" }, true),
   deliveries: () =>
     request<Paginated<NotificationDelivery>>("/api/v1/notifications/deliveries/"),
+  integrations: () =>
+    request<NotificationIntegrationSettings>("/api/v1/notifications/integrations/"),
+  updateIntegrations: (body: Record<string, unknown>) =>
+    request<NotificationIntegrationSettings>(
+      "/api/v1/notifications/integrations/",
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  testEmail: (recipient: string) =>
+    request<{ detail: string }>(
+      "/api/v1/notifications/integrations/test-email/",
+      { method: "POST", body: JSON.stringify({ recipient }) },
+      true,
+    ),
+  testHermes: (target: string) =>
+    request<{ detail: string }>(
+      "/api/v1/notifications/integrations/test-hermes/",
+      { method: "POST", body: JSON.stringify({ target }) },
+      true,
+    ),
 };
 
 export const documentIntegrityApi = {
