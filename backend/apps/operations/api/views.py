@@ -1,5 +1,3 @@
-[Reading 253 lines from start (total: 253 lines, 0 remaining)]
-
 from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework import status
 from rest_framework.response import Response
@@ -253,5 +251,3 @@ class RenewalCalendarView(APIView):
                 end_date=serializer.validated_data.get("end_date"),
             )
         )
-
-[executed on device: MateServer (3c8ea7f2-c7ba-4d19-83d2-d1c911bafc84)]
