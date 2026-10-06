@@ -6,15 +6,13 @@ from rest_framework.views import APIView
 from apps.identity.policy import Permission, has_permission
 from apps.identity.services import set_active_context
 
-from ..models import Domain, InfrastructureAsset, Subscription
+from ..models import Subscription
 from ..selectors import renewal_calendar
-from ..services import audit_operations_change, renew_domain
+from ..services import audit_operations_change, record_subscription_payment
 from .serializers import (
-    DomainRenewActionSerializer,
-    DomainRenewalSerializer,
-    DomainSerializer,
-    InfrastructureAssetSerializer,
     RenewalQuerySerializer,
+    SubscriptionPaymentActionSerializer,
+    SubscriptionPaymentSerializer,
     SubscriptionSerializer,
 )
 
@@ -41,11 +39,19 @@ def _require_manage(context):
         raise PermissionDenied("You do not have permission to manage operations data.")
 
 
-def _get_scoped(model, context, object_id):
-    obj = model.objects.filter(id=object_id, legal_entity=context.legal_entity).first()
-    if obj is None:
-        raise ValidationError("Operations record does not exist in the active legal entity.")
-    return obj
+def _get_subscription(context, object_id):
+    subscription = (
+        Subscription.objects.filter(
+            id=object_id,
+            legal_entity=context.legal_entity,
+        )
+        .select_related("vendor")
+        .prefetch_related("payments")
+        .first()
+    )
+    if subscription is None:
+        raise ValidationError("Subscription does not exist in the active legal entity.")
+    return subscription
 
 
 def _create_master(request, context, serializer, *, object_type: str, action: str):
@@ -82,8 +88,10 @@ class SubscriptionListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = Subscription.objects.filter(legal_entity=context.legal_entity).select_related(
-            "vendor"
+        queryset = (
+            Subscription.objects.filter(legal_entity=context.legal_entity)
+            .select_related("vendor")
+            .prefetch_related("payments")
         )
         return Response(SubscriptionSerializer(queryset, many=True).data)
 
@@ -105,12 +113,12 @@ class SubscriptionDetailView(APIView):
     def get(self, request, object_id):
         context = _context(request)
         _require_view(context)
-        return Response(SubscriptionSerializer(_get_scoped(Subscription, context, object_id)).data)
+        return Response(SubscriptionSerializer(_get_subscription(context, object_id)).data)
 
     def patch(self, request, object_id):
         context = _context(request)
         _require_manage(context)
-        obj = _get_scoped(Subscription, context, object_id)
+        obj = _get_subscription(context, object_id)
         serializer = SubscriptionSerializer(obj, data=request.data, partial=True)
         obj = _update_master(
             request,
@@ -123,119 +131,31 @@ class SubscriptionDetailView(APIView):
         return Response(SubscriptionSerializer(obj).data)
 
 
-class DomainListCreateView(APIView):
-    def get(self, request):
-        context = _context(request)
-        _require_view(context)
-        queryset = Domain.objects.filter(legal_entity=context.legal_entity).select_related(
-            "product"
-        )
-        return Response(DomainSerializer(queryset, many=True).data)
-
-    def post(self, request):
-        context = _context(request)
-        _require_manage(context)
-        serializer = DomainSerializer(data=request.data)
-        obj = _create_master(
-            request,
-            context,
-            serializer,
-            object_type="Domain",
-            action="operations.domain_created",
-        )
-        return Response(DomainSerializer(obj).data, status=status.HTTP_201_CREATED)
-
-
-class DomainDetailView(APIView):
+class SubscriptionPaymentHistoryView(APIView):
     def get(self, request, object_id):
         context = _context(request)
         _require_view(context)
-        return Response(DomainSerializer(_get_scoped(Domain, context, object_id)).data)
+        subscription = _get_subscription(context, object_id)
+        return Response(SubscriptionPaymentSerializer(subscription.payments.all(), many=True).data)
 
-    def patch(self, request, object_id):
+
+class SubscriptionMarkPaidView(APIView):
+    def post(self, request, object_id):
         context = _context(request)
         _require_manage(context)
-        obj = _get_scoped(Domain, context, object_id)
-        serializer = DomainSerializer(obj, data=request.data, partial=True)
-        obj = _update_master(
-            request,
-            context,
-            obj,
-            serializer,
-            object_type="Domain",
-            action="operations.domain_updated",
-        )
-        return Response(DomainSerializer(obj).data)
-
-
-class DomainRenewalHistoryView(APIView):
-    def get(self, request, domain_id):
-        context = _context(request)
-        _require_view(context)
-        domain = _get_scoped(Domain, context, domain_id)
-        return Response(DomainRenewalSerializer(domain.renewal_history.all(), many=True).data)
-
-
-class DomainRenewView(APIView):
-    def post(self, request, domain_id):
-        context = _context(request)
-        domain = _get_scoped(Domain, context, domain_id)
-        serializer = DomainRenewActionSerializer(data=request.data)
+        subscription = _get_subscription(context, object_id)
+        serializer = SubscriptionPaymentActionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        renewal = renew_domain(
+        payment = record_subscription_payment(
             membership=context.membership,
-            domain=domain,
+            subscription=subscription,
             request=request,
             **serializer.validated_data,
         )
-        return Response(DomainRenewalSerializer(renewal).data, status=status.HTTP_201_CREATED)
-
-
-class InfrastructureAssetListCreateView(APIView):
-    def get(self, request):
-        context = _context(request)
-        _require_view(context)
-        queryset = InfrastructureAsset.objects.filter(
-            legal_entity=context.legal_entity
-        ).select_related("vendor", "product", "cost_center")
-        return Response(InfrastructureAssetSerializer(queryset, many=True).data)
-
-    def post(self, request):
-        context = _context(request)
-        _require_manage(context)
-        serializer = InfrastructureAssetSerializer(data=request.data)
-        obj = _create_master(
-            request,
-            context,
-            serializer,
-            object_type="InfrastructureAsset",
-            action="operations.infrastructure_created",
-        )
-        return Response(InfrastructureAssetSerializer(obj).data, status=status.HTTP_201_CREATED)
-
-
-class InfrastructureAssetDetailView(APIView):
-    def get(self, request, object_id):
-        context = _context(request)
-        _require_view(context)
         return Response(
-            InfrastructureAssetSerializer(_get_scoped(InfrastructureAsset, context, object_id)).data
+            SubscriptionPaymentSerializer(payment).data,
+            status=status.HTTP_201_CREATED,
         )
-
-    def patch(self, request, object_id):
-        context = _context(request)
-        _require_manage(context)
-        obj = _get_scoped(InfrastructureAsset, context, object_id)
-        serializer = InfrastructureAssetSerializer(obj, data=request.data, partial=True)
-        obj = _update_master(
-            request,
-            context,
-            obj,
-            serializer,
-            object_type="InfrastructureAsset",
-            action="operations.infrastructure_updated",
-        )
-        return Response(InfrastructureAssetSerializer(obj).data)
 
 
 class RenewalCalendarView(APIView):
