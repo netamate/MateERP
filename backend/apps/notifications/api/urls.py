@@ -1,6 +1,11 @@
 from django.urls import path
 
-from .views import NotificationListView, NotificationReadAllView, NotificationReadView
+from .views import (
+    NotificationDeliveryListView,
+    NotificationListView,
+    NotificationReadAllView,
+    NotificationReadView,
+)
 
 urlpatterns = [
     path("notifications/", NotificationListView.as_view(), name="notification-list"),
@@ -13,5 +18,10 @@ urlpatterns = [
         "notifications/read-all/",
         NotificationReadAllView.as_view(),
         name="notification-read-all",
+    ),
+    path(
+        "notifications/deliveries/",
+        NotificationDeliveryListView.as_view(),
+        name="notification-delivery-list",
     ),
 ]
