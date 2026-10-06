@@ -52,14 +52,20 @@ def test_refresh_notifications_uses_custom_offsets_and_deduplicates_delivery():
     assert notifications.get().resolved_at is None
 
     deliveries = NotificationDelivery.objects.filter(subscription=subscription)
-    assert deliveries.filter(
-        channel=DeliveryChannel.IN_APP,
-        status=DeliveryStatus.SENT,
-    ).count() == 1
-    assert deliveries.filter(
-        channel=DeliveryChannel.EMAIL,
-        status=DeliveryStatus.SENT,
-    ).count() == 1
+    assert (
+        deliveries.filter(
+            channel=DeliveryChannel.IN_APP,
+            status=DeliveryStatus.SENT,
+        ).count()
+        == 1
+    )
+    assert (
+        deliveries.filter(
+            channel=DeliveryChannel.EMAIL,
+            status=DeliveryStatus.SENT,
+        ).count()
+        == 1
+    )
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["billing@example.com"]
     assert "Cronjob" not in mail.outbox[0].body
