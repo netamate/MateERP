@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mail, MessageSquareText, ShieldCheck } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 import {
   ErrorState,
@@ -63,10 +63,6 @@ function serializeSettings(
   const hermesToken = String(data.get("hermes_token") ?? "");
   if (hermesToken) payload.hermes_token = hermesToken;
 
-  if (!current.smtp_password_configured && payload.smtp_username && !smtpPassword) {
-    payload.smtp_password = "";
-  }
-
   return payload;
 }
 
@@ -77,7 +73,7 @@ function IntegrationCard({
 }: {
   title: string;
   icon: React.ReactNode;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="erp-panel">
