@@ -137,7 +137,6 @@ class NotificationDelivery(models.Model):
         return f"{self.subscription.name} · {self.channel} · {self.status}"
 
 
-
 class NotificationIntegrationSettings(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.OneToOneField(
