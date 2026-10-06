@@ -305,6 +305,20 @@ export type BudgetActuals = {
   lines: BudgetActualLine[];
 };
 
+export type SubscriptionPayment = {
+  id: string;
+  subscription: string;
+  paid_on: string;
+  previous_due_date: string | null;
+  next_due_date: string | null;
+  amount: string;
+  currency: string;
+  reference: string;
+  notes: string;
+  created_by_email: string | null;
+  created_at: string;
+};
+
 export type Subscription = {
   id: string;
   vendor: string | null;
@@ -317,11 +331,20 @@ export type Subscription = {
   amount: string;
   currency: string;
   billing_cycle: string;
+  custom_cycle_days: number | null;
   started_on: string | null;
   next_renewal_date: string | null;
   auto_renew: boolean;
+  reminder_days: number[];
+  reminder_in_app: boolean;
+  reminder_email: boolean;
+  reminder_hermes: boolean;
+  reminder_email_recipients: string[];
+  hermes_target: string;
   status: string;
   notes: string;
+  payments: SubscriptionPayment[];
+  payment_count: number;
 };
 
 export type DomainRecord = {
@@ -545,6 +568,8 @@ export const operationsApi = {
   domainRenewals: (domainId: string) => request<DomainRenewal[]>(`/api/v1/operations/domains/${domainId}/renewals/`),
   createSubscription: (body: Record<string, unknown>) => request<Subscription>("/api/v1/operations/subscriptions/", { method: "POST", body: JSON.stringify(body) }, true),
   updateSubscription: (id: string, body: Record<string, unknown>) => request<Subscription>(`/api/v1/operations/subscriptions/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
+  subscriptionPayments: (id: string) => request<SubscriptionPayment[]>(`/api/v1/operations/subscriptions/${id}/payments/`),
+  markSubscriptionPaid: (id: string, body: Record<string, unknown>) => request<SubscriptionPayment>(`/api/v1/operations/subscriptions/${id}/mark-paid/`, { method: "POST", body: JSON.stringify(body) }, true),
   createDomain: (body: Record<string, unknown>) => request<DomainRecord>("/api/v1/operations/domains/", { method: "POST", body: JSON.stringify(body) }, true),
   updateDomain: (id: string, body: Record<string, unknown>) => request<DomainRecord>(`/api/v1/operations/domains/${id}/`, { method: "PATCH", body: JSON.stringify(body) }, true),
   createInfrastructure: (body: Record<string, unknown>) => request<InfrastructureAsset>("/api/v1/operations/infrastructure/", { method: "POST", body: JSON.stringify(body) }, true),
