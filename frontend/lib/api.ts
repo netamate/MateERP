@@ -309,16 +309,11 @@ export type Subscription = {
   id: string;
   vendor: string | null;
   vendor_name: string | null;
-  product: string | null;
-  product_name: string | null;
-  cost_center: string | null;
-  cost_center_name: string | null;
-  payment_account: string | null;
-  expense_account: string | null;
-  payable_account: string | null;
   name: string;
-  category: string;
+  service_type: "DOMAIN" | "VPS" | "CLOUD" | "HOSTING" | "SAAS" | "API" | "STORAGE" | "EMAIL" | "AI" | "OTHER";
   description: string;
+  reference: string;
+  payment_method: string;
   amount: string;
   currency: string;
   billing_cycle: string;
@@ -390,16 +385,17 @@ export type InfrastructureAsset = {
 };
 
 export type RenewalItem = {
-  source_type: "SUBSCRIPTION" | "DOMAIN" | "INFRASTRUCTURE";
+  source_type: "SUBSCRIPTION";
   source_id: string;
+  service_type: Subscription["service_type"];
   name: string;
   renewal_date: string;
   amount: string;
   currency: string;
   auto_renew: boolean;
   vendor_name: string | null;
-  product_name: string | null;
-  cost_center_name: string | null;
+  reference: string;
+  payment_method: string;
 };
 
 export class ApiError extends Error {
