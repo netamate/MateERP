@@ -69,10 +69,7 @@ def _delivery(
     title: str,
     message: str,
 ) -> NotificationDelivery:
-    key = (
-        f"{subscription.id}:{due_date}:{days_before}:{channel}:"
-        f"{destination or 'default'}"
-    )
+    key = f"{subscription.id}:{due_date}:{days_before}:{channel}:{destination or 'default'}"
     delivery, _ = NotificationDelivery.objects.get_or_create(
         delivery_key=key,
         defaults={
@@ -111,9 +108,7 @@ def _mark_failed(delivery: NotificationDelivery, exc: Exception) -> Notification
     delivery.status = DeliveryStatus.FAILED
     delivery.attempt_count += 1
     delivery.last_error = str(exc)[:2000]
-    delivery.save(
-        update_fields=["status", "attempt_count", "last_error", "updated_at"]
-    )
+    delivery.save(update_fields=["status", "attempt_count", "last_error", "updated_at"])
     return delivery
 
 
@@ -239,9 +234,7 @@ def deliver_hermes(
     ).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if settings.MATEERP_HERMES_WEBHOOK_TOKEN:
-        headers["Authorization"] = (
-            f"Bearer {settings.MATEERP_HERMES_WEBHOOK_TOKEN}"
-        )
+        headers["Authorization"] = f"Bearer {settings.MATEERP_HERMES_WEBHOOK_TOKEN}"
 
     try:
         webhook_request = request.Request(
