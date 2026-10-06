@@ -1,8 +1,12 @@
 "use client";
 
-import { SubscriptionsPage } from "@/components/workspace/phase7-pages";
+import { LeanSubscriptionsPage } from "@/components/workspace/lean-subscriptions-page";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 
 export default function Page() {
-  return <WorkspaceShell>{(session) => <SubscriptionsPage session={session} />}</WorkspaceShell>;
+  return (
+    <WorkspaceShell>
+      {(session) => <LeanSubscriptionsPage session={session} />}
+    </WorkspaceShell>
+  );
 }
