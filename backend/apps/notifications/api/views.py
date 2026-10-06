@@ -1,14 +1,15 @@
 from email.utils import parseaddr
 
-from apps.audit.services import record_audit_event
-from apps.identity.models import Membership, MembershipStatus
-from apps.identity.policy import Permission, has_permission
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.audit.services import record_audit_event
+from apps.identity.models import Membership, MembershipStatus
+from apps.identity.policy import Permission, has_permission
 
 from ..crypto import encrypt_secret
 from ..models import (
