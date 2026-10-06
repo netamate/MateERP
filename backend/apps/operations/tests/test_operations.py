@@ -1,5 +1,3 @@
-[Reading 138 lines from start (total: 138 lines, 0 remaining)]
-
 from datetime import date
 from decimal import Decimal
 
@@ -138,5 +136,3 @@ def test_renewal_calendar_uses_unified_subscription_source(operations_context):
     assert rows[0]["name"] == "GitHub Team"
     assert rows[0]["payment_method"] == "Business card"
     assert rows[0]["reference"] == "github-team"
-
-[executed on device: MateServer (3c8ea7f2-c7ba-4d19-83d2-d1c911bafc84)]
