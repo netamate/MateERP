@@ -63,9 +63,7 @@ def mark_all_notifications_read(queryset) -> int:
 
 
 def integration_settings_for(organization):
-    return NotificationIntegrationSettings.objects.filter(
-        organization=organization
-    ).first()
+    return NotificationIntegrationSettings.objects.filter(organization=organization).first()
 
 
 def integration_settings_payload(organization) -> dict:
