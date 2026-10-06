@@ -1,9 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
-import { SettingsPage } from "@/components/workspace/pages";
+import { LeanSettingsPage } from "@/components/workspace/lean-settings-page";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 
 export default function Page() {
-  return <Suspense fallback={<div />}><WorkspaceShell>{(session) => <SettingsPage session={session} />}</WorkspaceShell></Suspense>;
+  return (
+    <WorkspaceShell>
+      {(session) => <LeanSettingsPage session={session} />}
+    </WorkspaceShell>
+  );
 }
