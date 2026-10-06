@@ -14,7 +14,10 @@ from apps.planning.models import CostCenter, Product
 
 @pytest.fixture
 def operations_context(db):
-    owner = User.objects.create_user(email="operations-owner@example.com", password="test-pass-123")
+    owner = User.objects.create_user(
+        email="operations-owner@example.com",
+        password="test-pass-123",
+    )
     _, entity, membership = create_organization_with_owner(
         owner=owner,
         name="Operations Test",
