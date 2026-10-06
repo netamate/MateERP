@@ -53,9 +53,7 @@ class NotificationListView(APIView):
         paginator = PageNumberPagination()
         paginator.page_size = 50
         page = paginator.paginate_queryset(queryset, request)
-        response = paginator.get_paginated_response(
-            NotificationSerializer(page, many=True).data
-        )
+        response = paginator.get_paginated_response(NotificationSerializer(page, many=True).data)
         response.data["unread_count"] = unread_count
         return response
 
