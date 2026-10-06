@@ -32,7 +32,9 @@ class Command(BaseCommand):
         created_or_updated = 0
         resolved = 0
 
-        for entity in LegalEntity.objects.filter(status="ACTIVE").select_related("organization"):
+        for entity in LegalEntity.objects.filter(status="ACTIVE").select_related(
+            "organization"
+        ):
             memberships = list(
                 Membership.objects.filter(
                     organization=entity.organization,
