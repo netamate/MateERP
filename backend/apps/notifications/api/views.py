@@ -7,9 +7,9 @@ from rest_framework.views import APIView
 from apps.identity.models import Membership, MembershipStatus
 from apps.identity.policy import Permission, has_permission
 
-from ..models import Notification
+from ..models import Notification, NotificationDelivery
 from ..services import mark_all_notifications_read, mark_notification_read
-from .serializers import NotificationSerializer
+from .serializers import NotificationDeliverySerializer, NotificationSerializer
 
 
 def _membership(request):
@@ -53,7 +53,9 @@ class NotificationListView(APIView):
         paginator = PageNumberPagination()
         paginator.page_size = 50
         page = paginator.paginate_queryset(queryset, request)
-        response = paginator.get_paginated_response(NotificationSerializer(page, many=True).data)
+        response = paginator.get_paginated_response(
+            NotificationSerializer(page, many=True).data
+        )
         response.data["unread_count"] = unread_count
         return response
 
@@ -75,3 +77,21 @@ class NotificationReadAllView(APIView):
             _inbox(request, membership).filter(resolved_at__isnull=True)
         )
         return Response({"marked_read": count})
+
+
+class NotificationDeliveryListView(APIView):
+    def get(self, request):
+        membership = _membership(request)
+        legal_entity_id = request.session.get("active_legal_entity_id")
+        queryset = NotificationDelivery.objects.filter(
+            organization=membership.organization
+        ).select_related("subscription")
+        if legal_entity_id:
+            queryset = queryset.filter(legal_entity_id=legal_entity_id)
+
+        paginator = PageNumberPagination()
+        paginator.page_size = 100
+        page = paginator.paginate_queryset(queryset, request)
+        return paginator.get_paginated_response(
+            NotificationDeliverySerializer(page, many=True).data
+        )
