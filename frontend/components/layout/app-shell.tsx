@@ -1,29 +1,18 @@
 "use client";
 
 import {
-  ArrowLeftRight,
-  BarChart3,
   Bell,
-  BookOpen,
-  Boxes,
   Building2,
   CalendarDays,
   ChevronDown,
-  CircleDollarSign,
-  FileCheck2,
-  FileText,
-  FolderKanban,
-  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
   PackageOpen,
   Plus,
-  ReceiptText,
   Search,
   Settings,
   Users,
-  WalletCards,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -51,61 +40,18 @@ const navGroups: NavGroup[] = [
     items: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }],
   },
   {
-    label: "Finance",
-    items: [
-      { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
-      { label: "Expenses", href: "/expenses", icon: ReceiptText },
-      { label: "Income", href: "/income", icon: CircleDollarSign },
-      { label: "Transfers", href: "/transfers", icon: WalletCards },
-      { label: "Financial Accounts", href: "/accounts", icon: Landmark },
-      { label: "Reconciliation", href: "/reconciliation", icon: FileCheck2 },
-      { label: "Vendors", href: "/vendors", icon: Building2 },
-      { label: "Reimbursements", href: "/reimbursements", icon: ReceiptText },
-      { label: "Founder Funding", href: "/founder-funding", icon: Landmark },
-      { label: "Documents & Approvals", href: "/documents", icon: FileCheck2 },
-    ],
-  },
-  {
-    label: "Operations",
+    label: "Management",
     items: [
       { label: "Subscriptions", href: "/operations/subscriptions", icon: PackageOpen },
-      { label: "Domains", href: "/operations/domains", icon: FolderKanban },
-      { label: "Infrastructure", href: "/operations/infrastructure", icon: Landmark },
+      { label: "Vendors", href: "/vendors", icon: Building2 },
       { label: "Renewals", href: "/operations/renewals", icon: CalendarDays },
     ],
   },
   {
-    label: "Planning",
+    label: "Alerts & Settings",
     items: [
-      { label: "Budgets", href: "/planning/budgets", icon: BarChart3 },
-      { label: "Cost Centers", href: "/planning/cost-centers", icon: Building2 },
-      { label: "Products", href: "/planning/products", icon: Boxes },
-      { label: "Projects", href: "/planning/projects", icon: FileText },
-      { label: "Expense Allocations", href: "/planning/allocations", icon: ArrowLeftRight },
-    ],
-  },
-  {
-    label: "Accounting & Reporting",
-    items: [
-      { label: "Chart of Accounts", href: "/accounting/accounts", icon: BookOpen },
-      { label: "Journal Entries", href: "/accounting/journals", icon: FileText },
-      { label: "Fiscal Periods", href: "/accounting/periods", icon: CalendarDays },
-      { label: "Tax & FX", href: "/accounting/configuration", icon: Settings },
-      { label: "Financial Statements", href: "/reports", icon: BarChart3 },
-      { label: "Enterprise Reports", href: "/reporting", icon: BarChart3 },
-    ],
-  },
-  {
-    label: "Administration",
-    items: [
+      { label: "Alerts", href: "/administration/notifications", icon: Bell },
       { label: "Members & Access", href: "/administration/members", icon: Users },
-      { label: "Audit Log", href: "/administration/audit", icon: FileText },
-      { label: "Notifications", href: "/administration/notifications", icon: Bell },
-      {
-        label: "Document Integrity",
-        href: "/administration/document-integrity",
-        icon: FileCheck2,
-      },
       { label: "Settings", href: "/administration/settings", icon: Settings },
     ],
   },
@@ -114,18 +60,8 @@ const navGroups: NavGroup[] = [
 const commandItems: NavItem[] = navGroups.flatMap((group) => group.items);
 
 const quickActions: Array<[string, string]> = [
-  ["Expense", "/expenses?new=1"],
-  ["Income", "/income?new=1"],
-  ["Transfer", "/transfers?new=1"],
-  ["Vendor", "/vendors?new=1"],
-  ["Reimbursement", "/reimbursements?new=1"],
-  ["Founder Funding", "/founder-funding?new=1"],
-  ["Finance Document", "/documents?new=1"],
   ["Subscription", "/operations/subscriptions"],
-  ["Domain", "/operations/domains"],
-  ["Infrastructure Asset", "/operations/infrastructure"],
-  ["Budget", "/planning/budgets"],
-  ["Reconciliation", "/reconciliation"],
+  ["Vendor", "/vendors?new=1"],
 ];
 
 type AppShellProps = {
