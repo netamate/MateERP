@@ -138,7 +138,7 @@ export function LeanDashboardPage({ session }: { session: SessionPayload }) {
         <div>
           <div className="font-semibold">{row.name}</div>
           <div className="text-[11px] text-[var(--color-text-muted)]">
-            {row.vendor_name || "No vendor"} · {row.source_type.toLowerCase()}
+            {row.vendor_name || "No vendor"} · {row.service_type.replaceAll("_", " ").toLowerCase()}
           </div>
         </div>
       ),
