@@ -45,7 +45,6 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-
 class NotificationIntegrationSettingsSerializer(serializers.Serializer):
     smtp_enabled = serializers.BooleanField(required=False)
     smtp_host = serializers.CharField(required=False, allow_blank=True, max_length=255)
@@ -86,9 +85,7 @@ class NotificationIntegrationSettingsSerializer(serializers.Serializer):
             getattr(self.instance, "smtp_use_ssl", False),
         )
         if use_tls and use_ssl:
-            raise serializers.ValidationError(
-                "SMTP TLS and SSL cannot both be enabled."
-            )
+            raise serializers.ValidationError("SMTP TLS and SSL cannot both be enabled.")
         return attrs
 
 
