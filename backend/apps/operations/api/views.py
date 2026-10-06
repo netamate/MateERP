@@ -1,3 +1,5 @@
+[Reading 253 lines from start (total: 253 lines, 0 remaining)]
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework import status
 from rest_framework.response import Response
@@ -82,9 +84,9 @@ class SubscriptionListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        queryset = Subscription.objects.filter(
-            legal_entity=context.legal_entity
-        ).select_related("vendor")
+        queryset = Subscription.objects.filter(legal_entity=context.legal_entity).select_related(
+            "vendor"
+        )
         return Response(SubscriptionSerializer(queryset, many=True).data)
 
     def post(self, request):
@@ -105,9 +107,7 @@ class SubscriptionDetailView(APIView):
     def get(self, request, object_id):
         context = _context(request)
         _require_view(context)
-        return Response(
-            SubscriptionSerializer(_get_scoped(Subscription, context, object_id)).data
-        )
+        return Response(SubscriptionSerializer(_get_scoped(Subscription, context, object_id)).data)
 
     def patch(self, request, object_id):
         context = _context(request)
@@ -253,3 +253,5 @@ class RenewalCalendarView(APIView):
                 end_date=serializer.validated_data.get("end_date"),
             )
         )
+
+[executed on device: MateServer (3c8ea7f2-c7ba-4d19-83d2-d1c911bafc84)]
