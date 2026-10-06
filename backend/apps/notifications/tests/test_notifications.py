@@ -1,14 +1,10 @@
 from datetime import timedelta
 
 import pytest
-from django.core import mail
-from django.core.management import call_command
-from django.test import Client, override_settings
-from django.utils import timezone
-
-from apps.identity.models import User
 from apps.audit.models import AuditEvent
+from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
+from apps.notifications.crypto import decrypt_secret
 from apps.notifications.models import (
     DeliveryChannel,
     DeliveryStatus,
@@ -17,8 +13,11 @@ from apps.notifications.models import (
     NotificationIntegrationSettings,
     NotificationKind,
 )
-from apps.notifications.crypto import decrypt_secret
 from apps.operations.models import ServiceType, Subscription
+from django.core import mail
+from django.core.management import call_command
+from django.test import Client, override_settings
+from django.utils import timezone
 
 
 @pytest.mark.django_db
@@ -131,7 +130,6 @@ def test_hermes_configuration_failure_is_recorded():
     assert "MATEERP_HERMES_WEBHOOK_URL" in delivery.last_error
 
 
-
 @pytest.mark.django_db
 def test_integration_settings_encrypt_secrets_and_never_return_them():
     owner = User.objects.create_user(
@@ -178,17 +176,15 @@ def test_integration_settings_encrypt_secrets_and_never_return_them():
     assert "smtp_password_encrypted" not in payload
     assert "hermes_token_encrypted" not in payload
 
-    integration = NotificationIntegrationSettings.objects.get(
-        organization=organization
-    )
+    integration = NotificationIntegrationSettings.objects.get(organization=organization)
     assert integration.smtp_password_encrypted != "smtp-secret-value"
     assert integration.hermes_token_encrypted != "hermes-secret-value"
     assert decrypt_secret(integration.smtp_password_encrypted) == "smtp-secret-value"
     assert decrypt_secret(integration.hermes_token_encrypted) == "hermes-secret-value"
 
-    audit = AuditEvent.objects.filter(
-        action="settings.notification_integrations_updated"
-    ).latest("created_at")
+    audit = AuditEvent.objects.filter(action="settings.notification_integrations_updated").latest(
+        "created_at"
+    )
     audit_text = str(audit.previous_state) + str(audit.new_state)
     assert "smtp-secret-value" not in audit_text
     assert "hermes-secret-value" not in audit_text
@@ -226,9 +222,7 @@ def test_integration_settings_blank_secret_fields_preserve_existing_secrets():
     )
     assert first.status_code == 200
 
-    integration = NotificationIntegrationSettings.objects.get(
-        organization=organization
-    )
+    integration = NotificationIntegrationSettings.objects.get(organization=organization)
     encrypted_before = integration.smtp_password_encrypted
 
     second = client.patch(
