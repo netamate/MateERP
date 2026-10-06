@@ -1,3 +1,5 @@
+[Reading 105 lines from start (total: 105 lines, 0 remaining)]
+
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
@@ -32,9 +34,7 @@ class Command(BaseCommand):
         created_or_updated = 0
         resolved = 0
 
-        for entity in LegalEntity.objects.filter(status="ACTIVE").select_related(
-            "organization"
-        ):
+        for entity in LegalEntity.objects.filter(status="ACTIVE").select_related("organization"):
             memberships = list(
                 Membership.objects.filter(
                     organization=entity.organization,
@@ -52,10 +52,7 @@ class Command(BaseCommand):
             }
 
             for renewal in renewal_calendar(entity, start_date=today, end_date=end_date):
-                key = (
-                    f"renewal:{entity.id}:{renewal['source_id']}:"
-                    f"{renewal['renewal_date']}"
-                )
+                key = f"renewal:{entity.id}:{renewal['source_id']}:{renewal['renewal_date']}"
                 days_remaining = (renewal["renewal_date"] - today).days
                 severity = (
                     NotificationSeverity.CRITICAL
@@ -108,3 +105,5 @@ class Command(BaseCommand):
         if membership.all_legal_entities:
             return True
         return membership.legal_entities.filter(id=entity.id).exists()
+
+[executed on device: MateServer (3c8ea7f2-c7ba-4d19-83d2-d1c911bafc84)]
