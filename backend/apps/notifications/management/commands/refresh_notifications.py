@@ -3,7 +3,6 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.finance.models import Expense, ExpenseStatus, Reimbursement, ReimbursementStatus
 from apps.identity.models import LegalEntity, Membership, MembershipStatus
 from apps.identity.policy import Permission, has_permission
 from apps.operations.selectors import renewal_calendar
@@ -13,20 +12,21 @@ from ...services import resolve_notifications, upsert_notification
 
 
 class Command(BaseCommand):
-    help = "Refresh idempotent MateERP renewal and approval notifications."
+    help = "Refresh idempotent MateERP subscription renewal notifications."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--horizon-days",
             type=int,
             default=30,
-            help="Create renewal alerts for obligations due within this many days.",
+            help="Create subscription alerts for payments due within this many days.",
         )
 
     def handle(self, *args, **options):
         horizon_days = options["horizon_days"]
         if horizon_days < 1:
             raise ValueError("--horizon-days must be at least 1.")
+
         today = timezone.localdate()
         end_date = today + timedelta(days=horizon_days)
         created_or_updated = 0
@@ -45,19 +45,14 @@ class Command(BaseCommand):
                 if has_permission(membership, Permission.VIEW_NOTIFICATIONS)
                 and self._can_access_entity(membership, entity)
             ]
-            approvers = [
-                membership
-                for membership in viewers
-                if has_permission(membership, Permission.APPROVE_FINANCE)
-            ]
             active_keys: dict[str, set[str]] = {
                 str(membership.user_id): set() for membership in viewers
             }
 
             for renewal in renewal_calendar(entity, start_date=today, end_date=end_date):
                 key = (
-                    f"renewal:{entity.id}:{renewal['source_type']}:"
-                    f"{renewal['source_id']}:{renewal['renewal_date']}"
+                    f"renewal:{entity.id}:{renewal['source_id']}:"
+                    f"{renewal['renewal_date']}"
                 )
                 days_remaining = (renewal["renewal_date"] - today).days
                 severity = (
@@ -65,11 +60,8 @@ class Command(BaseCommand):
                     if days_remaining <= 7
                     else NotificationSeverity.WARNING
                 )
-                link = {
-                    "SUBSCRIPTION": "/operations/subscriptions",
-                    "DOMAIN": "/operations/domains",
-                    "INFRASTRUCTURE": "/operations/infrastructure",
-                }[renewal["source_type"]]
+                service_label = renewal["service_type"].replace("_", " ").title()
+
                 for membership in viewers:
                     upsert_notification(
                         organization=entity.organization,
@@ -78,59 +70,14 @@ class Command(BaseCommand):
                         dedupe_key=key,
                         kind=NotificationKind.RENEWAL_DUE,
                         severity=severity,
-                        title=f"Renewal due: {renewal['name']}",
+                        title=f"Payment due: {renewal['name']}",
                         message=(
-                            f"{renewal['source_type'].title()} renews on "
+                            f"{service_label} payment is due on "
                             f"{renewal['renewal_date']} for {renewal['amount']} "
                             f"{renewal['currency']}."
                         ),
-                        link=link,
+                        link="/operations/subscriptions",
                         due_date=renewal["renewal_date"],
-                    )
-                    active_keys[str(membership.user_id)].add(key)
-                    created_or_updated += 1
-
-            submitted_expenses = Expense.objects.filter(
-                legal_entity=entity,
-                status=ExpenseStatus.SUBMITTED,
-            )
-            for expense in submitted_expenses:
-                key = f"approval:expense:{entity.id}:{expense.id}"
-                for membership in approvers:
-                    upsert_notification(
-                        organization=entity.organization,
-                        legal_entity=entity,
-                        recipient=membership.user,
-                        dedupe_key=key,
-                        kind=NotificationKind.EXPENSE_APPROVAL,
-                        severity=NotificationSeverity.WARNING,
-                        title="Expense waiting for approval",
-                        message=f"{expense.description}: {expense.amount} {expense.currency}",
-                        link="/expenses",
-                    )
-                    active_keys[str(membership.user_id)].add(key)
-                    created_or_updated += 1
-
-            submitted_reimbursements = Reimbursement.objects.filter(
-                legal_entity=entity,
-                status=ReimbursementStatus.SUBMITTED,
-            )
-            for reimbursement in submitted_reimbursements:
-                key = f"approval:reimbursement:{entity.id}:{reimbursement.id}"
-                for membership in approvers:
-                    upsert_notification(
-                        organization=entity.organization,
-                        legal_entity=entity,
-                        recipient=membership.user,
-                        dedupe_key=key,
-                        kind=NotificationKind.REIMBURSEMENT_APPROVAL,
-                        severity=NotificationSeverity.WARNING,
-                        title="Reimbursement waiting for approval",
-                        message=(
-                            f"{reimbursement.description}: {reimbursement.amount} "
-                            f"{reimbursement.currency}"
-                        ),
-                        link="/reimbursements",
                     )
                     active_keys[str(membership.user_id)].add(key)
                     created_or_updated += 1
@@ -140,11 +87,7 @@ class Command(BaseCommand):
                     organization=entity.organization,
                     legal_entity=entity,
                     recipient=membership.user,
-                    kind__in=[
-                        NotificationKind.RENEWAL_DUE,
-                        NotificationKind.EXPENSE_APPROVAL,
-                        NotificationKind.REIMBURSEMENT_APPROVAL,
-                    ],
+                    kind=NotificationKind.RENEWAL_DUE,
                     resolved_at__isnull=True,
                 )
                 keys = active_keys[str(membership.user_id)]
