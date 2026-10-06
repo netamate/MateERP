@@ -1,15 +1,14 @@
 from email.utils import parseaddr
 
+from apps.audit.services import record_audit_event
+from apps.identity.models import Membership, MembershipStatus
+from apps.identity.policy import Permission, has_permission
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.audit.services import record_audit_event
-from apps.identity.models import Membership, MembershipStatus
-from apps.identity.policy import Permission, has_permission
 
 from ..crypto import encrypt_secret
 from ..models import (
@@ -61,9 +60,7 @@ def _inbox(request, membership):
 
 
 def _integration_instance(organization):
-    existing = NotificationIntegrationSettings.objects.filter(
-        organization=organization
-    ).first()
+    existing = NotificationIntegrationSettings.objects.filter(organization=organization).first()
     if existing:
         return existing
 
@@ -169,17 +166,13 @@ class NotificationIntegrationSettingsView(APIView):
 
         if integration.smtp_enabled:
             if not integration.smtp_host or not integration.smtp_from_email:
-                raise ValidationError(
-                    "SMTP Host and From Email are required when SMTP is enabled."
-                )
+                raise ValidationError("SMTP Host and From Email are required when SMTP is enabled.")
             if integration.smtp_username and not integration.smtp_password_encrypted:
                 raise ValidationError(
                     "SMTP Password is required when an SMTP Username is configured."
                 )
         if integration.hermes_enabled and not integration.hermes_webhook_url:
-            raise ValidationError(
-                "Hermes Webhook URL is required when Hermes is enabled."
-            )
+            raise ValidationError("Hermes Webhook URL is required when Hermes is enabled.")
 
         integration.updated_by = request.user
         integration.save()
