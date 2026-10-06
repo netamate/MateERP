@@ -5,10 +5,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.accounting.models import Account, AccountType
-from apps.finance.models import Expense, FinancialAccount, Vendor
+from apps.finance.models import Vendor
 from apps.identity.models import LegalEntity
-from apps.planning.models import CostCenter, Product
 
 
 class OperationalStatus(models.TextChoices):
@@ -37,30 +35,9 @@ class ServiceType(models.TextChoices):
     OTHER = "OTHER", "Other"
 
 
-class InfrastructureType(models.TextChoices):
-    VPS = "VPS", "VPS"
-    HOSTING = "HOSTING", "Hosting"
-    CLOUD = "CLOUD", "Cloud"
-    STORAGE = "STORAGE", "Storage"
-    CDN = "CDN", "CDN"
-    BACKUP = "BACKUP", "Backup"
-    EMAIL = "EMAIL", "Email Infrastructure"
-    MONITORING = "MONITORING", "Monitoring"
-    OTHER = "OTHER", "Other"
-
-
 def _validate_scoped_reference(legal_entity_id, obj, label: str) -> None:
     if obj and obj.legal_entity_id != legal_entity_id:
         raise ValidationError(f"{label} must belong to the same legal entity.")
-
-
-def _validate_expense_accounts(legal_entity_id, expense_account, payable_account) -> None:
-    _validate_scoped_reference(legal_entity_id, expense_account, "Expense account")
-    _validate_scoped_reference(legal_entity_id, payable_account, "Payable account")
-    if expense_account and expense_account.account_type != AccountType.EXPENSE:
-        raise ValidationError("Expense account must be an expense account.")
-    if payable_account and payable_account.account_type != AccountType.LIABILITY:
-        raise ValidationError("Payable account must be a liability account.")
 
 
 class Subscription(models.Model):
@@ -93,9 +70,16 @@ class Subscription(models.Model):
         choices=BillingCycle.choices,
         default=BillingCycle.MONTHLY,
     )
+    custom_cycle_days = models.PositiveIntegerField(null=True, blank=True)
     started_on = models.DateField(null=True, blank=True)
     next_renewal_date = models.DateField(null=True, blank=True)
     auto_renew = models.BooleanField(default=True)
+    reminder_days = models.JSONField(default=list)
+    reminder_in_app = models.BooleanField(default=True)
+    reminder_email = models.BooleanField(default=False)
+    reminder_hermes = models.BooleanField(default=False)
+    reminder_email_recipients = models.JSONField(default=list, blank=True)
+    hermes_target = models.CharField(max_length=180, blank=True)
     status = models.CharField(
         max_length=16,
         choices=OperationalStatus.choices,
@@ -119,6 +103,8 @@ class Subscription(models.Model):
 
     def save(self, *args, **kwargs):
         self.currency = self.currency.upper()
+        if not self.reminder_days:
+            self.reminder_days = [30, 15, 7, 3, 1, 0]
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -127,232 +113,57 @@ class Subscription(models.Model):
             raise ValidationError("Subscription amount cannot be negative.")
         if self.started_on and self.next_renewal_date and self.next_renewal_date < self.started_on:
             raise ValidationError("Next renewal cannot be before the subscription start date.")
+        if self.billing_cycle == BillingCycle.CUSTOM and not self.custom_cycle_days:
+            raise ValidationError("Custom billing cycles require custom_cycle_days.")
+        if self.custom_cycle_days is not None and self.custom_cycle_days < 1:
+            raise ValidationError("custom_cycle_days must be at least 1.")
+        if not isinstance(self.reminder_days, list):
+            raise ValidationError("reminder_days must be a list of day offsets.")
+        normalized_days = []
+        for value in self.reminder_days:
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0 or value > 365:
+                raise ValidationError("Reminder day offsets must be integers between 0 and 365.")
+            if value not in normalized_days:
+                normalized_days.append(value)
+        self.reminder_days = sorted(normalized_days, reverse=True)
+        if not isinstance(self.reminder_email_recipients, list):
+            raise ValidationError("reminder_email_recipients must be a list.")
         _validate_scoped_reference(self.legal_entity_id, self.vendor, "Vendor")
 
 
-class Domain(models.Model):
+class SubscriptionPayment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     legal_entity = models.ForeignKey(
         LegalEntity,
         on_delete=models.PROTECT,
-        related_name="domains",
+        related_name="subscription_payments",
     )
-    product = models.ForeignKey(
-        Product,
+    subscription = models.ForeignKey(
+        Subscription,
         on_delete=models.PROTECT,
-        related_name="domains",
-        null=True,
-        blank=True,
+        related_name="payments",
     )
-    payment_account = models.ForeignKey(
-        FinancialAccount,
-        on_delete=models.PROTECT,
-        related_name="domains",
-        null=True,
-        blank=True,
-    )
-    expense_account = models.ForeignKey(
-        Account,
-        on_delete=models.PROTECT,
-        related_name="domain_expenses",
-        null=True,
-        blank=True,
-    )
-    payable_account = models.ForeignKey(
-        Account,
-        on_delete=models.PROTECT,
-        related_name="domain_payables",
-        null=True,
-        blank=True,
-    )
-    domain_name = models.CharField(max_length=253)
-    registrar = models.CharField(max_length=180, blank=True)
-    dns_provider = models.CharField(max_length=180, blank=True)
-    purpose = models.CharField(max_length=255, blank=True)
-    purchase_date = models.DateField(null=True, blank=True)
-    expiry_date = models.DateField()
-    renewal_amount = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0"))
-    currency = models.CharField(max_length=3, default="USD")
-    auto_renew = models.BooleanField(default=True)
-    status = models.CharField(
-        max_length=16,
-        choices=OperationalStatus.choices,
-        default=OperationalStatus.ACTIVE,
-    )
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["expiry_date", "domain_name"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["legal_entity", "domain_name"],
-                name="uniq_domain_name_per_entity",
-            )
-        ]
-
-    def __str__(self) -> str:
-        return self.domain_name
-
-    def save(self, *args, **kwargs):
-        self.domain_name = self.domain_name.lower().strip()
-        self.currency = self.currency.upper()
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def clean(self):
-        if self.renewal_amount < 0:
-            raise ValidationError("Domain renewal amount cannot be negative.")
-        if self.purchase_date and self.expiry_date < self.purchase_date:
-            raise ValidationError("Domain expiry cannot be before purchase date.")
-        for obj, label in ((self.product, "Product"), (self.payment_account, "Payment account")):
-            _validate_scoped_reference(self.legal_entity_id, obj, label)
-        _validate_expense_accounts(self.legal_entity_id, self.expense_account, self.payable_account)
-
-
-class InfrastructureAsset(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    legal_entity = models.ForeignKey(
-        LegalEntity,
-        on_delete=models.PROTECT,
-        related_name="infrastructure_assets",
-    )
-    vendor = models.ForeignKey(
-        Vendor,
-        on_delete=models.PROTECT,
-        related_name="infrastructure_assets",
-        null=True,
-        blank=True,
-    )
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.PROTECT,
-        related_name="infrastructure_assets",
-        null=True,
-        blank=True,
-    )
-    cost_center = models.ForeignKey(
-        CostCenter,
-        on_delete=models.PROTECT,
-        related_name="infrastructure_assets",
-        null=True,
-        blank=True,
-    )
-    payment_account = models.ForeignKey(
-        FinancialAccount,
-        on_delete=models.PROTECT,
-        related_name="infrastructure_assets",
-        null=True,
-        blank=True,
-    )
-    expense_account = models.ForeignKey(
-        Account,
-        on_delete=models.PROTECT,
-        related_name="infrastructure_expenses",
-        null=True,
-        blank=True,
-    )
-    payable_account = models.ForeignKey(
-        Account,
-        on_delete=models.PROTECT,
-        related_name="infrastructure_payables",
-        null=True,
-        blank=True,
-    )
-    name = models.CharField(max_length=180)
-    asset_type = models.CharField(max_length=20, choices=InfrastructureType.choices)
-    provider_reference = models.CharField(max_length=180, blank=True)
-    purpose = models.CharField(max_length=255, blank=True)
-    started_on = models.DateField(null=True, blank=True)
-    next_renewal_date = models.DateField(null=True, blank=True)
-    renewal_amount = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0"))
-    currency = models.CharField(max_length=3, default="USD")
-    billing_cycle = models.CharField(
-        max_length=16,
-        choices=BillingCycle.choices,
-        default=BillingCycle.MONTHLY,
-    )
-    auto_renew = models.BooleanField(default=True)
-    status = models.CharField(
-        max_length=16,
-        choices=OperationalStatus.choices,
-        default=OperationalStatus.ACTIVE,
-    )
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["next_renewal_date", "name"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["legal_entity", "name"],
-                name="uniq_infrastructure_name_per_entity",
-            )
-        ]
-
-    def __str__(self) -> str:
-        return self.name
-
-    def save(self, *args, **kwargs):
-        self.currency = self.currency.upper()
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def clean(self):
-        if self.renewal_amount < 0:
-            raise ValidationError("Infrastructure renewal amount cannot be negative.")
-        if self.started_on and self.next_renewal_date and self.next_renewal_date < self.started_on:
-            raise ValidationError("Next renewal cannot be before the infrastructure start date.")
-        for obj, label in (
-            (self.vendor, "Vendor"),
-            (self.product, "Product"),
-            (self.cost_center, "Cost center"),
-            (self.payment_account, "Payment account"),
-        ):
-            _validate_scoped_reference(self.legal_entity_id, obj, label)
-        _validate_expense_accounts(self.legal_entity_id, self.expense_account, self.payable_account)
-
-
-class DomainRenewal(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    legal_entity = models.ForeignKey(
-        LegalEntity,
-        on_delete=models.PROTECT,
-        related_name="domain_renewals",
-    )
-    domain = models.ForeignKey(
-        Domain,
-        on_delete=models.PROTECT,
-        related_name="renewal_history",
-    )
-    expense = models.OneToOneField(
-        Expense,
-        on_delete=models.PROTECT,
-        related_name="domain_renewal",
-        null=True,
-        blank=True,
-    )
-    renewed_on = models.DateField()
-    previous_expiry_date = models.DateField()
-    new_expiry_date = models.DateField()
+    paid_on = models.DateField()
+    previous_due_date = models.DateField(null=True, blank=True)
+    next_due_date = models.DateField(null=True, blank=True)
     amount = models.DecimalField(max_digits=20, decimal_places=2)
     currency = models.CharField(max_length=3)
-    fx_rate = models.DecimalField(max_digits=20, decimal_places=10, default=Decimal("1"))
-    notes = models.CharField(max_length=255, blank=True)
+    reference = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="recorded_domain_renewals",
+        related_name="recorded_subscription_payments",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-renewed_on", "-created_at"]
+        ordering = ["-paid_on", "-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.domain.domain_name} renewal {self.new_expiry_date}"
+        return f"{self.subscription.name} payment {self.paid_on}"
 
     def save(self, *args, **kwargs):
         self.currency = self.currency.upper()
@@ -360,9 +171,6 @@ class DomainRenewal(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
-        if self.amount < 0 or self.fx_rate <= 0:
-            raise ValidationError("Renewal amount cannot be negative and FX rate must be positive.")
-        if self.new_expiry_date <= self.previous_expiry_date:
-            raise ValidationError("New domain expiry must be after the previous expiry date.")
-        _validate_scoped_reference(self.legal_entity_id, self.domain, "Domain")
-        _validate_scoped_reference(self.legal_entity_id, self.expense, "Expense")
+        if self.amount < 0:
+            raise ValidationError("Payment amount cannot be negative.")
+        _validate_scoped_reference(self.legal_entity_id, self.subscription, "Subscription")
