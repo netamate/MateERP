@@ -81,9 +81,20 @@ The old frontend Domain and Infrastructure URLs continue redirecting to Subscrip
 
 ## Configuration
 
-Secrets remain environment-driven.
+The primary configuration surface is now **Settings → Email / SMTP & Hermes** inside MateERP.
 
-Email:
+Owners and Administrators can:
+
+- enable or disable SMTP reminders
+- set SMTP host, port, mailbox username, password, TLS/SSL, From Name, and From Email
+- send a test email
+- enable or disable Hermes
+- set Hermes webhook URL, token, and default target
+- send a test Hermes notification
+
+SMTP passwords and Hermes tokens are encrypted before database storage. They are never returned by the API and audit events only contain masked/configured-state metadata.
+
+Environment variables remain as a bootstrap/fallback path until ERP settings are saved:
 
 - `EMAIL_BACKEND`
 - `EMAIL_HOST`
@@ -93,10 +104,9 @@ Email:
 - `EMAIL_USE_TLS`
 - `EMAIL_USE_SSL`
 - `DEFAULT_FROM_EMAIL`
-
-Hermes:
-
 - `MATEERP_HERMES_WEBHOOK_URL`
 - `MATEERP_HERMES_WEBHOOK_TOKEN`
 
-If Hermes is enabled on a subscription but the webhook is not configured, the attempt is recorded as FAILED instead of disappearing silently.
+For encryption, `MATEERP_SETTINGS_ENCRYPTION_KEY` can hold a dedicated Fernet key. If it is not supplied, MateERP derives a stable encryption key from Django `SECRET_KEY`.
+
+If a channel is enabled but its configuration is incomplete or delivery fails, the attempt is recorded as FAILED instead of disappearing silently.
