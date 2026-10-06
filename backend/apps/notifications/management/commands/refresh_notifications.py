@@ -1,5 +1,3 @@
-[Reading 105 lines from start (total: 105 lines, 0 remaining)]
-
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
@@ -105,5 +103,3 @@ class Command(BaseCommand):
         if membership.all_legal_entities:
             return True
         return membership.legal_entities.filter(id=entity.id).exists()
-
-[executed on device: MateServer (3c8ea7f2-c7ba-4d19-83d2-d1c911bafc84)]
