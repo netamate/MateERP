@@ -24,6 +24,19 @@ class BillingCycle(models.TextChoices):
     CUSTOM = "CUSTOM", "Custom"
 
 
+class ServiceType(models.TextChoices):
+    DOMAIN = "DOMAIN", "Domain"
+    VPS = "VPS", "VPS / Server"
+    CLOUD = "CLOUD", "Cloud"
+    HOSTING = "HOSTING", "Hosting"
+    SAAS = "SAAS", "SaaS / Software"
+    API = "API", "API / Usage Service"
+    STORAGE = "STORAGE", "Storage / Backup"
+    EMAIL = "EMAIL", "Email Service"
+    AI = "AI", "AI Service"
+    OTHER = "OTHER", "Other"
+
+
 class InfrastructureType(models.TextChoices):
     VPS = "VPS", "VPS"
     HOSTING = "HOSTING", "Hosting"
@@ -64,44 +77,15 @@ class Subscription(models.Model):
         null=True,
         blank=True,
     )
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.PROTECT,
-        related_name="subscriptions",
-        null=True,
-        blank=True,
-    )
-    cost_center = models.ForeignKey(
-        CostCenter,
-        on_delete=models.PROTECT,
-        related_name="subscriptions",
-        null=True,
-        blank=True,
-    )
-    payment_account = models.ForeignKey(
-        FinancialAccount,
-        on_delete=models.PROTECT,
-        related_name="subscriptions",
-        null=True,
-        blank=True,
-    )
-    expense_account = models.ForeignKey(
-        Account,
-        on_delete=models.PROTECT,
-        related_name="operational_subscriptions",
-        null=True,
-        blank=True,
-    )
-    payable_account = models.ForeignKey(
-        Account,
-        on_delete=models.PROTECT,
-        related_name="subscription_payables",
-        null=True,
-        blank=True,
-    )
     name = models.CharField(max_length=180)
-    category = models.CharField(max_length=120, blank=True)
+    service_type = models.CharField(
+        max_length=20,
+        choices=ServiceType.choices,
+        default=ServiceType.OTHER,
+    )
     description = models.TextField(blank=True)
+    reference = models.CharField(max_length=255, blank=True)
+    payment_method = models.CharField(max_length=180, blank=True)
     amount = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0"))
     currency = models.CharField(max_length=3, default="USD")
     billing_cycle = models.CharField(
@@ -143,14 +127,7 @@ class Subscription(models.Model):
             raise ValidationError("Subscription amount cannot be negative.")
         if self.started_on and self.next_renewal_date and self.next_renewal_date < self.started_on:
             raise ValidationError("Next renewal cannot be before the subscription start date.")
-        for obj, label in (
-            (self.vendor, "Vendor"),
-            (self.product, "Product"),
-            (self.cost_center, "Cost center"),
-            (self.payment_account, "Payment account"),
-        ):
-            _validate_scoped_reference(self.legal_entity_id, obj, label)
-        _validate_expense_accounts(self.legal_entity_id, self.expense_account, self.payable_account)
+        _validate_scoped_reference(self.legal_entity_id, self.vendor, "Vendor")
 
 
 class Domain(models.Model):
