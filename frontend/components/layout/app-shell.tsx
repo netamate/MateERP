@@ -10,6 +10,7 @@ import {
   Mail,
   Menu,
   PackageOpen,
+  Layers3,
   Plus,
   Search,
   Settings,
@@ -44,6 +45,7 @@ const navGroups: NavGroup[] = [
     label: "Management",
     items: [
       { label: "Subscriptions", href: "/operations/subscriptions", icon: PackageOpen },
+      { label: "Services & Accounts", href: "/operations/service-accounts", icon: Layers3 },
       { label: "Vendors", href: "/vendors", icon: Building2 },
       { label: "Renewals", href: "/operations/renewals", icon: CalendarDays },
     ],
