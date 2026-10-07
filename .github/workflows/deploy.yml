@@ -118,10 +118,22 @@ jobs:
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/mateerp-docker-compose.yml"
           scp -P "$VPS_PORT" deploy/scripts/backup-db.sh deploy/scripts/validate-restore.sh \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/"
+          scp -P "$VPS_PORT" \
+            deploy/systemd/mateerp-notifications.service \
+            deploy/systemd/mateerp-notifications.timer \
+            deploy/systemd/mateerp-email-scheduler.service \
+            deploy/systemd/mateerp-email-scheduler.timer \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/"
           ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             'sudo install -m 640 /tmp/mateerp-docker-compose.yml /opt/MateERP/docker-compose.yml &&
              sudo install -m 750 /tmp/backup-db.sh /opt/MateERP/scripts/backup-db.sh &&
-             sudo install -m 750 /tmp/validate-restore.sh /opt/MateERP/scripts/validate-restore.sh'
+             sudo install -m 750 /tmp/validate-restore.sh /opt/MateERP/scripts/validate-restore.sh &&
+             sudo install -m 644 /tmp/mateerp-notifications.service /etc/systemd/system/mateerp-notifications.service &&
+             sudo install -m 644 /tmp/mateerp-notifications.timer /etc/systemd/system/mateerp-notifications.timer &&
+             sudo install -m 644 /tmp/mateerp-email-scheduler.service /etc/systemd/system/mateerp-email-scheduler.service &&
+             sudo install -m 644 /tmp/mateerp-email-scheduler.timer /etc/systemd/system/mateerp-email-scheduler.timer &&
+             sudo systemctl daemon-reload &&
+             sudo systemctl enable --now mateerp-notifications.timer mateerp-email-scheduler.timer'
       - name: Authenticate MateServer to private GHCR
         shell: bash
         run: |

@@ -1,0 +1,13 @@
+# Check for due direct email notifications every minute and catch up after downtime.
+[Unit]
+Description=Schedule MateERP direct email delivery
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+AccuracySec=15s
+RandomizedDelaySec=5s
+Unit=mateerp-email-scheduler.service
+
+[Install]
+WantedBy=timers.target

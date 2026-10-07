@@ -9,7 +9,8 @@ This directory contains the production deployment boundary for MateERP on MateSe
 - `nginx/mateerp.conf`: HTTP-first host-native Nginx site for `erp.netamate.com`.
 - `scripts/backup-db.sh`: PostgreSQL custom-format backups with SHA-256 checksums and 14-day retention.
 - `scripts/validate-restore.sh`: isolated disposable PostgreSQL restore validation.
-- `systemd/mateerp-notifications.*`: daily Phase 8 notification refresh.
+- `systemd/mateerp-notifications.*`: daily subscription reminder refresh.
+- `systemd/mateerp-email-scheduler.*`: one-minute direct email scheduler for user-created scheduled messages.
 - `systemd/mateerp-backup.*`: daily database backup schedule.
 
 ## Live port allocation

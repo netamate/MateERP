@@ -22,6 +22,7 @@ import {
   type AuditEvent,
   type FinanceDocumentIntegrity,
   type Notification,
+  type NotificationDelivery,
 } from "@/lib/phase8-api";
 
 function membership(session: SessionPayload) {
@@ -117,6 +118,11 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
     queryFn: () => notificationApi.inbox(includeResolved),
     enabled: allowed && Boolean(session.active_organization_id),
   });
+  const deliveries = useQuery({
+    queryKey: ["notification-deliveries", session.active_organization_id, session.active_legal_entity_id],
+    queryFn: notificationApi.deliveries,
+    enabled: allowed && Boolean(session.active_organization_id),
+  });
   const readMutation = useMutation({
     mutationFn: notificationApi.markRead,
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
@@ -127,12 +133,12 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
   });
 
   if (!allowed) return <PermissionNotice>You do not have permission to view notifications.</PermissionNotice>;
-  if (inbox.isLoading) return <LoadingState label="Loading notifications..." />;
-  if (inbox.error) return <ErrorState message={errorMessage(inbox.error)} />;
+  if (inbox.isLoading || deliveries.isLoading) return <LoadingState label="Loading alerts..." />;
+  if (inbox.error || deliveries.error) return <ErrorState message={errorMessage(inbox.error ?? deliveries.error)} />;
 
   const columns: Array<TableColumn<Notification>> = [
     { key: "severity", label: "Severity", render: (row) => <StatusBadge value={row.severity} /> },
-    { key: "title", label: "Notification", render: (row) => <div><div className="font-semibold">{row.title}</div><div className="mt-0.5 max-w-xl text-xs text-[var(--color-text-muted)]">{row.message}</div></div> },
+    { key: "title", label: "Alert", render: (row) => <div><div className="font-semibold">{row.title}</div><div className="mt-0.5 max-w-xl text-xs text-[var(--color-text-muted)]">{row.message}</div></div> },
     { key: "due", label: "Due", render: (row) => row.due_date ?? "—" },
     { key: "state", label: "State", render: (row) => row.resolved_at ? <StatusBadge value="RESOLVED" /> : row.read_at ? <StatusBadge value="READ" /> : <StatusBadge value="UNREAD" /> },
     { key: "created", label: "Created", render: (row) => timestamp(row.created_at) },
@@ -148,19 +154,43 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
     },
   ];
 
+  const deliveryColumns: Array<TableColumn<NotificationDelivery>> = [
+    { key: "subscription", label: "Subscription", render: (row) => <strong>{row.subscription_name}</strong> },
+    { key: "channel", label: "Channel", render: (row) => <StatusBadge value={row.channel} /> },
+    { key: "destination", label: "Destination", render: (row) => row.destination || "Default" },
+    { key: "offset", label: "Reminder", render: (row) => row.reminder_days_before === 0 ? "Due day" : `${row.reminder_days_before} days before` },
+    { key: "due", label: "Due", render: (row) => row.due_date },
+    { key: "status", label: "Status", render: (row) => <StatusBadge value={row.status} /> },
+    { key: "attempts", label: "Attempts", numeric: true, render: (row) => String(row.attempt_count) },
+    { key: "sent", label: "Sent / Attempted", render: (row) => timestamp(row.sent_at ?? row.created_at) },
+    { key: "error", label: "Error", render: (row) => row.last_error ? <span className="text-xs text-[var(--color-danger)]">{row.last_error}</span> : "—" },
+  ];
+
+  const deliveryRows = deliveries.data?.results ?? [];
+  const failures = deliveryRows.filter((item) => item.status === "FAILED").length;
+
   return (
     <>
       <PageHeader
-        eyebrow="Phase 8 · Administration"
-        title="Notifications"
-        description="Targeted renewal and approval alerts. Read state is independent from resolution so operational obligations remain visible until the underlying condition is cleared."
+        eyebrow="Alerts & Delivery"
+        title="Alerts"
+        description="Subscription reminders and channel delivery history for in-app, email, and Hermes."
         actions={<button className="erp-button" disabled={readAllMutation.isPending} onClick={() => readAllMutation.mutate()} type="button">Mark All Read</button>}
       />
-      <MetricStrip metrics={[{ label: "Unread", value: String(inbox.data?.unread_count ?? 0) }, { label: "Visible", value: String(inbox.data?.results.length ?? 0) }, { label: "Scope", value: activeEntity(session)?.name ?? "Organization" }, { label: "Refresh", value: "Idempotent" }]} />
-      <div className="space-y-3 p-4 lg:p-6">
-        <label className="flex items-center gap-2 text-xs"><input checked={includeResolved} onChange={(event) => setIncludeResolved(event.target.checked)} type="checkbox" /> Include resolved history</label>
-        {readMutation.error || readAllMutation.error ? <ErrorState message={errorMessage(readMutation.error ?? readAllMutation.error)} /> : null}
-        <DataTable columns={columns} rows={inbox.data?.results ?? []} rowKey={(row) => row.id} emptyTitle="No active notifications" emptyDescription="Renewal and approval alerts will appear here after the notification refresh job runs." />
+      <MetricStrip metrics={[{ label: "Unread", value: String(inbox.data?.unread_count ?? 0) }, { label: "Active Alerts", value: String(inbox.data?.results.length ?? 0) }, { label: "Delivery Records", value: String(deliveryRows.length) }, { label: "Failed Deliveries", value: String(failures), tone: failures ? "bad" : "good" }]} />
+      <div className="space-y-5 p-4 lg:p-6">
+        <section>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold">In-app alerts</h2>
+            <label className="flex items-center gap-2 text-xs"><input checked={includeResolved} onChange={(event) => setIncludeResolved(event.target.checked)} type="checkbox" /> Include resolved history</label>
+          </div>
+          {readMutation.error || readAllMutation.error ? <ErrorState message={errorMessage(readMutation.error ?? readAllMutation.error)} /> : null}
+          <DataTable columns={columns} rows={inbox.data?.results ?? []} rowKey={(row) => row.id} emptyTitle="No active alerts" emptyDescription="Configured subscription reminders will appear here when their day offsets are reached." />
+        </section>
+        <section>
+          <h2 className="mb-2 text-sm font-semibold">Delivery history</h2>
+          <DataTable columns={deliveryColumns} rows={deliveryRows} rowKey={(row) => row.id} emptyTitle="No delivery history" emptyDescription="In-app, email, and Hermes delivery attempts will be recorded here." />
+        </section>
       </div>
     </>
   );

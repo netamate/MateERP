@@ -163,6 +163,61 @@ export type NotificationInbox = Paginated<Notification> & {
   unread_count: number;
 };
 
+export type NotificationDelivery = {
+  id: string;
+  subscription: string;
+  subscription_name: string;
+  channel: "IN_APP" | "EMAIL" | "HERMES";
+  destination: string;
+  reminder_days_before: number;
+  due_date: string;
+  title: string;
+  message: string;
+  status: "PENDING" | "SENT" | "FAILED";
+  attempt_count: number;
+  last_error: string;
+  sent_at: string | null;
+  created_at: string;
+};
+
+export type DirectEmailNotification = {
+  id: string;
+  legal_entity: string | null;
+  to_recipients: string[];
+  cc_recipients: string[];
+  bcc_recipients: string[];
+  subject: string;
+  body: string;
+  scheduled_for: string | null;
+  schedule_timezone: string;
+  status: "DRAFT" | "SCHEDULED" | "SENDING" | "SENT" | "FAILED" | "CANCELLED";
+  attempt_count: number;
+  last_error: string;
+  sent_at: string | null;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationIntegrationSettings = {
+  smtp_enabled: boolean;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password_configured: boolean;
+  smtp_use_tls: boolean;
+  smtp_use_ssl: boolean;
+  smtp_from_name: string;
+  smtp_from_email: string;
+  smtp_source: "ERP" | "ENV" | "NONE";
+  hermes_enabled: boolean;
+  hermes_webhook_url: string;
+  hermes_token_configured: boolean;
+  hermes_default_target: string;
+  hermes_source: "ERP" | "ENV" | "NONE";
+  updated_at: string | null;
+};
+
 export type FinanceDocumentIntegrity = {
   id: string;
   document_type: string;
@@ -276,6 +331,48 @@ export const notificationApi = {
     request<Notification>(`/api/v1/notifications/${id}/read/`, { method: "POST" }, true),
   markAllRead: () =>
     request<{ marked_read: number }>("/api/v1/notifications/read-all/", { method: "POST" }, true),
+  deliveries: () =>
+    request<Paginated<NotificationDelivery>>("/api/v1/notifications/deliveries/"),
+  integrations: () =>
+    request<NotificationIntegrationSettings>("/api/v1/notifications/integrations/"),
+  updateIntegrations: (body: Record<string, unknown>) =>
+    request<NotificationIntegrationSettings>(
+      "/api/v1/notifications/integrations/",
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  testEmail: (recipient: string) =>
+    request<{ detail: string }>(
+      "/api/v1/notifications/integrations/test-email/",
+      { method: "POST", body: JSON.stringify({ recipient }) },
+      true,
+    ),
+  testHermes: (target: string) =>
+    request<{ detail: string }>(
+      "/api/v1/notifications/integrations/test-hermes/",
+      { method: "POST", body: JSON.stringify({ target }) },
+      true,
+    ),
+  directEmails: () =>
+    request<Paginated<DirectEmailNotification>>("/api/v1/notifications/email/"),
+  createDirectEmail: (body: Record<string, unknown>) =>
+    request<DirectEmailNotification>(
+      "/api/v1/notifications/email/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  sendDirectEmail: (id: string) =>
+    request<DirectEmailNotification>(
+      `/api/v1/notifications/email/${id}/send/`,
+      { method: "POST" },
+      true,
+    ),
+  cancelDirectEmail: (id: string) =>
+    request<DirectEmailNotification>(
+      `/api/v1/notifications/email/${id}/cancel/`,
+      { method: "POST" },
+      true,
+    ),
 };
 
 export const documentIntegrityApi = {

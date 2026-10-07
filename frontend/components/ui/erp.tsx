@@ -62,11 +62,11 @@ export function MetricStrip({
 
 export function StatusBadge({ value }: { value: string }) {
   const normalized = value.toUpperCase();
-  const className = ["PAID", "POSTED", "APPROVED", "ACTIVE", "OPEN"].includes(normalized)
+  const className = ["PAID", "POSTED", "APPROVED", "ACTIVE", "OPEN", "SENT"].includes(normalized)
     ? "erp-status-success"
     : ["SUBMITTED", "PARTIALLY_PAID", "PENDING", "DUE"].includes(normalized)
       ? "erp-status-warning"
-      : ["REJECTED", "VOID", "CLOSED", "OVERDUE", "REVERSED"].includes(normalized)
+      : ["REJECTED", "VOID", "CLOSED", "OVERDUE", "REVERSED", "FAILED"].includes(normalized)
         ? "erp-status-danger"
         : "erp-status-muted";
   return <span className={`erp-status ${className}`}>{value.replaceAll("_", " ")}</span>;

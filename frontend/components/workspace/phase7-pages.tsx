@@ -379,53 +379,174 @@ export function SubscriptionsPage({ session }: { session: SessionPayload }) {
   const entity = activeEntity(session);
   const viewAllowed = can(session, "VIEW_OPERATIONS");
   const manageAllowed = can(session, "MANAGE_OPERATIONS");
-  const subscriptions = useQuery({ queryKey: ["subscriptions", entity?.id], queryFn: operationsApi.subscriptions, enabled: Boolean(entity && viewAllowed) });
-  const vendors = useQuery({ queryKey: ["vendors", entity?.id], queryFn: financeApi.vendors, enabled: Boolean(entity && viewAllowed) });
-  const products = useQuery({ queryKey: ["products", entity?.id], queryFn: planningApi.products, enabled: Boolean(entity && viewAllowed) });
-  const costCenters = useQuery({ queryKey: ["cost-centers", entity?.id], queryFn: planningApi.costCenters, enabled: Boolean(entity && viewAllowed) });
-  const create = useMutation({ mutationFn: operationsApi.createSubscription, onSuccess: async () => { setCreating(false); await queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] }); await queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] }); } });
-  const archive = useMutation({ mutationFn: (id: string) => operationsApi.updateSubscription(id, { status: "ARCHIVED" }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] }); queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] }); } });
+  const subscriptions = useQuery({
+    queryKey: ["subscriptions", entity?.id],
+    queryFn: operationsApi.subscriptions,
+    enabled: Boolean(entity && viewAllowed),
+  });
+  const vendors = useQuery({
+    queryKey: ["vendors", entity?.id],
+    queryFn: financeApi.vendors,
+    enabled: Boolean(entity && viewAllowed),
+  });
+  const create = useMutation({
+    mutationFn: operationsApi.createSubscription,
+    onSuccess: async () => {
+      setCreating(false);
+      await queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] });
+    },
+  });
+  const archive = useMutation({
+    mutationFn: (id: string) => operationsApi.updateSubscription(id, { status: "ARCHIVED" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] });
+      queryClient.invalidateQueries({ queryKey: ["renewals", entity?.id] });
+    },
+  });
+
   const columns: TableColumn<Subscription>[] = [
-    { key: "name", label: "Subscription", render: (row) => <div><strong>{row.name}</strong><div className="text-[11px] text-[var(--color-text-muted)]">{row.category || "Uncategorized"}</div></div> },
+    {
+      key: "name",
+      label: "Subscription",
+      render: (row) => (
+        <div>
+          <strong>{row.name}</strong>
+          <div className="text-[11px] text-[var(--color-text-muted)]">{row.description || "Recurring business cost"}</div>
+        </div>
+      ),
+    },
+    { key: "type", label: "Type", render: (row) => <StatusBadge value={row.service_type} /> },
     { key: "vendor", label: "Vendor", render: (row) => row.vendor_name || "—" },
-    { key: "dimension", label: "Allocation", render: (row) => row.product_name || row.cost_center_name || "—" },
     { key: "cycle", label: "Billing", render: (row) => row.billing_cycle.replaceAll("_", " ") },
-    { key: "renewal", label: "Next Renewal", render: (row) => shortDate(row.next_renewal_date) },
+    { key: "renewal", label: "Next Payment", render: (row) => shortDate(row.next_renewal_date) },
     { key: "amount", label: "Amount", numeric: true, render: (row) => money(row.amount, row.currency) },
+    { key: "auto", label: "Auto Renew", render: (row) => <StatusBadge value={row.auto_renew ? "ON" : "OFF"} /> },
     { key: "status", label: "Status", render: (row) => <StatusBadge value={row.status} /> },
-    { key: "actions", label: "Actions", render: (row) => row.status === "ACTIVE" && manageAllowed ? <button className="erp-button !h-7 !min-h-7 text-[11px]" onClick={() => archive.mutate(row.id)} type="button"><Archive size={12} /> Archive</button> : "—" },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (row) =>
+        row.status === "ACTIVE" && manageAllowed ? (
+          <button
+            className="erp-button !h-7 !min-h-7 text-[11px]"
+            onClick={() => archive.mutate(row.id)}
+            type="button"
+          >
+            <Archive size={12} /> Archive
+          </button>
+        ) : "—",
+    },
   ];
 
   return (
     <>
-      <OperationalDependencies session={session} />
-      <PageHeader actions={manageAllowed ? <button className="erp-button erp-button-primary" onClick={() => setCreating(true)} type="button"><Plus size={13} /> Add Subscription</button> : undefined} description="Manage recurring software, platform, service, and business obligations without turning subscriptions into accounting journals." eyebrow="Operations" title="Subscriptions" />
+      <PageHeader
+        actions={
+          manageAllowed ? (
+            <button
+              className="erp-button erp-button-primary"
+              onClick={() => setCreating(true)}
+              type="button"
+            >
+              <Plus size={13} /> Add Subscription
+            </button>
+          ) : undefined
+        }
+        description="Track every recurring business cost in one place, including domains, VPS, cloud, software, APIs, hosting, storage, and other services."
+        eyebrow="Management"
+        title="Subscriptions"
+      />
       <ScopeGate permission="VIEW_OPERATIONS" session={session}>
         <PageBody>
           {creating ? (
-            <CreatePanel description="Record the operational contract. Financial expenses remain separate accounting documents." onClose={() => setCreating(false)} title="Add Subscription">
-              <form className="grid gap-4 p-4 sm:grid-cols-2" onSubmit={(event) => {
-                event.preventDefault(); const data = new FormData(event.currentTarget);
-                create.mutate({ name: String(data.get("name")), category: String(data.get("category") ?? ""), vendor: nullable(data, "vendor"), product: nullable(data, "product"), cost_center: nullable(data, "cost_center"), amount: String(data.get("amount")), currency: String(data.get("currency")), billing_cycle: String(data.get("billing_cycle")), started_on: nullable(data, "started_on"), next_renewal_date: nullable(data, "next_renewal_date"), auto_renew: data.get("auto_renew") === "on", description: String(data.get("description") ?? ""), status: "ACTIVE" });
-              }}>
+            <CreatePanel
+              description="Add the service once, choose its type and billing cycle, then track its next payment or renewal date."
+              onClose={() => setCreating(false)}
+              title="Add Subscription"
+            >
+              <form
+                className="grid gap-4 p-4 sm:grid-cols-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const data = new FormData(event.currentTarget);
+                  create.mutate({
+                    name: String(data.get("name")),
+                    service_type: String(data.get("service_type") ?? "OTHER"),
+                    vendor: nullable(data, "vendor"),
+                    amount: String(data.get("amount")),
+                    currency: String(data.get("currency")),
+                    billing_cycle: String(data.get("billing_cycle")),
+                    started_on: nullable(data, "started_on"),
+                    next_renewal_date: nullable(data, "next_renewal_date"),
+                    auto_renew: data.get("auto_renew") === "on",
+                    payment_method: String(data.get("payment_method") ?? ""),
+                    reference: String(data.get("reference") ?? ""),
+                    description: String(data.get("description") ?? ""),
+                    notes: String(data.get("notes") ?? ""),
+                    status: "ACTIVE",
+                  });
+                }}
+              >
                 <Field label="Name" name="name" required />
-                <Field label="Category" name="category" />
-                <Field label="Vendor" name="vendor"><Select name="vendor"><option value="">No vendor</option>{(vendors.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-                <Field label="Product" name="product"><Select name="product"><option value="">No product</option>{(products.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-                <Field label="Cost center" name="cost_center"><Select name="cost_center"><option value="">No cost center</option>{(costCenters.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-                <Field label="Billing cycle" name="billing_cycle"><Select defaultValue="MONTHLY" name="billing_cycle"><option value="MONTHLY">Monthly</option><option value="QUARTERLY">Quarterly</option><option value="SEMIANNUAL">Semiannual</option><option value="ANNUAL">Annual</option><option value="CUSTOM">Custom</option></Select></Field>
+                <Field label="Type" name="service_type">
+                  <Select defaultValue="SAAS" name="service_type" required>
+                    <option value="DOMAIN">Domain</option>
+                    <option value="VPS">VPS / Server</option>
+                    <option value="CLOUD">Cloud</option>
+                    <option value="HOSTING">Hosting</option>
+                    <option value="SAAS">SaaS / Software</option>
+                    <option value="API">API / Usage Service</option>
+                    <option value="STORAGE">Storage / Backup</option>
+                    <option value="EMAIL">Email Service</option>
+                    <option value="AI">AI Service</option>
+                    <option value="OTHER">Other</option>
+                  </Select>
+                </Field>
+                <Field label="Vendor" name="vendor">
+                  <Select name="vendor">
+                    <option value="">No vendor</option>
+                    {(vendors.data ?? [])
+                      .filter((item) => item.status === "ACTIVE")
+                      .map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Billing cycle" name="billing_cycle">
+                  <Select defaultValue="MONTHLY" name="billing_cycle">
+                    <option value="MONTHLY">Monthly</option>
+                    <option value="QUARTERLY">Quarterly</option>
+                    <option value="SEMIANNUAL">Semiannual</option>
+                    <option value="ANNUAL">Annual</option>
+                    <option value="CUSTOM">Custom</option>
+                  </Select>
+                </Field>
                 <Field label="Amount" name="amount" required step="0.01" type="number" />
                 <Field defaultValue={entity?.base_currency ?? "USD"} label="Currency" name="currency" required />
                 <Field label="Started on" name="started_on" type="date" />
-                <Field label="Next renewal" name="next_renewal_date" type="date" />
-                <label className="flex items-center gap-2 pt-6 text-sm"><input defaultChecked name="auto_renew" type="checkbox" /> Auto renew</label>
+                <Field label="Next payment / renewal" name="next_renewal_date" type="date" />
+                <Field label="Payment method" name="payment_method" />
+                <Field label="Reference / Account ID" name="reference" />
+                <label className="flex items-center gap-2 pt-6 text-sm">
+                  <input defaultChecked name="auto_renew" type="checkbox" /> Auto renew
+                </label>
                 <Field full label="Description" name="description" />
+                <Field full label="Notes" name="notes" />
                 <SubmitRow pending={create.isPending} />
               </form>
             </CreatePanel>
           ) : null}
           <MutationError error={create.error ?? archive.error} />
-          {subscriptions.isLoading ? <LoadingState /> : subscriptions.error ? <ErrorState message={errorMessage(subscriptions.error)} /> : <DataTable columns={columns} rowKey={(row) => row.id} rows={subscriptions.data ?? []} />}
+          {subscriptions.isLoading ? (
+            <LoadingState />
+          ) : subscriptions.error ? (
+            <ErrorState message={errorMessage(subscriptions.error)} />
+          ) : (
+            <DataTable
+              columns={columns}
+              rowKey={(row) => row.id}
+              rows={subscriptions.data ?? []}
+            />
+          )}
         </PageBody>
       </ScopeGate>
     </>
@@ -571,31 +692,68 @@ export function RenewalsPage({ session }: { session: SessionPayload }) {
   const viewAllowed = can(session, "VIEW_OPERATIONS");
   const [startDate, setStartDate] = useState(today());
   const [endDate, setEndDate] = useState(() => {
-    const next = new Date(); next.setDate(next.getDate() + 90); return next.toISOString().slice(0, 10);
+    const next = new Date();
+    next.setDate(next.getDate() + 90);
+    return next.toISOString().slice(0, 10);
   });
-  const renewals = useQuery({ queryKey: ["renewals", entity?.id, startDate, endDate], queryFn: () => operationsApi.renewals(startDate, endDate), enabled: Boolean(entity && viewAllowed) });
+  const renewals = useQuery({
+    queryKey: ["renewals", entity?.id, startDate, endDate],
+    queryFn: () => operationsApi.renewals(startDate, endDate),
+    enabled: Boolean(entity && viewAllowed),
+  });
   const rows = renewals.data ?? [];
-  const next30 = new Date(); next30.setDate(next30.getDate() + 30);
+  const next30 = new Date();
+  next30.setDate(next30.getDate() + 30);
   const next30String = next30.toISOString().slice(0, 10);
   const dueSoon = rows.filter((row) => row.renewal_date <= next30String).length;
   const autoRenew = rows.filter((row) => row.auto_renew).length;
   const columns: TableColumn<RenewalItem>[] = [
-    { key: "date", label: "Renewal Date", render: (row) => shortDate(row.renewal_date) },
-    { key: "type", label: "Source", render: (row) => <StatusBadge value={row.source_type} /> },
-    { key: "name", label: "Obligation", render: (row) => <strong>{row.name}</strong> },
-    { key: "vendor", label: "Vendor / Registrar", render: (row) => row.vendor_name || "—" },
-    { key: "allocation", label: "Product / Cost Center", render: (row) => [row.product_name, row.cost_center_name].filter(Boolean).join(" / ") || "—" },
+    { key: "date", label: "Payment / Renewal Date", render: (row) => shortDate(row.renewal_date) },
+    { key: "type", label: "Type", render: (row) => <StatusBadge value={row.service_type} /> },
+    { key: "name", label: "Subscription", render: (row) => <strong>{row.name}</strong> },
+    { key: "vendor", label: "Vendor", render: (row) => row.vendor_name || "—" },
+    { key: "payment", label: "Payment Method", render: (row) => row.payment_method || "—" },
     { key: "amount", label: "Amount", numeric: true, render: (row) => money(row.amount, row.currency) },
     { key: "auto", label: "Auto Renew", render: (row) => row.auto_renew ? "Yes" : "No" },
   ];
   return (
     <>
-      <PageHeader description="Aggregated renewal calendar derived from subscriptions, domains, and infrastructure. This view does not duplicate operational source records." eyebrow="Operations" title="Renewals" />
+      <PageHeader
+        description="Upcoming payment and renewal dates derived from the unified subscription list."
+        eyebrow="Management"
+        title="Renewals"
+      />
       <ScopeGate permission="VIEW_OPERATIONS" session={session}>
-        <MetricStrip metrics={[{ label: "Upcoming", value: String(rows.length), note: "Selected period" }, { label: "Next 30 Days", value: String(dueSoon), note: "Near-term commitments" }, { label: "Auto Renew", value: String(autoRenew), note: "Enabled source records" }, { label: "Manual Renewal", value: String(rows.length - autoRenew), note: "Requires attention" }]} />
+        <MetricStrip
+          metrics={[
+            { label: "Upcoming", value: String(rows.length), note: "Selected period" },
+            { label: "Next 30 Days", value: String(dueSoon), note: "Near-term commitments" },
+            { label: "Auto Renew", value: String(autoRenew), note: "Enabled subscriptions" },
+            { label: "Manual Renewal", value: String(rows.length - autoRenew), note: "Requires attention" },
+          ]}
+        />
         <PageBody>
-          <div className="mb-3 flex flex-wrap gap-3 border border-[var(--color-border)] bg-white p-3"><Field label="From" name="start"><input className="erp-field !h-8 !min-h-8" onChange={(event) => setStartDate(event.target.value)} type="date" value={startDate} /></Field><Field label="Through" name="end"><input className="erp-field !h-8 !min-h-8" onChange={(event) => setEndDate(event.target.value)} type="date" value={endDate} /></Field></div>
-          {renewals.isLoading ? <LoadingState /> : renewals.error ? <ErrorState message={errorMessage(renewals.error)} /> : <DataTable columns={columns} emptyDescription="No active subscription, domain, or infrastructure renewal falls inside this date window." emptyTitle="No renewals in this period" rowKey={(row) => `${row.source_type}-${row.source_id}`} rows={rows} />}
+          <div className="mb-3 flex flex-wrap gap-3 border border-[var(--color-border)] bg-white p-3">
+            <Field label="From" name="start">
+              <input className="erp-field !h-8 !min-h-8" onChange={(event) => setStartDate(event.target.value)} type="date" value={startDate} />
+            </Field>
+            <Field label="Through" name="end">
+              <input className="erp-field !h-8 !min-h-8" onChange={(event) => setEndDate(event.target.value)} type="date" value={endDate} />
+            </Field>
+          </div>
+          {renewals.isLoading ? (
+            <LoadingState />
+          ) : renewals.error ? (
+            <ErrorState message={errorMessage(renewals.error)} />
+          ) : (
+            <DataTable
+              columns={columns}
+              emptyDescription="No active subscription payment or renewal falls inside this date window."
+              emptyTitle="No renewals in this period"
+              rowKey={(row) => row.source_id}
+              rows={rows}
+            />
+          )}
         </PageBody>
       </ScopeGate>
     </>

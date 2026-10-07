@@ -1,12 +1,17 @@
+import calendar
+from datetime import date, timedelta
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q
 
 from apps.audit.services import record_audit_event
-from apps.finance.services import create_expense
 from apps.identity.models import Membership
 from apps.identity.policy import Permission, has_permission
+from apps.notifications.models import Notification, NotificationKind
+from apps.notifications.services import resolve_notifications
 
-from .models import Domain, DomainRenewal
+from .models import BillingCycle, Subscription, SubscriptionPayment
 
 
 def _require_permission(membership: Membership, permission: Permission) -> None:
@@ -45,82 +50,100 @@ def audit_operations_change(
     )
 
 
+def _add_months(value: date, months: int) -> date:
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, calendar.monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
+def next_subscription_due_date(subscription: Subscription, *, paid_on: date) -> date:
+    base_date = subscription.next_renewal_date or paid_on
+    if subscription.billing_cycle == BillingCycle.MONTHLY:
+        return _add_months(base_date, 1)
+    if subscription.billing_cycle == BillingCycle.QUARTERLY:
+        return _add_months(base_date, 3)
+    if subscription.billing_cycle == BillingCycle.SEMIANNUAL:
+        return _add_months(base_date, 6)
+    if subscription.billing_cycle == BillingCycle.ANNUAL:
+        return _add_months(base_date, 12)
+    if subscription.billing_cycle == BillingCycle.CUSTOM:
+        if not subscription.custom_cycle_days:
+            raise ValidationError("Custom billing cycle is missing its day interval.")
+        return base_date + timedelta(days=subscription.custom_cycle_days)
+    raise ValidationError("Unsupported subscription billing cycle.")
+
+
 @transaction.atomic
-def renew_domain(
+def record_subscription_payment(
     *,
     membership: Membership,
-    domain: Domain,
-    renewed_on,
-    new_expiry_date,
-    amount,
-    currency,
-    fx_rate,
+    subscription: Subscription,
+    paid_on: date,
+    amount=None,
+    currency: str | None = None,
+    reference: str = "",
     notes: str = "",
-    generate_expense: bool = False,
     request=None,
-) -> DomainRenewal:
+) -> SubscriptionPayment:
     _require_permission(membership, Permission.MANAGE_OPERATIONS)
-    _require_entity_scope(membership, domain.legal_entity)
-    if new_expiry_date <= domain.expiry_date:
-        raise ValidationError("New expiry date must be after the current domain expiry date.")
-    if amount < 0 or fx_rate <= 0:
-        raise ValidationError("Renewal amount cannot be negative and FX rate must be positive.")
+    _require_entity_scope(membership, subscription.legal_entity)
 
-    expense = None
-    if generate_expense:
-        if not domain.expense_account_id or not domain.payable_account_id:
-            raise ValidationError(
-                "Domain expense and payable accounts are required to generate an expense."
-            )
-        expense = create_expense(
-            membership=membership,
-            legal_entity=domain.legal_entity,
-            request=request,
-            vendor=None,
-            expense_date=renewed_on,
-            due_date=renewed_on,
-            description=f"Domain renewal: {domain.domain_name}",
-            reference=domain.domain_name,
-            amount=amount,
-            tax_amount=0,
-            currency=currency,
-            fx_rate=fx_rate,
-            expense_account=domain.expense_account,
-            payable_account=domain.payable_account,
-            tax_code=None,
-        )
+    payment_amount = subscription.amount if amount is None else amount
+    payment_currency = subscription.currency if not currency else currency.upper()
+    if payment_amount < 0:
+        raise ValidationError("Payment amount cannot be negative.")
 
-    renewal = DomainRenewal.objects.create(
-        legal_entity=domain.legal_entity,
-        domain=domain,
-        expense=expense,
-        renewed_on=renewed_on,
-        previous_expiry_date=domain.expiry_date,
-        new_expiry_date=new_expiry_date,
-        amount=amount,
-        currency=currency,
-        fx_rate=fx_rate,
+    previous_due_date = subscription.next_renewal_date
+    next_due_date = next_subscription_due_date(subscription, paid_on=paid_on)
+
+    payment = SubscriptionPayment.objects.create(
+        legal_entity=subscription.legal_entity,
+        subscription=subscription,
+        paid_on=paid_on,
+        previous_due_date=previous_due_date,
+        next_due_date=next_due_date,
+        amount=payment_amount,
+        currency=payment_currency,
+        reference=reference,
         notes=notes,
         created_by=membership.user,
     )
-    domain.expiry_date = new_expiry_date
-    domain.renewal_amount = amount
-    domain.currency = currency
-    domain.save(update_fields=["expiry_date", "renewal_amount", "currency", "updated_at"])
+
+    subscription.next_renewal_date = next_due_date
+    subscription.amount = payment_amount
+    subscription.currency = payment_currency
+    subscription.save(update_fields=["next_renewal_date", "amount", "currency", "updated_at"])
+
+    resolve_notifications(
+        Notification.objects.filter(
+            legal_entity=subscription.legal_entity,
+            kind=NotificationKind.RENEWAL_DUE,
+            resolved_at__isnull=True,
+        ).filter(
+            Q(dedupe_key__startswith=f"{subscription.id}:")
+            | Q(dedupe_key__contains=f":{subscription.id}:")
+        )
+    )
 
     audit_operations_change(
         membership=membership,
-        legal_entity=domain.legal_entity,
-        action="operations.domain_renewed",
-        object_type="Domain",
-        object_id=domain.id,
+        legal_entity=subscription.legal_entity,
+        action="operations.subscription_paid",
+        object_type="Subscription",
+        object_id=subscription.id,
         state={
-            "previous_expiry_date": str(renewal.previous_expiry_date),
-            "new_expiry_date": str(renewal.new_expiry_date),
-            "amount": str(renewal.amount),
-            "currency": renewal.currency,
-            "expense_id": str(expense.id) if expense else None,
+            "payment_id": str(payment.id),
+            "paid_on": str(payment.paid_on),
+            "previous_due_date": (
+                str(payment.previous_due_date) if payment.previous_due_date else None
+            ),
+            "next_due_date": str(payment.next_due_date),
+            "amount": str(payment.amount),
+            "currency": payment.currency,
+            "reference": payment.reference,
         },
         request=request,
     )
-    return renewal
+    return payment
