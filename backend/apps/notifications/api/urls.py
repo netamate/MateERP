@@ -17,6 +17,9 @@ from .views import (
     AlertRuleDetailView,
     AlertRuleListCreateView,
     AlertRuleRunNowView,
+    CentralEmailEventListView,
+    CentralEmailRecipientDetailView,
+    CentralEmailRecipientListCreateView,
     NotificationDeliveryListView,
     NotificationDeliveryRetryView,
     NotificationDismissView,
@@ -73,6 +76,21 @@ urlpatterns = [
         "notifications/email/<uuid:notification_id>/cancel/",
         DirectEmailCancelView.as_view(),
         name="direct-email-cancel",
+    ),
+    path(
+        "notifications/central-recipients/",
+        CentralEmailRecipientListCreateView.as_view(),
+        name="central-email-recipient-list-create",
+    ),
+    path(
+        "notifications/central-recipients/events/",
+        CentralEmailEventListView.as_view(),
+        name="central-email-event-list",
+    ),
+    path(
+        "notifications/central-recipients/<uuid:recipient_id>/",
+        CentralEmailRecipientDetailView.as_view(),
+        name="central-email-recipient-detail",
     ),
     path("notifications/", NotificationListView.as_view(), name="notification-list"),
     path(
