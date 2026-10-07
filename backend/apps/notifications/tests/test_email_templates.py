@@ -1,13 +1,12 @@
 from decimal import Decimal
 
 import pytest
-from apps.identity.models import User
-from apps.identity.services import create_organization_with_owner
-from apps.operations.models import Subscription
 from django.core import mail
 from django.test import Client, override_settings
 from django.utils import timezone
 
+from apps.identity.models import User
+from apps.identity.services import create_organization_with_owner
 from apps.notifications.models import (
     AlertRule,
     DeliveryChannel,
@@ -15,6 +14,7 @@ from apps.notifications.models import (
     NotificationDelivery,
     NotificationKind,
 )
+from apps.operations.models import Subscription
 
 
 def signed_in_owner(email="template-owner@example.com"):
