@@ -3,11 +3,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from django.utils import timezone
 from rest_framework import serializers
 
-from ..models import DirectEmailNotification
+from ..email_templates import sanitize_email_html
+from ..models import DirectEmailNotification, EmailTemplateStatus
 
 
 class DirectEmailNotificationSerializer(serializers.ModelSerializer):
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+    template_name = serializers.CharField(source="template.name", read_only=True, allow_null=True)
     action = serializers.ChoiceField(
         choices=["DRAFT", "SCHEDULE", "SEND_NOW"],
         default="DRAFT",
@@ -23,14 +25,20 @@ class DirectEmailNotificationSerializer(serializers.ModelSerializer):
             "to_recipients",
             "cc_recipients",
             "bcc_recipients",
+            "template",
+            "template_name",
+            "template_version",
             "subject",
             "body",
+            "html_body",
             "scheduled_for",
             "schedule_timezone",
             "status",
             "attempt_count",
             "last_error",
             "sent_at",
+            "template_name",
+            "template_version",
             "created_by_email",
             "created_at",
             "updated_at",
@@ -74,6 +82,26 @@ class DirectEmailNotificationSerializer(serializers.ModelSerializer):
             if email not in cleaned:
                 cleaned.append(email)
         return cleaned
+
+    def validate_template(self, value):
+        organization = self.context.get("organization")
+        entity = self.context.get("legal_entity")
+        if value is None:
+            return value
+        if organization and value.organization_id != organization.id:
+            raise serializers.ValidationError("Template belongs to another organization.")
+        if value.status != EmailTemplateStatus.ACTIVE:
+            raise serializers.ValidationError("Choose an active email template.")
+        if value.legal_entity_id and entity and value.legal_entity_id != entity.id:
+            raise serializers.ValidationError("Template belongs to a different legal entity.")
+        if value.legal_entity_id and entity is None:
+            raise serializers.ValidationError(
+                "An organization-level direct email cannot use an entity-only template."
+            )
+        return value
+
+    def validate_html_body(self, value):
+        return sanitize_email_html(value)
 
     def validate_schedule_timezone(self, value):
         try:
