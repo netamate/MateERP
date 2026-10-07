@@ -175,6 +175,40 @@ class VendorIntegrationTestSerializer(serializers.Serializer):
             raise serializers.ValidationError("Vendor integrations require a PAYG subscription.")
         return value
 
+    def validate_api_key_header(self, value):
+        header = value.strip()
+        if not header:
+            return header
+        if not header.replace("-", "").isalnum():
+            raise serializers.ValidationError("API key header contains invalid characters.")
+        if header.lower() in {"authorization", "cookie", "host", "content-length"}:
+            raise serializers.ValidationError("Use a dedicated API key header.")
+        return header
+
+    def validate_custom_headers(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Custom headers must be a JSON object.")
+        protected = {"authorization", "cookie", "host", "content-length"}
+        if any(str(key).lower() in protected for key in value):
+            raise serializers.ValidationError(
+                "Protected HTTP headers cannot be overridden."
+            )
+        return {str(key): str(item) for key, item in value.items()}
+
+    def validate(self, attrs):
+        auth_type = attrs.get("auth_type", VendorAuthType.NONE)
+        secret = attrs.get("secret", "")
+        integration_id = attrs.get("integration_id")
+        if auth_type != VendorAuthType.NONE and not secret and not integration_id:
+            raise serializers.ValidationError(
+                {"secret": "This authentication method requires a secret."}
+            )
+        if auth_type == VendorAuthType.BASIC and not attrs.get("auth_username", "").strip():
+            raise serializers.ValidationError(
+                {"auth_username": "Basic authentication requires a username."}
+            )
+        return attrs
+
 
 class VendorSyncRunSerializer(serializers.ModelSerializer):
     integration_name = serializers.CharField(source="integration.name", read_only=True)
