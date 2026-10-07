@@ -1,5 +1,6 @@
 import html
 import re
+from datetime import timedelta
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
@@ -268,7 +269,7 @@ class EmailHTMLSanitizer(HTMLParser):
 
 def _safe_url(value: str) -> bool:
     value = value.strip()
-    if value.startswith("#"):
+    if value.startswith(("#", "/")):
         return True
     parsed = urlparse(value)
     return parsed.scheme.lower() in SAFE_PROTOCOLS
@@ -374,7 +375,7 @@ def sample_context(signal=None, *, organization=None, legal_entity=None) -> dict
         "days_remaining": "7",
         "amount": "20.00",
         "currency": "USD",
-        "due_date": str(today + timezone.timedelta(days=7)),
+        "due_date": str(today + timedelta(days=7)),
         "payment_method": "Rizwan CityMax Amex",
         "threshold_percent": "80",
         "budget_percent": "86.5",
