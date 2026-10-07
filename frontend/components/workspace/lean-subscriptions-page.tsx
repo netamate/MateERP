@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CheckCircle2, History, Layers3, Pencil, Plus, X } from "lucide-react";
+import { Archive, CheckCircle2, Gauge, History, Layers3, Pencil, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 
@@ -91,6 +91,14 @@ function subscriptionPayload(data: FormData, existing?: Subscription) {
     service_account: String(data.get("service_account") ?? "") || null,
     amount: String(data.get("amount") ?? "0"),
     currency: String(data.get("currency") ?? "USD"),
+    billing_mode: String(data.get("billing_mode") ?? "FIXED"),
+    estimated_cost: String(data.get("estimated_cost") ?? "0"),
+    monthly_budget: String(data.get("monthly_budget") ?? "") || null,
+    budget_alert_thresholds: parseCsv(data.get("budget_alert_thresholds"))
+      .map((item) => Number(item))
+      .filter((item) => Number.isInteger(item) && item >= 1 && item <= 500)
+      .sort((a, b) => a - b),
+    usage_unit: String(data.get("usage_unit") ?? ""),
     billing_cycle: billingCycle,
     custom_cycle_days:
       billingCycle === "CUSTOM" ? Number(data.get("custom_cycle_days") || 0) : null,
@@ -214,6 +222,9 @@ function SubscriptionForm({
   const [vendorId, setVendorId] = useState(subscription?.vendor ?? "");
   const [serviceId, setServiceId] = useState(subscription?.service ?? "");
   const [accountId, setAccountId] = useState(subscription?.service_account ?? "");
+  const [billingMode, setBillingMode] = useState<"FIXED" | "PAYG">(
+    subscription?.billing_mode ?? "FIXED",
+  );
   const availableServices = services.filter(
     (service) => service.vendor === vendorId && (
       service.status === "ACTIVE" || service.id === serviceId
@@ -307,6 +318,18 @@ function SubscriptionForm({
           Choose an account to allow another subscription with the same name.
         </span>
       </label>
+      <label className="block text-xs font-medium">
+        <span className="mb-1 block text-[var(--color-text-muted)]">Billing Model</span>
+        <select
+          className="erp-field"
+          name="billing_mode"
+          value={billingMode}
+          onChange={(event) => setBillingMode(event.target.value as "FIXED" | "PAYG")}
+        >
+          <option value="FIXED">Fixed / predictable amount</option>
+          <option value="PAYG">Pay As You Go / variable amount</option>
+        </select>
+      </label>
       <SelectField
         defaultValue={subscription?.billing_cycle ?? "MONTHLY"}
         label="Billing cycle"
@@ -326,7 +349,7 @@ function SubscriptionForm({
       />
       <Field
         defaultValue={subscription?.amount}
-        label="Amount"
+        label={billingMode === "PAYG" ? "Fallback / Last Known Amount" : "Fixed Amount"}
         name="amount"
         required
         step="0.01"
@@ -338,6 +361,45 @@ function SubscriptionForm({
         name="currency"
         required
       />
+      {billingMode === "PAYG" ? (
+        <>
+          <Field
+            defaultValue={subscription?.estimated_cost ?? "0"}
+            label="Estimated Cost"
+            name="estimated_cost"
+            step="0.01"
+            type="number"
+          />
+          <Field
+            defaultValue={subscription?.monthly_budget}
+            label="Monthly Budget"
+            name="monthly_budget"
+            step="0.01"
+            type="number"
+          />
+          <Field
+            defaultValue={subscription?.usage_unit}
+            label="Usage Unit (optional)"
+            name="usage_unit"
+          />
+          <Field
+            defaultValue={(subscription?.budget_alert_thresholds ?? [50, 80, 100]).join(", ")}
+            label="Budget Alert Thresholds (%)"
+            name="budget_alert_thresholds"
+          />
+          <div className="border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-[11px] text-[var(--color-text-muted)] sm:col-span-2">
+            PAYG keeps Estimated Cost, Current Usage, Actual Billed Amount and Paid Amount separate.
+            Record monthly usage and invoices from Billing & Costs.
+          </div>
+        </>
+      ) : (
+        <>
+          <input type="hidden" name="estimated_cost" value={subscription?.estimated_cost ?? "0"} />
+          <input type="hidden" name="monthly_budget" value="" />
+          <input type="hidden" name="usage_unit" value="" />
+          <input type="hidden" name="budget_alert_thresholds" value="50,80,100" />
+        </>
+      )}
       <Field
         defaultValue={subscription?.started_on}
         label="Started on"
@@ -511,17 +573,30 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
     {
       key: "billing",
       label: "Billing",
-      render: (row) =>
-        row.billing_cycle === "CUSTOM"
-          ? `Every ${row.custom_cycle_days ?? "?"} days`
-          : row.billing_cycle.replaceAll("_", " "),
+      render: (row) => (
+        <div>
+          <div className="font-semibold">{row.billing_mode === "PAYG" ? "PAYG" : "FIXED"}</div>
+          <div className="text-[11px] text-[var(--color-text-muted)]">
+            {row.billing_cycle === "CUSTOM"
+              ? `Every ${row.custom_cycle_days ?? "?"} days`
+              : row.billing_cycle.replaceAll("_", " ")}
+          </div>
+        </div>
+      ),
     },
     { key: "due", label: "Next Payment", render: (row) => shortDate(row.next_renewal_date) },
     {
       key: "amount",
       label: "Amount",
       numeric: true,
-      render: (row) => money(row.amount, row.currency),
+      render: (row) => row.billing_mode === "PAYG" ? (
+        <div>
+          <div>{money(row.estimated_cost, row.currency)} est.</div>
+          <div className="text-[11px] text-[var(--color-text-muted)]">
+            {row.monthly_budget ? `${money(row.monthly_budget, row.currency)} budget` : "No budget"}
+          </div>
+        </div>
+      ) : money(row.amount, row.currency),
     },
     {
       key: "alerts",
@@ -553,9 +628,16 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
               <button className="erp-button !h-7 !min-h-7 text-[11px]" onClick={() => open("edit", row)} type="button">
                 <Pencil size={12} /> Edit
               </button>
-              <button className="erp-button !h-7 !min-h-7 text-[11px]" onClick={() => open("paid", row)} type="button">
-                <CheckCircle2 size={12} /> Mark Paid
-              </button>
+              {row.billing_mode === "FIXED" ? (
+                <button className="erp-button !h-7 !min-h-7 text-[11px]" onClick={() => open("paid", row)} type="button">
+                  <CheckCircle2 size={12} /> Mark Paid
+                </button>
+              ) : (
+                <Link className="erp-button !h-7 !min-h-7 text-[11px]"
+                  href={`/operations/billing?subscription=${row.id}`}>
+                  <Gauge size={12} /> Billing
+                </Link>
+              )}
             </>
           ) : null}
           <button className="erp-button !h-7 !min-h-7 text-[11px]" onClick={() => open("history", row)} type="button">
@@ -599,7 +681,10 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
         eyebrow="Management"
         title="Subscriptions"
       />
-      <div className="flex justify-end px-4 pt-3 lg:px-6">
+      <div className="flex flex-wrap justify-end gap-2 px-4 pt-3 lg:px-6">
+        <Link className="erp-button" href="/operations/billing">
+          <Gauge size={14} /> Billing & Costs
+        </Link>
         <Link className="erp-button" href="/operations/service-accounts">
           <Layers3 size={14} /> Manage Services & Accounts
         </Link>
