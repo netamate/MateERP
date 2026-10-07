@@ -17,20 +17,26 @@ class VendorServiceSerializer(serializers.ModelSerializer):
         vendor = attrs.get("vendor", getattr(self.instance, "vendor", None))
         code = attrs.get("code", getattr(self.instance, "code", "")).strip().upper()
         if not vendor or not entity or vendor.legal_entity_id != entity.id:
-            raise serializers.ValidationError({"vendor": "Choose a vendor from the active legal entity."})
+            raise serializers.ValidationError(
+                {"vendor": "Choose a vendor from the active legal entity."}
+            )
         if self.instance and vendor.pk != self.instance.vendor_id:
             raise serializers.ValidationError(
-                {"vendor": "To preserve subscription history, a service cannot move to another vendor."}
+                {
+                    "vendor": (
+                        "To preserve subscription history, a service cannot move to another vendor."
+                    )
+                }
             )
         if not code:
             raise serializers.ValidationError({"code": "Service code is required."})
-        others = VendorService.objects.filter(
-            legal_entity=entity, vendor=vendor, code__iexact=code
-        )
+        others = VendorService.objects.filter(legal_entity=entity, vendor=vendor, code__iexact=code)
         if self.instance:
             others = others.exclude(pk=self.instance.pk)
         if others.exists():
-            raise serializers.ValidationError({"code": "This vendor already has that service code."})
+            raise serializers.ValidationError(
+                {"code": "This vendor already has that service code."}
+            )
         attrs["code"] = code
         return attrs
 
@@ -45,8 +51,14 @@ class ServiceAccountSerializer(serializers.ModelSerializer):
         model = ServiceAccount
         exclude = ["legal_entity"]
         read_only_fields = [
-            "id", "code", "service_name", "vendor_id", "vendor_name", "subscription_count",
-            "created_at", "updated_at",
+            "id",
+            "code",
+            "service_name",
+            "vendor_id",
+            "vendor_name",
+            "subscription_count",
+            "created_at",
+            "updated_at",
         ]
 
     def validate(self, attrs):
@@ -54,10 +66,17 @@ class ServiceAccountSerializer(serializers.ModelSerializer):
         service = attrs.get("service", getattr(self.instance, "service", None))
         alias = attrs.get("alias", getattr(self.instance, "alias", "")).strip()
         if not service or not entity or service.legal_entity_id != entity.id:
-            raise serializers.ValidationError({"service": "Choose a service from the active legal entity."})
+            raise serializers.ValidationError(
+                {"service": "Choose a service from the active legal entity."}
+            )
         if self.instance and service.pk != self.instance.service_id:
             raise serializers.ValidationError(
-                {"service": "To preserve subscription history, an account cannot move to another service."}
+                {
+                    "service": (
+                        "To preserve subscription history, an account cannot move "
+                        "to another service."
+                    )
+                }
             )
         if not alias:
             raise serializers.ValidationError({"alias": "Account alias is required."})

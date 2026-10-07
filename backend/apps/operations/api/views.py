@@ -1,20 +1,19 @@
+from apps.identity.policy import Permission, has_permission
+from apps.identity.services import set_active_context
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.identity.policy import Permission, has_permission
-from apps.identity.services import set_active_context
 
 from ..models import ServiceAccount, Subscription, VendorService
 from ..selectors import renewal_calendar
 from ..services import audit_operations_change, record_subscription_payment
 from .serializers import (
     RenewalQuerySerializer,
+    ServiceAccountSerializer,
     SubscriptionPaymentActionSerializer,
     SubscriptionPaymentSerializer,
     SubscriptionSerializer,
-    ServiceAccountSerializer,
     VendorServiceSerializer,
 )
 
@@ -87,18 +86,22 @@ def _update_master(request, context, obj, serializer, *, object_type: str, actio
 
 
 def _get_service(context, object_id):
-    item = VendorService.objects.filter(
-        id=object_id, legal_entity=context.legal_entity
-    ).select_related("vendor").first()
+    item = (
+        VendorService.objects.filter(id=object_id, legal_entity=context.legal_entity)
+        .select_related("vendor")
+        .first()
+    )
     if item is None:
         raise ValidationError("Service not found in the active legal entity.")
     return item
 
 
 def _get_service_account(context, object_id):
-    item = ServiceAccount.objects.filter(
-        id=object_id, legal_entity=context.legal_entity
-    ).select_related("service", "service__vendor").first()
+    item = (
+        ServiceAccount.objects.filter(id=object_id, legal_entity=context.legal_entity)
+        .select_related("service", "service__vendor")
+        .first()
+    )
     if item is None:
         raise ValidationError("Service account not found in the active legal entity.")
     return item
@@ -108,9 +111,9 @@ class VendorServiceListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        services = VendorService.objects.filter(
-            legal_entity=context.legal_entity
-        ).select_related("vendor")
+        services = VendorService.objects.filter(legal_entity=context.legal_entity).select_related(
+            "vendor"
+        )
         return Response(VendorServiceSerializer(services, many=True).data)
 
     def post(self, request):
@@ -120,8 +123,11 @@ class VendorServiceListCreateView(APIView):
             data=request.data, context={"legal_entity": context.legal_entity}
         )
         obj = _create_master(
-            request, context, serializer,
-            object_type="VendorService", action="operations.vendor_service_created",
+            request,
+            context,
+            serializer,
+            object_type="VendorService",
+            action="operations.vendor_service_created",
         )
         return Response(VendorServiceSerializer(obj).data, status=status.HTTP_201_CREATED)
 
@@ -132,12 +138,18 @@ class VendorServiceDetailView(APIView):
         _require_manage(context)
         obj = _get_service(context, object_id)
         serializer = VendorServiceSerializer(
-            obj, data=request.data, partial=True,
+            obj,
+            data=request.data,
+            partial=True,
             context={"legal_entity": context.legal_entity},
         )
         obj = _update_master(
-            request, context, obj, serializer,
-            object_type="VendorService", action="operations.vendor_service_updated",
+            request,
+            context,
+            obj,
+            serializer,
+            object_type="VendorService",
+            action="operations.vendor_service_updated",
         )
         return Response(VendorServiceSerializer(obj).data)
 
@@ -146,9 +158,9 @@ class ServiceAccountListCreateView(APIView):
     def get(self, request):
         context = _context(request)
         _require_view(context)
-        accounts = ServiceAccount.objects.filter(
-            legal_entity=context.legal_entity
-        ).select_related("service", "service__vendor")
+        accounts = ServiceAccount.objects.filter(legal_entity=context.legal_entity).select_related(
+            "service", "service__vendor"
+        )
         return Response(ServiceAccountSerializer(accounts, many=True).data)
 
     def post(self, request):
@@ -158,8 +170,11 @@ class ServiceAccountListCreateView(APIView):
             data=request.data, context={"legal_entity": context.legal_entity}
         )
         obj = _create_master(
-            request, context, serializer,
-            object_type="ServiceAccount", action="operations.service_account_created",
+            request,
+            context,
+            serializer,
+            object_type="ServiceAccount",
+            action="operations.service_account_created",
         )
         return Response(ServiceAccountSerializer(obj).data, status=status.HTTP_201_CREATED)
 
@@ -170,12 +185,18 @@ class ServiceAccountDetailView(APIView):
         _require_manage(context)
         obj = _get_service_account(context, object_id)
         serializer = ServiceAccountSerializer(
-            obj, data=request.data, partial=True,
+            obj,
+            data=request.data,
+            partial=True,
             context={"legal_entity": context.legal_entity},
         )
         obj = _update_master(
-            request, context, obj, serializer,
-            object_type="ServiceAccount", action="operations.service_account_updated",
+            request,
+            context,
+            obj,
+            serializer,
+            object_type="ServiceAccount",
+            action="operations.service_account_updated",
         )
         return Response(ServiceAccountSerializer(obj).data)
 
@@ -218,7 +239,9 @@ class SubscriptionDetailView(APIView):
         _require_manage(context)
         obj = _get_subscription(context, object_id)
         serializer = SubscriptionSerializer(
-            obj, data=request.data, partial=True,
+            obj,
+            data=request.data,
+            partial=True,
             context={"legal_entity": context.legal_entity},
         )
         obj = _update_master(

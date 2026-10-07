@@ -1,14 +1,13 @@
 import uuid
 from decimal import Decimal
 
+from apps.finance.models import Vendor
+from apps.identity.models import LegalEntity
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
-
-from apps.finance.models import Vendor
-from apps.identity.models import LegalEntity
 
 
 class OperationalStatus(models.TextChoices):
@@ -89,9 +88,7 @@ class ServiceAccount(models.Model):
     legal_entity = models.ForeignKey(
         LegalEntity, on_delete=models.PROTECT, related_name="service_accounts"
     )
-    service = models.ForeignKey(
-        VendorService, on_delete=models.PROTECT, related_name="accounts"
-    )
+    service = models.ForeignKey(VendorService, on_delete=models.PROTECT, related_name="accounts")
     code = models.CharField(max_length=20, unique=True, editable=False)
     alias = models.CharField(max_length=120)
     reference = models.CharField(max_length=180, blank=True)
@@ -105,9 +102,7 @@ class ServiceAccount(models.Model):
     class Meta:
         ordering = ["service__name", "alias"]
         constraints = [
-            models.UniqueConstraint(
-                Lower("alias"), "service", name="uniq_service_account_alias_ci"
-            )
+            models.UniqueConstraint(Lower("alias"), "service", name="uniq_service_account_alias_ci")
         ]
 
     def __str__(self) -> str:
@@ -150,7 +145,11 @@ class Subscription(models.Model):
         VendorService, on_delete=models.PROTECT, related_name="subscriptions", null=True, blank=True
     )
     service_account = models.ForeignKey(
-        ServiceAccount, on_delete=models.PROTECT, related_name="subscriptions", null=True, blank=True
+        ServiceAccount,
+        on_delete=models.PROTECT,
+        related_name="subscriptions",
+        null=True,
+        blank=True,
     )
     service_type = models.CharField(
         max_length=20,

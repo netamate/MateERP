@@ -1,12 +1,12 @@
 """Phase 1: multiple billing identities under one vendor service, safely scoped."""
 
 import pytest
-from django.test import Client
-
 from apps.audit.models import AuditEvent
 from apps.finance.models import Vendor
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
+from django.test import Client
+
 from apps.operations.models import ServiceAccount, Subscription, VendorService
 
 
@@ -89,9 +89,7 @@ def test_vendor_service_account_crud_and_subscription_aliases():
         created_ids.append(body["subscription_code"])
     assert len(set(created_ids)) == 2
     assert Subscription.objects.filter(legal_entity=entity).count() == 2
-    assert AuditEvent.objects.filter(
-        action="operations.service_account_created"
-    ).count() == 2
+    assert AuditEvent.objects.filter(action="operations.service_account_created").count() == 2
 
     renamed = json_patch(
         client,
@@ -101,9 +99,7 @@ def test_vendor_service_account_crud_and_subscription_aliases():
     assert renamed.status_code == 200
     assert renamed.json()["code"] == accounts[0]["code"]
     assert sorted(
-        Subscription.objects.filter(legal_entity=entity).values_list(
-            "subscription_code", flat=True
-        )
+        Subscription.objects.filter(legal_entity=entity).values_list("subscription_code", flat=True)
     ) == sorted(created_ids)
 
 
@@ -179,12 +175,13 @@ def test_existing_subscription_preserved_and_can_be_assigned_later():
     original_code = legacy.subscription_code
 
     service = VendorService.objects.create(
-        legal_entity=entity, vendor=vendor, code="DOMAINS",
-        name="Domain Registration", service_type="DOMAIN"
+        legal_entity=entity,
+        vendor=vendor,
+        code="DOMAINS",
+        name="Domain Registration",
+        service_type="DOMAIN",
     )
-    account = ServiceAccount.objects.create(
-        legal_entity=entity, service=service, alias="NetaMate"
-    )
+    account = ServiceAccount.objects.create(legal_entity=entity, service=service, alias="NetaMate")
     result = json_patch(
         client,
         f"/api/v1/operations/subscriptions/{legacy.pk}/",
@@ -197,8 +194,7 @@ def test_existing_subscription_preserved_and_can_be_assigned_later():
     assert legacy.service_account_id == account.pk
 
     archived = json_patch(
-        client, f"/api/v1/operations/service-accounts/{account.pk}/",
-        {"status": "ARCHIVED"}
+        client, f"/api/v1/operations/service-accounts/{account.pk}/", {"status": "ARCHIVED"}
     )
     assert archived.status_code == 200
     legacy.refresh_from_db()
