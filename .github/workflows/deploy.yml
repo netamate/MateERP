@@ -116,7 +116,10 @@ jobs:
             'sudo mkdir -p /opt/MateERP/scripts'
           scp -P "$VPS_PORT" deploy/docker-compose.yml \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/mateerp-docker-compose.yml"
-          scp -P "$VPS_PORT" deploy/scripts/backup-db.sh deploy/scripts/validate-restore.sh \
+          scp -P "$VPS_PORT" \
+            deploy/scripts/backup-db.sh \
+            deploy/scripts/validate-restore.sh \
+            deploy/scripts/deploy-release.sh \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/"
           scp -P "$VPS_PORT" \
             deploy/systemd/mateerp-notifications.service \
@@ -130,6 +133,7 @@ jobs:
             'sudo install -m 640 /tmp/mateerp-docker-compose.yml /opt/MateERP/docker-compose.yml &&
              sudo install -m 750 /tmp/backup-db.sh /opt/MateERP/scripts/backup-db.sh &&
              sudo install -m 750 /tmp/validate-restore.sh /opt/MateERP/scripts/validate-restore.sh &&
+             sudo install -m 750 /tmp/deploy-release.sh /opt/MateERP/scripts/deploy-release.sh &&
              sudo install -m 644 /tmp/mateerp-notifications.service /etc/systemd/system/mateerp-notifications.service &&
              sudo install -m 644 /tmp/mateerp-notifications.timer /etc/systemd/system/mateerp-notifications.timer &&
              sudo install -m 644 /tmp/mateerp-email-scheduler.service /etc/systemd/system/mateerp-email-scheduler.service &&
@@ -148,47 +152,7 @@ jobs:
         shell: bash
         run: |
           ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-            "sudo env DEPLOY_SHA='$DEPLOY_SHA' RUN_MIGRATIONS='$RUN_MIGRATIONS' bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd /opt/MateERP
-          test -f .env
-          sed -i -E "s|^MATEERP_BACKEND_IMAGE=.*|MATEERP_BACKEND_IMAGE=ghcr.io/netamate/mateerp-backend:${DEPLOY_SHA}|" .env
-          sed -i -E "s|^MATEERP_FRONTEND_IMAGE=.*|MATEERP_FRONTEND_IMAGE=ghcr.io/netamate/mateerp-frontend:${DEPLOY_SHA}|" .env
-          chmod 600 .env
-          docker compose pull
-          docker compose up -d database
-          for _ in $(seq 1 30); do
-            state="$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1 2>/dev/null || true)"
-            [[ "$state" == "healthy" ]] && break
-            sleep 2
-          done
-          [[ "$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1)" == "healthy" ]]
-          if [[ "$RUN_MIGRATIONS" == "true" ]]; then
-            backup_output="$(/opt/MateERP/scripts/backup-db.sh)"
-            printf '%s\n' "$backup_output"
-            backup_path="$(printf '%s\n' "$backup_output" | sed -n 's/^MateERP database backup created: //p' | tail -n 1)"
-            test -n "$backup_path"
-            /opt/MateERP/scripts/validate-restore.sh "$backup_path"
-            docker compose run --rm -T backend python manage.py migrate --noinput </dev/null
-            docker compose run --rm -T backend python manage.py backfill_document_metadata </dev/null
-          fi
-          docker compose run --rm -T backend python manage.py collectstatic --noinput </dev/null
-          docker compose up -d --force-recreate backend frontend
-          for service in backend frontend; do
-            cid="$(docker compose ps -q "$service")"
-            for _ in $(seq 1 30); do
-              state="$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || true)"
-              [[ "$state" == "healthy" ]] && break
-              sleep 2
-            done
-            [[ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" == "healthy" ]]
-          done
-          docker compose ps
-          curl --fail --silent --show-error http://127.0.0.1:8035/api/v1/health/ >/dev/null
-          curl --fail --silent --show-error http://127.0.0.1:3035/ >/dev/null
-          curl --fail --silent --show-error http://127.0.0.1:3035/images/logo.png >/dev/null
-          curl --fail --silent --show-error http://127.0.0.1:3035/images/favicon.png >/dev/null
-          REMOTE
+            "sudo env DEPLOY_SHA='$DEPLOY_SHA' RUN_MIGRATIONS='$RUN_MIGRATIONS' /opt/MateERP/scripts/deploy-release.sh"
       - name: Logout private GHCR credential
         if: always()
         shell: bash
