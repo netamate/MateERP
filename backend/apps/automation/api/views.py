@@ -60,7 +60,7 @@ def _integration(context, integration_id):
     integration = (
         VendorIntegration.objects.filter(
             id=integration_id,
-            organization=context.organization,
+            organization=context.membership.organization,
             legal_entity=context.legal_entity,
         )
         .select_related("vendor", "subscription", "legal_entity", "organization")
@@ -75,7 +75,7 @@ def _policy(context, policy_id):
     policy = (
         AutomationPolicy.objects.filter(
             id=policy_id,
-            organization=context.organization,
+            organization=context.membership.organization,
         )
         .filter(Q(legal_entity__isnull=True) | Q(legal_entity=context.legal_entity))
         .select_related("organization", "legal_entity")
@@ -91,7 +91,7 @@ class VendorIntegrationListCreateView(APIView):
         context = _context(request, Permission.VIEW_AUTOMATION)
         queryset = (
             VendorIntegration.objects.filter(
-                organization=context.organization,
+                organization=context.membership.organization,
                 legal_entity=context.legal_entity,
             )
             .select_related("vendor", "subscription")
@@ -104,7 +104,7 @@ class VendorIntegrationListCreateView(APIView):
         serializer = VendorIntegrationSerializer(
             data=request.data,
             context={
-                "organization": context.organization,
+                "organization": context.membership.organization,
                 "legal_entity": context.legal_entity,
                 "actor": request.user,
             },
@@ -118,7 +118,7 @@ class VendorIntegrationListCreateView(APIView):
             ) from exc
         record_audit_event(
             actor=request.user,
-            organization=context.organization,
+            organization=context.membership.organization,
             legal_entity=context.legal_entity,
             action="automation.vendor_integration_created",
             object_type="VendorIntegration",
@@ -154,7 +154,7 @@ class VendorIntegrationDetailView(APIView):
             data=request.data,
             partial=True,
             context={
-                "organization": context.organization,
+                "organization": context.membership.organization,
                 "legal_entity": context.legal_entity,
                 "actor": request.user,
             },
@@ -168,7 +168,7 @@ class VendorIntegrationDetailView(APIView):
             ) from exc
         record_audit_event(
             actor=request.user,
-            organization=context.organization,
+            organization=context.membership.organization,
             legal_entity=context.legal_entity,
             action="automation.vendor_integration_updated",
             object_type="VendorIntegration",
@@ -297,7 +297,7 @@ class VendorSyncRunListView(APIView):
         context = _context(request, Permission.VIEW_AUTOMATION)
         queryset = (
             VendorSyncRun.objects.filter(
-                integration__organization=context.organization,
+                integration__organization=context.membership.organization,
                 integration__legal_entity=context.legal_entity,
             )
             .select_related(
@@ -323,9 +323,9 @@ class VendorSyncRunListView(APIView):
 class AutomationPolicyListCreateView(APIView):
     def get(self, request):
         context = _context(request, Permission.VIEW_AUTOMATION)
-        ensure_default_automation_policies(context.organization, actor=request.user)
+        ensure_default_automation_policies(context.membership.organization, actor=request.user)
         queryset = (
-            AutomationPolicy.objects.filter(organization=context.organization)
+            AutomationPolicy.objects.filter(organization=context.membership.organization)
             .filter(Q(legal_entity__isnull=True) | Q(legal_entity=context.legal_entity))
             .select_related("legal_entity")
         )
@@ -335,7 +335,7 @@ class AutomationPolicyListCreateView(APIView):
         context = _context(request, Permission.MANAGE_AUTOMATION)
         serializer = AutomationPolicySerializer(
             data=request.data,
-            context={"organization": context.organization},
+            context={"organization": context.membership.organization},
         )
         serializer.is_valid(raise_exception=True)
         entity = serializer.validated_data.get("legal_entity")
@@ -347,7 +347,7 @@ class AutomationPolicyListCreateView(APIView):
             )
         try:
             policy = serializer.save(
-                organization=context.organization,
+                organization=context.membership.organization,
                 created_by=request.user,
                 updated_by=request.user,
             )
@@ -369,7 +369,7 @@ class AutomationPolicyDetailView(APIView):
             policy,
             data=request.data,
             partial=True,
-            context={"organization": context.organization},
+            context={"organization": context.membership.organization},
         )
         serializer.is_valid(raise_exception=True)
         try:
@@ -380,7 +380,7 @@ class AutomationPolicyDetailView(APIView):
             ) from exc
         record_audit_event(
             actor=request.user,
-            organization=context.organization,
+            organization=context.membership.organization,
             legal_entity=policy.legal_entity,
             action="automation.policy_updated",
             object_type="AutomationPolicy",
@@ -417,7 +417,7 @@ class AutomationRunListView(APIView):
     def get(self, request):
         context = _context(request, Permission.VIEW_AUTOMATION)
         queryset = (
-            AutomationRun.objects.filter(policy__organization=context.organization)
+            AutomationRun.objects.filter(policy__organization=context.membership.organization)
             .filter(
                 Q(policy__legal_entity__isnull=True) | Q(policy__legal_entity=context.legal_entity)
             )
@@ -441,21 +441,21 @@ class AutomationOverviewView(APIView):
         context = _context(request, Permission.VIEW_AUTOMATION)
         since = timezone.now() - timedelta(hours=24)
         integrations = VendorIntegration.objects.filter(
-            organization=context.organization,
+            organization=context.membership.organization,
             legal_entity=context.legal_entity,
         )
         policies = AutomationPolicy.objects.filter(
-            organization=context.organization,
+            organization=context.membership.organization,
         ).filter(Q(legal_entity__isnull=True) | Q(legal_entity=context.legal_entity))
         runs = AutomationRun.objects.filter(
-            policy__organization=context.organization,
+            policy__organization=context.membership.organization,
             started_at__gte=since,
         ).filter(
             Q(policy__legal_entity__isnull=True) | Q(policy__legal_entity=context.legal_entity)
         )
         last_sync = (
             VendorSyncRun.objects.filter(
-                integration__organization=context.organization,
+                integration__organization=context.membership.organization,
                 integration__legal_entity=context.legal_entity,
                 status=RunStatus.SUCCESS,
             )
