@@ -268,7 +268,7 @@ export function ServiceAccountsPage({ session }: { session: SessionPayload }) {
           ) },
           { label: "Needs Assignment", value: String(
             (subscriptions.data ?? []).filter((s) => !s.service_account).length,
-          ), tone: "neutral" },
+          ), note: "Assign existing records as needed" },
         ]} />
 
         {editor?.kind === "service" ? (
