@@ -1,3 +1,6 @@
+import mimetypes
+
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.http import FileResponse
 from rest_framework import status
@@ -6,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit.services import record_audit_event
-from apps.finance.models import FinanceDocument
+from apps.finance.models import DocumentType, FinanceDocument
 from apps.identity.policy import Permission, has_permission
 from apps.identity.services import set_active_context
 
@@ -64,11 +67,18 @@ def _get_document(context, object_id):
     document = _document_queryset(context).filter(id=object_id).first()
     if document is None:
         raise ValidationError("Document does not exist in the active legal entity.")
+    if (
+        document.document_type == DocumentType.PAYSLIP
+        and not has_permission(context.membership, Permission.VIEW_SENSITIVE_FINANCE_DOCUMENTS)
+    ):
+        raise PermissionDenied("You cannot access confidential payroll documents.")
     return document
 
 
 def _filtered_documents(request, context):
     queryset = _document_queryset(context)
+    if not has_permission(context.membership, Permission.VIEW_SENSITIVE_FINANCE_DOCUMENTS):
+        queryset = queryset.exclude(document_type=DocumentType.PAYSLIP)
     filters = {
         "vendor": "vendor_id",
         "service": "service_id",
@@ -127,6 +137,13 @@ class FinanceDocumentListCreateView(APIView):
             context={"legal_entity": context.legal_entity},
         )
         serializer.is_valid(raise_exception=True)
+        if (
+            serializer.validated_data["document_type"] == DocumentType.PAYSLIP
+            and not has_permission(
+                context.membership, Permission.VIEW_SENSITIVE_FINANCE_DOCUMENTS
+            )
+        ):
+            raise PermissionDenied("You cannot upload confidential payroll documents.")
         try:
             document = create_finance_document_with_metadata(
                 legal_entity=context.legal_entity,
@@ -185,6 +202,13 @@ class FinanceDocumentDetailView(APIView):
             context={"legal_entity": context.legal_entity},
         )
         serializer.is_valid(raise_exception=True)
+        if (
+            serializer.validated_data.get("document_type") == DocumentType.PAYSLIP
+            and not has_permission(
+                context.membership, Permission.VIEW_SENSITIVE_FINANCE_DOCUMENTS
+            )
+        ):
+            raise PermissionDenied("You cannot classify a document as confidential payroll.")
         document = update_finance_document_metadata(
             document=document,
             validated_data=serializer.validated_data,
@@ -234,12 +258,16 @@ class FinanceDocumentContentView(APIView):
             if naming == "original"
             else document.standardized_name or document.original_name
         )
+        try:
+            mime_type = document.integrity_metadata.mime_type
+        except ObjectDoesNotExist:
+            mime_type = mimetypes.guess_type(document.original_name)[0] or "application/octet-stream"
         document.file.open("rb")
         response = FileResponse(
             document.file,
             as_attachment=disposition == "attachment",
             filename=filename,
-            content_type=document.integrity_metadata.mime_type,
+            content_type=mime_type,
         )
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
