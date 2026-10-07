@@ -2,7 +2,7 @@ import re
 
 from rest_framework import serializers
 
-from ..email_templates import variable_catalog, validate_template_variables
+from ..email_templates import validate_template_variables, variable_catalog
 from ..models import EmailTemplate, EmailTemplateVersion, NotificationKind
 
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,118}[a-z0-9]$|^[a-z0-9]$")
@@ -66,9 +66,7 @@ class EmailTemplateSerializer(serializers.ModelSerializer):
     def validate_template_key(self, value):
         value = value.strip().lower()
         if not KEY_RE.fullmatch(value):
-            raise serializers.ValidationError(
-                "Use lowercase letters, numbers and hyphens only."
-            )
+            raise serializers.ValidationError("Use lowercase letters, numbers and hyphens only.")
         return value
 
     def validate(self, attrs):
@@ -121,9 +119,7 @@ class EmailTemplateSerializer(serializers.ModelSerializer):
         if self.instance:
             duplicates = duplicates.exclude(pk=self.instance.pk)
         if key and duplicates.exists():
-            raise serializers.ValidationError(
-                {"template_key": "This template key already exists."}
-            )
+            raise serializers.ValidationError({"template_key": "This template key already exists."})
         return attrs
 
 
