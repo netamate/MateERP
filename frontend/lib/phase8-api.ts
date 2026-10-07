@@ -335,6 +335,8 @@ export type NotificationInbox = Paginated<Notification> & {
 
 export type NotificationDelivery = {
   id: string;
+  legal_entity: string | null;
+  legal_entity_name: string | null;
   subscription: string | null;
   subscription_name: string | null;
   alert_rule: string | null;
@@ -354,6 +356,8 @@ export type NotificationDelivery = {
   title: string;
   message: string;
   link: string;
+  context: Record<string, unknown>;
+  central_delivery: boolean;
   status: "PENDING" | "SENT" | "FAILED";
   attempt_count: number;
   last_error: string;
@@ -788,12 +792,19 @@ export const notificationApi = {
     request<Notification>(`/api/v1/notifications/${id}/dismiss/`, { method: "POST" }, true),
   markAllRead: () =>
     request<{ marked_read: number }>("/api/v1/notifications/read-all/", { method: "POST" }, true),
-  deliveries: (filters?: { signal?: string; channel?: string; status?: string; alert_rule?: string }) => {
+  deliveries: (filters?: {
+    signal?: string;
+    channel?: string;
+    status?: string;
+    alert_rule?: string;
+    central_only?: boolean;
+  }) => {
     const params = new URLSearchParams();
     if (filters?.signal) params.set("signal", filters.signal);
     if (filters?.channel) params.set("channel", filters.channel);
     if (filters?.status) params.set("status", filters.status);
     if (filters?.alert_rule) params.set("alert_rule", filters.alert_rule);
+    if (filters?.central_only) params.set("central_only", "true");
     const query = params.toString();
     return request<Paginated<NotificationDelivery>>(
       `/api/v1/notifications/deliveries/${query ? `?${query}` : ""}`,
