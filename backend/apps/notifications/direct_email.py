@@ -31,6 +31,7 @@ def deliver_direct_email(notification_id) -> DirectEmailNotification:
             bcc=notification.bcc_recipients,
             subject=notification.subject,
             message=notification.body,
+            html_message=notification.html_body or None,
         )
     except Exception as exc:
         DirectEmailNotification.objects.filter(id=notification.id).update(
