@@ -1,12 +1,12 @@
 """Phase 1: multiple billing identities under one vendor service, safely scoped."""
 
 import pytest
+from django.test import Client
+
 from apps.audit.models import AuditEvent
 from apps.finance.models import Vendor
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
-from django.test import Client
-
 from apps.operations.models import ServiceAccount, Subscription, VendorService
 
 
