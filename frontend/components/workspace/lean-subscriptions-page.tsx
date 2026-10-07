@@ -111,9 +111,8 @@ function subscriptionPayload(data: FormData, existing?: Subscription) {
     notes: String(data.get("notes") ?? ""),
     reminder_days: parseReminderDays(data.get("reminder_days")),
     reminder_in_app: data.get("reminder_in_app") === "on",
-    reminder_email: data.get("reminder_email") === "on",
+    email_notifications_enabled: data.get("email_notifications_enabled") === "on",
     reminder_hermes: data.get("reminder_hermes") === "on",
-    reminder_email_recipients: parseCsv(data.get("reminder_email_recipients")),
     hermes_target: String(data.get("hermes_target") ?? ""),
     status: existing?.status ?? "ACTIVE",
   };
@@ -428,11 +427,6 @@ function SubscriptionForm({
         name="reminder_days"
       />
       <Field
-        defaultValue={subscription?.reminder_email_recipients.join(", ")}
-        label="Email recipients (comma separated)"
-        name="reminder_email_recipients"
-      />
-      <Field
         defaultValue={subscription?.hermes_target}
         label="Hermes target"
         name="hermes_target"
@@ -453,11 +447,11 @@ function SubscriptionForm({
         </label>
         <label className="flex items-center gap-2 text-xs">
           <input
-            defaultChecked={subscription?.reminder_email ?? false}
-            name="reminder_email"
+            defaultChecked={subscription?.email_notifications_enabled ?? false}
+            name="email_notifications_enabled"
             type="checkbox"
           />
-          Email
+          Email notifications
         </label>
         <label className="flex items-center gap-2 text-xs">
           <input
@@ -607,7 +601,7 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
           <div className="text-[var(--color-text-muted)]">
             {[
               row.reminder_in_app ? "In-app" : null,
-              row.reminder_email ? "Email" : null,
+              row.email_notifications_enabled ? "Email" : null,
               row.reminder_hermes ? "Hermes" : null,
             ]
               .filter(Boolean)
