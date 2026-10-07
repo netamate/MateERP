@@ -158,12 +158,16 @@ class SubscriptionSerializer(serializers.ModelSerializer):
                     )
         if service and vendor and service.vendor_id != vendor.pk:
             raise serializers.ValidationError({"service": "Service must belong to this vendor."})
-        if service and service.status != "ACTIVE" and (
-            not self.instance or self.instance.service_id != service.pk
+        if (
+            service
+            and service.status != "ACTIVE"
+            and (not self.instance or self.instance.service_id != service.pk)
         ):
             raise serializers.ValidationError({"service": "Archived services cannot be assigned."})
-        if account and account.status != "ACTIVE" and (
-            not self.instance or self.instance.service_account_id != account.pk
+        if (
+            account
+            and account.status != "ACTIVE"
+            and (not self.instance or self.instance.service_account_id != account.pk)
         ):
             raise serializers.ValidationError(
                 {"service_account": "Archived accounts cannot be assigned."}
