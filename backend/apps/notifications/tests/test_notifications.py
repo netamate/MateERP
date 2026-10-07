@@ -11,6 +11,8 @@ from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
 from apps.notifications.crypto import decrypt_secret
 from apps.notifications.models import (
+    CentralEmailEvent,
+    CentralEmailRecipient,
     DeliveryChannel,
     DeliveryStatus,
     Notification,
@@ -40,8 +42,13 @@ def test_refresh_notifications_uses_custom_offsets_and_deduplicates_delivery():
         currency="USD",
         reminder_days=[5, 1, 0],
         reminder_in_app=True,
-        reminder_email=True,
-        reminder_email_recipients=["billing@example.com"],
+        email_notifications_enabled=True,
+    )
+    CentralEmailRecipient.objects.create(
+        organization=entity.organization,
+        name="Billing",
+        email="billing@example.com",
+        event_types=[CentralEmailEvent.RENEWAL_DUE],
     )
 
     call_command("refresh_notifications", horizon_days=30)
