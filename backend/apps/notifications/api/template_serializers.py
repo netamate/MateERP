@@ -51,6 +51,8 @@ class EmailTemplateSerializer(serializers.ModelSerializer):
             "id",
             "current_version",
             "is_system_default",
+            "created_by",
+            "updated_by",
             "created_at",
             "updated_at",
             "legal_entity_name",
@@ -112,6 +114,35 @@ class EmailTemplateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"template": str(exc)}) from exc
 
         key = attrs.get("template_key", getattr(self.instance, "template_key", ""))
+        if self.instance and "template_key" in attrs and key != self.instance.template_key:
+            raise serializers.ValidationError(
+                {"template_key": "Template keys are immutable after creation."}
+            )
+        next_status = attrs.get("status", getattr(self.instance, "status", "ACTIVE"))
+        if (
+            self.instance
+            and next_status == "ARCHIVED"
+            and self.instance.status != "ARCHIVED"
+            and self.instance.alert_rules.filter(enabled=True).exists()
+        ):
+            raise serializers.ValidationError(
+                {
+                    "status": (
+                        "Disable or change active alert rules that use this template "
+                        "before archiving it."
+                    )
+                }
+            )
+        if self.instance and self.instance.alert_rules.filter(enabled=True).exists():
+            incompatible = self.instance.alert_rules.filter(enabled=True).exclude(signal=signal)
+            if signal is not None and incompatible.exists():
+                raise serializers.ValidationError(
+                    {
+                        "signal": (
+                            "This template is used by active alert rules with another signal."
+                        )
+                    }
+                )
         duplicates = EmailTemplate.objects.filter(
             organization=organization,
             template_key=key,
