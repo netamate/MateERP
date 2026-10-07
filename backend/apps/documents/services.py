@@ -110,7 +110,7 @@ def standardized_document_name(document: FinanceDocument, *, mime_type: str) -> 
         parts.append(_token(document.subscription.subscription_code, "Subscription"))
     parts.extend(
         [
-            _token(document.document_type, "DOCUMENT"),
+            document.document_type,
             document.document_date.isoformat(),
             _token(document.reference, document.id.hex[:8].upper()),
         ]
