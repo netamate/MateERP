@@ -2,7 +2,10 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.test import Client
 
+from apps.audit.models import AuditEvent
+from apps.finance.models import Vendor
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
 from apps.operations.models import (
@@ -110,3 +113,51 @@ def test_mark_paid_advances_custom_cycle(operations_context):
     )
 
     assert payment.next_due_date == date(2026, 11, 21)
+
+
+@pytest.mark.django_db
+def test_subscription_edit_with_vendor_writes_valid_audit_record(operations_context):
+    context = operations_context
+    vendor = Vendor.objects.create(
+        legal_entity=context["entity"],
+        code="NAMECHEAP",
+        name="Namecheap",
+    )
+    subscription = Subscription.objects.create(
+        legal_entity=context["entity"],
+        vendor=vendor,
+        name="netamate.com",
+        service_type=ServiceType.DOMAIN,
+        amount=Decimal("18.00"),
+        currency="USD",
+        billing_cycle=BillingCycle.ANNUAL,
+        started_on=date(2025, 10, 7),
+        next_renewal_date=date(2027, 10, 7),
+    )
+    client = Client()
+    client.force_login(context["owner"])
+    session = client.session
+    session["active_organization_id"] = str(context["entity"].organization_id)
+    session["active_legal_entity_id"] = str(context["entity"].id)
+    session.save()
+
+    response = client.patch(
+        f"/api/v1/operations/subscriptions/{subscription.id}/",
+        data={
+            "vendor": str(vendor.id),
+            "payment_method": "Rizwan CityMax Amex Card",
+            "next_renewal_date": "2027-10-07",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    subscription.refresh_from_db()
+    assert subscription.payment_method == "Rizwan CityMax Amex Card"
+    event = AuditEvent.objects.get(
+        action="operations.subscription_updated",
+        object_type="Subscription",
+        object_id=str(subscription.id),
+    )
+    assert event.new_state["vendor"] == str(vendor.id)
+    assert event.new_state["payment_method"] == "Rizwan CityMax Amex Card"
