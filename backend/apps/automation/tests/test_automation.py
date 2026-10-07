@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.test import Client
 
 from apps.automation.models import (
@@ -235,7 +236,7 @@ def test_entity_override_policy_is_unique_per_kind():
         created_by=owner,
         updated_by=owner,
     )
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         AutomationPolicy.objects.create(
             organization=organization,
             legal_entity=entity,
