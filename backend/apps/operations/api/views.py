@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -6,12 +7,33 @@ from rest_framework.views import APIView
 from apps.identity.policy import Permission, has_permission
 from apps.identity.services import set_active_context
 
-from ..models import ServiceAccount, Subscription, VendorService
-from ..selectors import renewal_calendar
-from ..services import audit_operations_change, record_subscription_payment
+from ..models import (
+    BillingPayment,
+    ServiceAccount,
+    Subscription,
+    SubscriptionBillingPeriod,
+    SubscriptionInvoice,
+    VendorService,
+)
+from ..selectors import billing_dashboard, renewal_calendar
+from ..services import (
+    audit_operations_change,
+    create_billing_payment,
+    create_billing_period,
+    create_subscription_invoice,
+    record_subscription_payment,
+    replace_billing_payment_allocations,
+    update_billing_period,
+    update_subscription_invoice,
+    void_subscription_invoice,
+)
 from .serializers import (
+    BillingAllocationsSerializer,
+    BillingPaymentSerializer,
     RenewalQuerySerializer,
     ServiceAccountSerializer,
+    SubscriptionBillingPeriodSerializer,
+    SubscriptionInvoiceSerializer,
     SubscriptionPaymentActionSerializer,
     SubscriptionPaymentSerializer,
     SubscriptionSerializer,
@@ -280,6 +302,342 @@ class SubscriptionMarkPaidView(APIView):
         return Response(
             SubscriptionPaymentSerializer(payment).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+
+def _get_billing_period(context, object_id):
+    period = (
+        SubscriptionBillingPeriod.objects.filter(
+            id=object_id,
+            legal_entity=context.legal_entity,
+        )
+        .select_related(
+            "subscription",
+            "subscription__vendor",
+            "subscription__service",
+            "subscription__service_account",
+        )
+        .prefetch_related("invoices__payment_allocations")
+        .first()
+    )
+    if period is None:
+        raise ValidationError("Billing period does not exist in the active legal entity.")
+    return period
+
+
+def _get_subscription_invoice(context, object_id):
+    invoice = (
+        SubscriptionInvoice.objects.filter(
+            id=object_id,
+            legal_entity=context.legal_entity,
+        )
+        .select_related(
+            "billing_period",
+            "billing_period__subscription",
+            "vendor",
+            "document",
+            "expense",
+        )
+        .prefetch_related("payment_allocations")
+        .first()
+    )
+    if invoice is None:
+        raise ValidationError("Invoice does not exist in the active legal entity.")
+    return invoice
+
+
+def _get_billing_payment(context, object_id):
+    payment = (
+        BillingPayment.objects.filter(
+            id=object_id,
+            legal_entity=context.legal_entity,
+        )
+        .select_related(
+            "subscription",
+            "financial_account",
+            "expense_payment",
+        )
+        .prefetch_related("allocations", "allocations__invoice")
+        .first()
+    )
+    if payment is None:
+        raise ValidationError("Billing payment does not exist in the active legal entity.")
+    return payment
+
+
+class BillingDashboardView(APIView):
+    def get(self, request):
+        context = _context(request)
+        _require_view(context)
+        return Response(billing_dashboard(context.legal_entity))
+
+
+class BillingPeriodListCreateView(APIView):
+    def get(self, request):
+        context = _context(request)
+        _require_view(context)
+        queryset = (
+            SubscriptionBillingPeriod.objects.filter(legal_entity=context.legal_entity)
+            .select_related(
+                "subscription",
+                "subscription__vendor",
+                "subscription__service",
+                "subscription__service_account",
+            )
+            .prefetch_related("invoices__payment_allocations")
+        )
+        subscription_id = request.query_params.get("subscription")
+        if subscription_id:
+            queryset = queryset.filter(subscription_id=subscription_id)
+        return Response(
+            SubscriptionBillingPeriodSerializer(queryset, many=True).data
+        )
+
+    def post(self, request):
+        context = _context(request)
+        _require_manage(context)
+        serializer = SubscriptionBillingPeriodSerializer(
+            data=request.data,
+            context={"legal_entity": context.legal_entity},
+        )
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        subscription = data.pop("subscription")
+        period = create_billing_period(
+            membership=context.membership,
+            subscription=subscription,
+            request=request,
+            **data,
+        )
+        period = _get_billing_period(context, period.id)
+        return Response(
+            SubscriptionBillingPeriodSerializer(period).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BillingPeriodDetailView(APIView):
+    def get(self, request, object_id):
+        context = _context(request)
+        _require_view(context)
+        return Response(
+            SubscriptionBillingPeriodSerializer(
+                _get_billing_period(context, object_id)
+            ).data
+        )
+
+    def patch(self, request, object_id):
+        context = _context(request)
+        _require_manage(context)
+        period = _get_billing_period(context, object_id)
+        serializer = SubscriptionBillingPeriodSerializer(
+            period,
+            data=request.data,
+            partial=True,
+            context={"legal_entity": context.legal_entity},
+        )
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        data.pop("subscription", None)
+        period = update_billing_period(
+            membership=context.membership,
+            period=period,
+            data=data,
+            request=request,
+        )
+        return Response(
+            SubscriptionBillingPeriodSerializer(
+                _get_billing_period(context, period.id)
+            ).data
+        )
+
+
+class SubscriptionInvoiceListCreateView(APIView):
+    def get(self, request):
+        context = _context(request)
+        _require_view(context)
+        queryset = (
+            SubscriptionInvoice.objects.filter(legal_entity=context.legal_entity)
+            .select_related(
+                "billing_period",
+                "billing_period__subscription",
+                "vendor",
+                "document",
+                "expense",
+            )
+            .prefetch_related("payment_allocations")
+        )
+        period_id = request.query_params.get("billing_period")
+        subscription_id = request.query_params.get("subscription")
+        if period_id:
+            queryset = queryset.filter(billing_period_id=period_id)
+        if subscription_id:
+            queryset = queryset.filter(
+                billing_period__subscription_id=subscription_id
+            )
+        return Response(SubscriptionInvoiceSerializer(queryset, many=True).data)
+
+    def post(self, request):
+        context = _context(request)
+        _require_manage(context)
+        serializer = SubscriptionInvoiceSerializer(
+            data=request.data,
+            context={"legal_entity": context.legal_entity},
+        )
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        billing_period = data.pop("billing_period")
+        try:
+            invoice = create_subscription_invoice(
+                membership=context.membership,
+                billing_period=billing_period,
+                request=request,
+                **data,
+            )
+        except IntegrityError as exc:
+            raise ValidationError(
+                {"invoice_number": "This vendor invoice number is already recorded."}
+            ) from exc
+        invoice = _get_subscription_invoice(context, invoice.id)
+        return Response(
+            SubscriptionInvoiceSerializer(invoice).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SubscriptionInvoiceDetailView(APIView):
+    def get(self, request, object_id):
+        context = _context(request)
+        _require_view(context)
+        return Response(
+            SubscriptionInvoiceSerializer(
+                _get_subscription_invoice(context, object_id)
+            ).data
+        )
+
+    def patch(self, request, object_id):
+        context = _context(request)
+        _require_manage(context)
+        invoice = _get_subscription_invoice(context, object_id)
+        serializer = SubscriptionInvoiceSerializer(
+            invoice,
+            data=request.data,
+            partial=True,
+            context={"legal_entity": context.legal_entity},
+        )
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        data.pop("billing_period", None)
+        data.pop("vendor", None)
+        try:
+            invoice = update_subscription_invoice(
+                membership=context.membership,
+                invoice=invoice,
+                data=data,
+                request=request,
+            )
+        except IntegrityError as exc:
+            raise ValidationError(
+                {"invoice_number": "This vendor invoice number is already recorded."}
+            ) from exc
+        return Response(
+            SubscriptionInvoiceSerializer(
+                _get_subscription_invoice(context, invoice.id)
+            ).data
+        )
+
+
+class SubscriptionInvoiceVoidView(APIView):
+    def post(self, request, object_id):
+        context = _context(request)
+        _require_manage(context)
+        invoice = void_subscription_invoice(
+            membership=context.membership,
+            invoice=_get_subscription_invoice(context, object_id),
+            request=request,
+        )
+        return Response(
+            SubscriptionInvoiceSerializer(
+                _get_subscription_invoice(context, invoice.id)
+            ).data
+        )
+
+
+class BillingPaymentListCreateView(APIView):
+    def get(self, request):
+        context = _context(request)
+        _require_view(context)
+        queryset = (
+            BillingPayment.objects.filter(legal_entity=context.legal_entity)
+            .select_related(
+                "subscription",
+                "financial_account",
+                "expense_payment",
+            )
+            .prefetch_related("allocations", "allocations__invoice")
+        )
+        subscription_id = request.query_params.get("subscription")
+        if subscription_id:
+            queryset = queryset.filter(subscription_id=subscription_id)
+        return Response(BillingPaymentSerializer(queryset, many=True).data)
+
+    def post(self, request):
+        context = _context(request)
+        _require_manage(context)
+        serializer = BillingPaymentSerializer(
+            data=request.data,
+            context={"legal_entity": context.legal_entity},
+        )
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        subscription = data.pop("subscription")
+        payment = create_billing_payment(
+            membership=context.membership,
+            subscription=subscription,
+            request=request,
+            **data,
+        )
+        return Response(
+            BillingPaymentSerializer(
+                _get_billing_payment(context, payment.id)
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BillingPaymentDetailView(APIView):
+    def get(self, request, object_id):
+        context = _context(request)
+        _require_view(context)
+        return Response(
+            BillingPaymentSerializer(_get_billing_payment(context, object_id)).data
+        )
+
+
+class BillingPaymentAllocationView(APIView):
+    def put(self, request, object_id):
+        context = _context(request)
+        _require_manage(context)
+        payment = _get_billing_payment(context, object_id)
+        serializer = BillingAllocationsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        allocations = serializer.validated_data["allocations"]
+        for item in allocations:
+            if item["invoice"].legal_entity_id != context.legal_entity.id:
+                raise ValidationError(
+                    {"allocations": "An invoice belongs to another legal entity."}
+                )
+        payment = replace_billing_payment_allocations(
+            membership=context.membership,
+            payment=payment,
+            allocations=allocations,
+            request=request,
+        )
+        return Response(
+            BillingPaymentSerializer(
+                _get_billing_payment(context, payment.id)
+            ).data
         )
 
 
