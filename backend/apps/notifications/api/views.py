@@ -154,7 +154,9 @@ class NotificationDeliveryListView(APIView):
             organization=membership.organization
         ).select_related("subscription", "alert_rule", "email_template")
         if legal_entity_id:
-            queryset = queryset.filter(legal_entity_id=legal_entity_id)
+            queryset = queryset.filter(
+                Q(legal_entity_id=legal_entity_id) | Q(legal_entity__isnull=True)
+            )
         signal = request.query_params.get("signal")
         channel = request.query_params.get("channel")
         delivery_status = request.query_params.get("status")
