@@ -1,13 +1,14 @@
 import uuid
 from decimal import Decimal
 
-from apps.finance.models import Vendor
-from apps.identity.models import LegalEntity
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
+
+from apps.finance.models import Vendor
+from apps.identity.models import LegalEntity
 
 
 class OperationalStatus(models.TextChoices):
