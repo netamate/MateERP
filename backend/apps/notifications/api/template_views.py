@@ -1,8 +1,9 @@
 from smtplib import SMTPAuthenticationError, SMTPException
 
-from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError
+from django.db.models import Q
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -79,8 +80,8 @@ class EmailTemplateListCreateView(APIView):
         entity = _active_entity(request, membership)
         if entity:
             queryset = queryset.filter(
-                legal_entity__isnull=True
-            ) | queryset.filter(legal_entity=entity)
+                Q(legal_entity__isnull=True) | Q(legal_entity=entity)
+            )
         if request.query_params.get("include_archived") not in {"1", "true", "yes"}:
             queryset = queryset.filter(status=EmailTemplateStatus.ACTIVE)
         signal = request.query_params.get("signal")
