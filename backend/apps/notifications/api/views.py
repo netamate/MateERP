@@ -1,9 +1,8 @@
 from email.utils import parseaddr
+from smtplib import SMTPAuthenticationError, SMTPException
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from smtplib import SMTPAuthenticationError, SMTPException
-
 from rest_framework.exceptions import ValidationError
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
