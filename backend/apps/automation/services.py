@@ -379,7 +379,10 @@ def automation_policy_is_due(policy, *, now=None):
     now = now or timezone.now()
     local_now = now.astimezone(ZoneInfo(policy.schedule_timezone))
     if policy.last_run_at is None:
-        return policy.frequency == AutomationFrequency.HOURLY or local_now.hour >= policy.schedule_hour
+        return (
+            policy.frequency == AutomationFrequency.HOURLY
+            or local_now.hour >= policy.schedule_hour
+        )
     last_local = policy.last_run_at.astimezone(ZoneInfo(policy.schedule_timezone))
     if policy.frequency == AutomationFrequency.HOURLY:
         return (last_local.date(), last_local.hour) < (local_now.date(), local_now.hour)
