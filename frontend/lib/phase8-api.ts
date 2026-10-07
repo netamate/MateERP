@@ -221,9 +221,20 @@ export type NotificationIntegrationSettings = {
 export type FinanceDocumentIntegrity = {
   id: string;
   document_type: string;
-  file: string;
+  document_date: string;
+  reference: string;
   original_name: string;
+  standardized_name: string;
   vendor: string | null;
+  vendor_name: string | null;
+  service: string | null;
+  service_name: string | null;
+  service_account: string | null;
+  account_alias: string | null;
+  account_code: string | null;
+  subscription: string | null;
+  subscription_name: string | null;
+  subscription_code: string | null;
   expense: string | null;
   income: string | null;
   reimbursement: string | null;
@@ -233,6 +244,9 @@ export type FinanceDocumentIntegrity = {
   mime_type: string | null;
   size_bytes: number | null;
   checksum_sha256: string | null;
+  folder_year: number;
+  folder_month: number;
+  content_url: string;
   created_at: string;
 };
 
