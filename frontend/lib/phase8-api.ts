@@ -149,6 +149,7 @@ export type AuditEvent = {
 export type Notification = {
   id: string;
   kind: string;
+  legal_entity: string | null;
   severity: string;
   title: string;
   message: string;
@@ -165,19 +166,81 @@ export type NotificationInbox = Paginated<Notification> & {
 
 export type NotificationDelivery = {
   id: string;
-  subscription: string;
-  subscription_name: string;
+  subscription: string | null;
+  subscription_name: string | null;
+  alert_rule: string | null;
+  alert_rule_name: string | null;
+  signal: string;
+  source_type: string;
+  source_id: string;
+  source_label: string;
   channel: "IN_APP" | "EMAIL" | "HERMES";
   destination: string;
-  reminder_days_before: number;
-  due_date: string;
+  reminder_days_before: number | null;
+  due_date: string | null;
+  severity: string;
   title: string;
   message: string;
+  link: string;
   status: "PENDING" | "SENT" | "FAILED";
   attempt_count: number;
   last_error: string;
   sent_at: string | null;
   created_at: string;
+};
+
+export type AlertRule = {
+  id: string;
+  legal_entity: string | null;
+  legal_entity_name: string | null;
+  name: string;
+  signal:
+    | "RENEWAL_DUE"
+    | "BUDGET_THRESHOLD"
+    | "MISSING_INVOICE"
+    | "INVOICE_OVERDUE"
+    | "RECONCILIATION_NEEDED";
+  enabled: boolean;
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  frequency: "HOURLY" | "DAILY";
+  schedule_hour: number;
+  schedule_timezone: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  hermes_enabled: boolean;
+  recipient_user_ids: string[];
+  recipient_users: Array<{
+    id: string;
+    email: string;
+    display_name: string;
+  }>;
+  email_recipients: string[];
+  hermes_target: string;
+  renewal_days: number[];
+  grace_days: number;
+  respect_subscription_channels: boolean;
+  last_evaluated_at: string | null;
+  last_delivery_count: number;
+  last_failure_count: number;
+  last_error: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AlertRunResult = {
+  rules_evaluated: number;
+  rules_skipped: number;
+  active_events: number;
+  deliveries_sent: number;
+  deliveries_failed: number;
+  results: Array<{
+    rule_id: string;
+    signal: string;
+    active_events: number;
+    sent: number;
+    failed: number;
+    error: string;
+  }>;
 };
 
 export type DirectEmailNotification = {
@@ -337,16 +400,60 @@ export const auditApi = {
 };
 
 export const notificationApi = {
-  inbox: (includeResolved = false) =>
-    request<NotificationInbox>(
-      `/api/v1/notifications/${includeResolved ? "?include_resolved=1" : ""}`,
-    ),
+  inbox: (
+    includeResolved = false,
+    filters?: { kind?: string; severity?: string; state?: string },
+  ) => {
+    const params = new URLSearchParams();
+    if (includeResolved) params.set("include_resolved", "1");
+    if (filters?.kind) params.set("kind", filters.kind);
+    if (filters?.severity) params.set("severity", filters.severity);
+    if (filters?.state) params.set("state", filters.state);
+    const query = params.toString();
+    return request<NotificationInbox>(`/api/v1/notifications/${query ? `?${query}` : ""}`);
+  },
   markRead: (id: string) =>
     request<Notification>(`/api/v1/notifications/${id}/read/`, { method: "POST" }, true),
+  dismiss: (id: string) =>
+    request<Notification>(`/api/v1/notifications/${id}/dismiss/`, { method: "POST" }, true),
   markAllRead: () =>
     request<{ marked_read: number }>("/api/v1/notifications/read-all/", { method: "POST" }, true),
-  deliveries: () =>
-    request<Paginated<NotificationDelivery>>("/api/v1/notifications/deliveries/"),
+  deliveries: (filters?: { signal?: string; channel?: string; status?: string; alert_rule?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.signal) params.set("signal", filters.signal);
+    if (filters?.channel) params.set("channel", filters.channel);
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.alert_rule) params.set("alert_rule", filters.alert_rule);
+    const query = params.toString();
+    return request<Paginated<NotificationDelivery>>(
+      `/api/v1/notifications/deliveries/${query ? `?${query}` : ""}`,
+    );
+  },
+  retryDelivery: (id: string) =>
+    request<NotificationDelivery>(
+      `/api/v1/notifications/deliveries/${id}/retry/`,
+      { method: "POST" },
+      true,
+    ),
+  rules: () => request<AlertRule[]>("/api/v1/notifications/rules/"),
+  createRule: (body: Record<string, unknown>) =>
+    request<AlertRule>(
+      "/api/v1/notifications/rules/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  updateRule: (id: string, body: Record<string, unknown>) =>
+    request<AlertRule>(
+      `/api/v1/notifications/rules/${id}/`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  runRulesNow: () =>
+    request<AlertRunResult>(
+      "/api/v1/notifications/rules/run-now/",
+      { method: "POST" },
+      true,
+    ),
   integrations: () =>
     request<NotificationIntegrationSettings>("/api/v1/notifications/integrations/"),
   updateIntegrations: (body: Record<string, unknown>) =>
