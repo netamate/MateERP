@@ -76,9 +76,7 @@ def test_central_recipient_crud_normalizes_email_and_exposes_event_catalog():
     assert updated.json()["recipient_type"] == CentralEmailRecipientType.CC
     assert updated.json()["enabled"] is False
 
-    removed = client.delete(
-        f"/api/v1/notifications/central-recipients/{payload['id']}/"
-    )
+    removed = client.delete(f"/api/v1/notifications/central-recipients/{payload['id']}/")
     assert removed.status_code == 204
     assert CentralEmailRecipient.objects.filter(organization=organization).count() == 0
 
