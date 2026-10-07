@@ -488,6 +488,35 @@ export type EmailTemplatePreview = {
   context: Record<string, unknown>;
 };
 
+export type CentralEmailEvent =
+  | "DOCUMENT_UPLOADED"
+  | "RENEWAL_DUE"
+  | "INVOICE_RECORDED"
+  | "PAYMENT_RECORDED"
+  | "BUDGET_THRESHOLD"
+  | "MISSING_INVOICE"
+  | "INVOICE_OVERDUE"
+  | "RECONCILIATION_NEEDED"
+  | "AUTOMATION_FAILURE"
+  | "SYSTEM";
+
+export type CentralEmailRecipient = {
+  id: string;
+  name: string;
+  email: string;
+  recipient_type: "TO" | "CC" | "BCC";
+  enabled: boolean;
+  event_types: CentralEmailEvent[];
+  attach_documents: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CentralEmailEventOption = {
+  value: CentralEmailEvent;
+  label: string;
+};
+
 export type NotificationIntegrationSettings = {
   smtp_enabled: boolean;
   smtp_host: string;
@@ -793,6 +822,28 @@ export const notificationApi = {
     request<AlertRunResult>(
       "/api/v1/notifications/rules/run-now/",
       { method: "POST" },
+      true,
+    ),
+  centralRecipients: () =>
+    request<CentralEmailRecipient[]>("/api/v1/notifications/central-recipients/"),
+  centralRecipientEvents: () =>
+    request<CentralEmailEventOption[]>("/api/v1/notifications/central-recipients/events/"),
+  createCentralRecipient: (body: Record<string, unknown>) =>
+    request<CentralEmailRecipient>(
+      "/api/v1/notifications/central-recipients/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  updateCentralRecipient: (id: string, body: Record<string, unknown>) =>
+    request<CentralEmailRecipient>(
+      `/api/v1/notifications/central-recipients/${id}/`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  deleteCentralRecipient: (id: string) =>
+    request<void>(
+      `/api/v1/notifications/central-recipients/${id}/`,
+      { method: "DELETE" },
       true,
     ),
   integrations: () =>
