@@ -13,8 +13,8 @@ type WorkspaceShellProps = {
 export function WorkspaceShell({ children }: WorkspaceShellProps) {
   return (
     <AuthGate>
-      {({ session, onLogout, onContextChange }) => (
-        <AppShell onContextChange={onContextChange} onLogout={onLogout} session={session}>
+      {({ session, onLogout }) => (
+        <AppShell onLogout={onLogout} session={session}>
           {children(session)}
         </AppShell>
       )}
