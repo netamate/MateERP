@@ -9,6 +9,8 @@ from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
 from apps.notifications.models import (
     AlertRule,
+    CentralEmailEvent,
+    CentralEmailRecipient,
     DeliveryChannel,
     EmailTemplate,
     NotificationDelivery,
@@ -48,8 +50,8 @@ def test_default_templates_are_seeded_and_preview_is_sanitized():
     listed = client.get("/api/v1/notifications/email-templates/")
     assert listed.status_code == 200
     rows = listed.json()
-    assert len(rows) == 6
-    assert EmailTemplate.objects.filter(organization=organization).count() == 6
+    assert len(rows) == 10
+    assert EmailTemplate.objects.filter(organization=organization).count() == 10
     assert all(row["current_version"] == 1 for row in rows)
 
     preview = post_json(
@@ -247,8 +249,13 @@ def test_alert_email_delivery_snapshots_template_content_and_version():
         next_renewal_date=timezone.localdate(),
         reminder_days=[0],
         reminder_in_app=False,
-        reminder_email=True,
-        reminder_email_recipients=[owner.email],
+        email_notifications_enabled=True,
+    )
+    CentralEmailRecipient.objects.create(
+        organization=organization,
+        name="Owner",
+        email=owner.email,
+        event_types=[CentralEmailEvent.RENEWAL_DUE],
     )
 
     run = post_json(
