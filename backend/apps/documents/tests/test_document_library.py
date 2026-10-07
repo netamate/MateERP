@@ -270,10 +270,7 @@ def test_payslip_hidden_from_regular_finance_viewer(tmp_path):
 
         assert member.get("/api/v1/finance/documents/").json() == []
         assert member.get(f"/api/v1/finance/documents/{payslip_id}/").status_code == 403
-        assert (
-            member.get(f"/api/v1/finance/documents/{payslip_id}/content/").status_code
-            == 403
-        )
+        assert member.get(f"/api/v1/finance/documents/{payslip_id}/content/").status_code == 403
         denied_upload = member.post(
             "/api/v1/finance/documents/",
             data={

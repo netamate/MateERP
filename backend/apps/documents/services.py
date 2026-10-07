@@ -100,9 +100,7 @@ def standardized_document_name(document: FinanceDocument, *, mime_type: str) -> 
             _token(document.reference, document.id.hex[:8].upper()),
         ]
     )
-    name = "_".join(part for part in parts if part) + _extension(
-        document.original_name, mime_type
-    )
+    name = "_".join(part for part in parts if part) + _extension(document.original_name, mime_type)
     return name[:255]
 
 
