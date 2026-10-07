@@ -6,9 +6,14 @@ from .email_views import (
     DirectEmailSendView,
 )
 from .views import (
+    AlertRuleDetailView,
+    AlertRuleListCreateView,
+    AlertRuleRunNowView,
     NotificationDeliveryListView,
+    NotificationDeliveryRetryView,
     NotificationIntegrationEmailTestView,
     NotificationIntegrationHermesTestView,
+    NotificationDismissView,
     NotificationIntegrationSettingsView,
     NotificationListView,
     NotificationReadAllView,
@@ -33,9 +38,29 @@ urlpatterns = [
     ),
     path("notifications/", NotificationListView.as_view(), name="notification-list"),
     path(
+        "notifications/rules/",
+        AlertRuleListCreateView.as_view(),
+        name="alert-rule-list-create",
+    ),
+    path(
+        "notifications/rules/run-now/",
+        AlertRuleRunNowView.as_view(),
+        name="alert-rule-run-now",
+    ),
+    path(
+        "notifications/rules/<uuid:rule_id>/",
+        AlertRuleDetailView.as_view(),
+        name="alert-rule-detail",
+    ),
+    path(
         "notifications/<uuid:notification_id>/read/",
         NotificationReadView.as_view(),
         name="notification-read",
+    ),
+    path(
+        "notifications/<uuid:notification_id>/dismiss/",
+        NotificationDismissView.as_view(),
+        name="notification-dismiss",
     ),
     path(
         "notifications/read-all/",
@@ -46,6 +71,11 @@ urlpatterns = [
         "notifications/deliveries/",
         NotificationDeliveryListView.as_view(),
         name="notification-delivery-list",
+    ),
+    path(
+        "notifications/deliveries/<uuid:delivery_id>/retry/",
+        NotificationDeliveryRetryView.as_view(),
+        name="notification-delivery-retry",
     ),
     path(
         "notifications/integrations/",
