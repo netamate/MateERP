@@ -172,6 +172,16 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
     queryFn: notificationApi.rules,
     enabled: allowed && Boolean(session.active_organization_id),
   });
+  const emailTemplates = useQuery({
+    queryKey: [
+      "email-templates",
+      session.active_organization_id,
+      session.active_legal_entity_id,
+      "rules",
+    ],
+    queryFn: () => notificationApi.emailTemplates(false),
+    enabled: allowed && Boolean(session.active_organization_id),
+  });
   const members = useQuery({
     queryKey: ["notification-rule-members", session.active_organization_id],
     queryFn: adminApi.members,
@@ -225,13 +235,13 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
   if (!allowed) {
     return <PermissionNotice>You do not have permission to view notifications.</PermissionNotice>;
   }
-  if (inbox.isLoading || deliveries.isLoading || rules.isLoading) {
+  if (inbox.isLoading || deliveries.isLoading || rules.isLoading || emailTemplates.isLoading) {
     return <LoadingState label="Loading Notification Center..." />;
   }
-  if (inbox.error || deliveries.error || rules.error) {
+  if (inbox.error || deliveries.error || rules.error || emailTemplates.error) {
     return (
       <ErrorState
-        message={errorMessage(inbox.error ?? deliveries.error ?? rules.error)}
+        message={errorMessage(inbox.error ?? deliveries.error ?? rules.error ?? emailTemplates.error)}
       />
     );
   }
@@ -541,6 +551,7 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
       recipient_user_ids: selectedUsers,
       email_recipients: emailRecipients,
       hermes_target: String(data.get("hermes_target") ?? ""),
+      email_template: String(data.get("email_template") ?? "") || null,
       renewal_days: renewalDays,
       grace_days: Number(data.get("grace_days") ?? 0),
       respect_subscription_channels:
@@ -949,6 +960,38 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
                     name="hermes_target"
                     placeholder="Default integration target"
                   />
+                </label>
+
+                <label className="block text-xs font-medium sm:col-span-2">
+                  <span className="mb-1 block text-[var(--color-text-muted)]">
+                    Email Template
+                  </span>
+                  <select
+                    className="erp-field"
+                    defaultValue={ruleEditor.rule.email_template ?? ""}
+                    name="email_template"
+                  >
+                    <option value="">System default for this signal</option>
+                    {(emailTemplates.data ?? [])
+                      .filter(
+                        (template) =>
+                          template.status === "ACTIVE"
+                          && (template.signal === null || template.signal === ruleEditor.rule.signal)
+                          && (
+                            template.legal_entity === null
+                            || template.legal_entity === ruleEditor.rule.legal_entity
+                            || (ruleEditor.createOverride && template.legal_entity === entity?.id)
+                          ),
+                      )
+                      .map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name} · v{template.current_version}
+                        </option>
+                      ))}
+                  </select>
+                  <span className="mt-1 block text-[10px] text-[var(--color-text-muted)]">
+                    Email deliveries snapshot the rendered subject, text, HTML and template version.
+                  </span>
                 </label>
 
                 <div className="border border-[var(--color-border)] p-3 sm:col-span-2">
