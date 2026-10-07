@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Ban,
   CircleDollarSign,
-  FileText,
   Gauge,
   Link2,
   Pencil,
@@ -35,7 +34,6 @@ import {
   type BillingPeriod,
   type Expense,
   type SessionPayload,
-  type Subscription,
   type SubscriptionInvoice,
 } from "@/lib/api";
 
@@ -465,7 +463,7 @@ export function BillingCostsPage({ session }: { session: SessionPayload }) {
       subscription: String(data.get("subscription")),
       paid_on: String(data.get("paid_on")),
       amount: String(data.get("amount")),
-      currency: subscription?.currency ?? entity.base_currency,
+      currency: subscription?.currency ?? entity?.base_currency ?? "USD",
       reference: String(data.get("reference") ?? ""),
       financial_account: String(data.get("financial_account") ?? "") || null,
       expense_payment: String(data.get("expense_payment") ?? "") || null,
