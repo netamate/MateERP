@@ -1012,6 +1012,72 @@ def _notification_key(rule: AlertRule, candidate: AlertCandidate) -> str:
     return f"alert:{rule.id}:{candidate.event_key}"[:180]
 
 
+def _candidate_email_context(
+    rule: AlertRule,
+    candidate: AlertCandidate,
+    destination: str,
+) -> dict:
+    recipient = User.objects.filter(email__iexact=destination).first()
+    public_url = getattr(settings, "MATEERP_PUBLIC_URL", "").rstrip("/")
+    action_url = candidate.link
+    if public_url and candidate.link.startswith("/"):
+        action_url = f"{public_url}{candidate.link}"
+    subscription = candidate.subscription
+    context = {
+        "organization_name": rule.organization.name,
+        "legal_entity_name": candidate.legal_entity.name,
+        "recipient_name": (
+            recipient.display_name or recipient.email
+            if recipient is not None
+            else destination
+        ),
+        "recipient_email": destination,
+        "current_date": str(timezone.localdate()),
+        "alert_title": candidate.title,
+        "alert_message": candidate.message,
+        "severity": candidate.severity,
+        "relevant_date": str(candidate.due_date or timezone.localdate()),
+        "action_url": action_url,
+        **candidate.context,
+    }
+    if subscription is not None:
+        context.update(
+            {
+                "subscription_name": subscription.name,
+                "subscription_code": subscription.subscription_code,
+                "vendor_name": subscription.vendor.name if subscription.vendor else "",
+                "amount": str(
+                    subscription.estimated_cost
+                    if subscription.billing_mode == BillingMode.PAYG
+                    else subscription.amount
+                ),
+                "currency": subscription.currency,
+                "due_date": str(subscription.next_renewal_date or candidate.due_date or ""),
+                "payment_method": subscription.payment_method,
+            }
+        )
+    return context
+
+
+def _email_render_for_candidate(
+    rule: AlertRule,
+    candidate: AlertCandidate,
+    destination: str,
+) -> dict | None:
+    template = rule.email_template
+    if template is None:
+        template = get_default_email_template(rule.organization, candidate.signal)
+    if template is None:
+        return None
+    if template.signal not in {None, candidate.signal}:
+        raise RuntimeError("The selected email template does not match this alert signal.")
+    rendered = render_template(
+        template,
+        context=_candidate_email_context(rule, candidate, destination),
+    )
+    return {**rendered, "template": template}
+
+
 def _rule_delivery(
     *,
     rule: AlertRule,
@@ -1022,6 +1088,11 @@ def _rule_delivery(
     notification_key = _notification_key(rule, candidate)
     raw = f"{rule.id}:{candidate.event_key}:{channel}:{destination or 'default'}"
     delivery_key = f"alert:{hashlib.sha256(raw.encode('utf-8')).hexdigest()}"
+    rendered = (
+        _email_render_for_candidate(rule, candidate, destination)
+        if channel == DeliveryChannel.EMAIL
+        else None
+    )
     delivery, _ = NotificationDelivery.objects.get_or_create(
         delivery_key=delivery_key,
         defaults={
@@ -1029,6 +1100,8 @@ def _rule_delivery(
             "legal_entity": candidate.legal_entity,
             "subscription": candidate.subscription,
             "alert_rule": rule,
+            "email_template": rendered["template"] if rendered else None,
+            "email_template_version": rendered["template_version"] if rendered else None,
             "signal": candidate.signal,
             "source_type": candidate.source_type,
             "source_id": candidate.source_id,
@@ -1039,6 +1112,9 @@ def _rule_delivery(
             "severity": candidate.severity,
             "title": candidate.title,
             "message": candidate.message,
+            "email_subject": rendered["subject"] if rendered else "",
+            "email_text_body": rendered["text_body"] if rendered else "",
+            "email_html_body": rendered["html_body"] if rendered else "",
             "link": candidate.link,
             "context": {
                 **candidate.context,
@@ -1080,8 +1156,9 @@ def _attempt_rule_delivery(
             _send_email(
                 organization=delivery.organization,
                 destination=delivery.destination,
-                subject=delivery.title,
-                message=delivery.message,
+                subject=delivery.email_subject or delivery.title,
+                message=delivery.email_text_body or delivery.message,
+                html_message=delivery.email_html_body or None,
             )
         elif delivery.channel == DeliveryChannel.HERMES:
             config = _hermes_config(delivery.organization)
