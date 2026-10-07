@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -609,12 +610,15 @@ class BillingPaymentAllocationView(APIView):
                 raise ValidationError(
                     {"allocations": "An invoice belongs to another legal entity."}
                 )
-        payment = replace_billing_payment_allocations(
-            membership=context.membership,
-            payment=payment,
-            allocations=allocations,
-            request=request,
-        )
+        try:
+            payment = replace_billing_payment_allocations(
+                membership=context.membership,
+                payment=payment,
+                allocations=allocations,
+                request=request,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.messages) from exc
         return Response(BillingPaymentSerializer(_get_billing_payment(context, payment.id)).data)
 
 
