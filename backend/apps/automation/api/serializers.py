@@ -1,9 +1,10 @@
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from rest_framework import serializers
+
 from apps.notifications.crypto import encrypt_secret
 from apps.operations.models import BillingMode, Subscription
-from rest_framework import serializers
 
 from ..models import (
     AutomationPolicy,
