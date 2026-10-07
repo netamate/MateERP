@@ -35,6 +35,11 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class NotificationDeliverySerializer(serializers.ModelSerializer):
+    legal_entity_name = serializers.CharField(
+        source="legal_entity.name",
+        read_only=True,
+        allow_null=True,
+    )
     subscription_name = serializers.CharField(
         source="subscription.name",
         read_only=True,
@@ -51,11 +56,14 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    central_delivery = serializers.SerializerMethodField()
 
     class Meta:
         model = NotificationDelivery
         fields = [
             "id",
+            "legal_entity",
+            "legal_entity_name",
             "subscription",
             "subscription_name",
             "alert_rule",
@@ -78,6 +86,8 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
             "email_text_body",
             "email_html_body",
             "link",
+            "context",
+            "central_delivery",
             "status",
             "attempt_count",
             "last_error",
@@ -92,6 +102,9 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
         if obj.source_type and obj.source_id:
             return f"{obj.source_type} · {obj.source_id[:8]}"
         return obj.signal
+
+    def get_central_delivery(self, obj):
+        return obj.delivery_key.startswith("central:")
 
 
 class AlertRuleSerializer(serializers.ModelSerializer):
