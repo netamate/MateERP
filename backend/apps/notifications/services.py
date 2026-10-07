@@ -93,9 +93,7 @@ def mark_all_notifications_read(queryset) -> int:
 
 
 def integration_settings_for(organization):
-    return NotificationIntegrationSettings.objects.filter(
-        organization=organization
-    ).first()
+    return NotificationIntegrationSettings.objects.filter(organization=organization).first()
 
 
 def integration_settings_payload(organization) -> dict:
@@ -117,9 +115,7 @@ def integration_settings_payload(organization) -> dict:
             "hermes_token_configured": bool(configured.hermes_token_encrypted),
             "hermes_default_target": configured.hermes_default_target,
             "hermes_source": "ERP",
-            "updated_at": configured.updated_at.isoformat()
-            if configured.updated_at
-            else None,
+            "updated_at": configured.updated_at.isoformat() if configured.updated_at else None,
         }
 
     return {
@@ -231,9 +227,7 @@ def _send_email(
     recipients = list(destinations or ([] if destination is None else [destination]))
     if not recipients:
         raise RuntimeError("At least one email recipient is required.")
-    config = (
-        config_override if config_override is not None else _email_config(organization)
-    )
+    config = config_override if config_override is not None else _email_config(organization)
     connection = get_connection(
         backend=config["backend"],
         fail_silently=False,
@@ -384,9 +378,7 @@ def _mark_sent(delivery: NotificationDelivery) -> NotificationDelivery:
     return delivery
 
 
-def _mark_failed(
-    delivery: NotificationDelivery, exc: Exception
-) -> NotificationDelivery:
+def _mark_failed(delivery: NotificationDelivery, exc: Exception) -> NotificationDelivery:
     delivery.status = DeliveryStatus.FAILED
     delivery.attempt_count += 1
     delivery.last_error = str(exc)[:2000]
@@ -646,8 +638,7 @@ def _viewers(entity, rule: AlertRule | None = None):
         for membership in memberships
         if has_permission(membership, Permission.VIEW_NOTIFICATIONS)
         and (
-            membership.all_legal_entities
-            or membership.legal_entities.filter(id=entity.id).exists()
+            membership.all_legal_entities or membership.legal_entities.filter(id=entity.id).exists()
         )
     ]
     if rule and rule.recipient_user_ids:
@@ -681,9 +672,7 @@ def _renewal_candidates(rule: AlertRule, entity, today) -> list[AlertCandidate]:
     for subscription in subscriptions:
         days_remaining = (subscription.next_renewal_date - today).days
         reminder_days = (
-            subscription.reminder_days
-            if rule.respect_subscription_channels
-            else configured_days
+            subscription.reminder_days if rule.respect_subscription_channels else configured_days
         )
         if days_remaining not in reminder_days:
             continue
@@ -825,10 +814,7 @@ def _missing_invoice_candidates(rule: AlertRule, entity, today) -> list[AlertCan
     )
     rows = []
     for period in periods:
-        if any(
-            invoice.status != BillingInvoiceStatus.VOID
-            for invoice in period.invoices.all()
-        ):
+        if any(invoice.status != BillingInvoiceStatus.VOID for invoice in period.invoices.all()):
             continue
         subscription = period.subscription
         title = f"Missing invoice: {subscription.name}"
@@ -1059,14 +1045,10 @@ def _attempt_rule_delivery(
     try:
         if delivery.channel == DeliveryChannel.IN_APP:
             if recipient is None:
-                recipient = User.objects.filter(
-                    email__iexact=delivery.destination
-                ).first()
+                recipient = User.objects.filter(email__iexact=delivery.destination).first()
             if recipient is None:
                 raise RuntimeError("In-app notification recipient no longer exists.")
-            dedupe_key = (
-                delivery.context.get("notification_key") or delivery.delivery_key
-            )
+            dedupe_key = delivery.context.get("notification_key") or delivery.delivery_key
             upsert_notification(
                 organization=delivery.organization,
                 legal_entity=delivery.legal_entity,
@@ -1128,10 +1110,7 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
     deliveries = []
     active_notification_keys = []
 
-    if (
-        candidate.signal == NotificationKind.RENEWAL_DUE
-        and rule.respect_subscription_channels
-    ):
+    if candidate.signal == NotificationKind.RENEWAL_DUE and rule.respect_subscription_channels:
         subscription = candidate.subscription
         if subscription.reminder_in_app:
             for membership in viewers:
@@ -1171,9 +1150,7 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
         if subscription.reminder_hermes:
             delivery = deliver_hermes(
                 subscription=subscription,
-                destination=subscription.hermes_target
-                or rule.hermes_target
-                or "default",
+                destination=subscription.hermes_target or rule.hermes_target or "default",
                 days_before=candidate.reminder_days_before,
                 due_date=candidate.due_date,
                 title=candidate.title,
@@ -1193,15 +1170,11 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
                 channel=DeliveryChannel.IN_APP,
                 destination=membership.user.email,
             )
-            deliveries.append(
-                _attempt_rule_delivery(delivery=delivery, recipient=membership.user)
-            )
+            deliveries.append(_attempt_rule_delivery(delivery=delivery, recipient=membership.user))
             active_notification_keys.append(_notification_key(rule, candidate))
 
     if rule.email_enabled:
-        recipients = rule.email_recipients or [
-            membership.user.email for membership in viewers
-        ]
+        recipients = rule.email_recipients or [membership.user.email for membership in viewers]
         for destination in dict.fromkeys(recipients):
             delivery = _rule_delivery(
                 rule=rule,
@@ -1292,10 +1265,7 @@ def evaluate_alert_rule(rule: AlertRule, *, entities=None, now=None) -> dict:
                         sent += 1
                     elif delivery.status == DeliveryStatus.FAILED:
                         failed += 1
-            if (
-                rule.signal == NotificationKind.RENEWAL_DUE
-                and rule.respect_subscription_channels
-            ):
+            if rule.signal == NotificationKind.RENEWAL_DUE and rule.respect_subscription_channels:
                 _resolve_stale_renewal_notifications(entity, viewers)
             else:
                 _resolve_stale_rule_notifications(rule, entity, active_keys)
@@ -1375,9 +1345,7 @@ def run_alert_rules(
                 if legal_entity is not None:
                     targets = [item for item in targets if item.id == legal_entity.id]
                 targets = [
-                    item
-                    for item in targets
-                    if (item.id, rule.signal) not in entity_overrides
+                    item for item in targets if (item.id, rule.signal) not in entity_overrides
                 ]
             results.append(evaluate_alert_rule(rule, entities=targets, now=now))
 
