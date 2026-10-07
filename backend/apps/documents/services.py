@@ -1,5 +1,4 @@
 import hashlib
-import mimetypes
 import re
 from pathlib import Path
 
@@ -23,18 +22,14 @@ class DuplicateDocumentError(Exception):
         super().__init__("This exact document is already stored in the library.")
 
 
-def _detected_mime(header: bytes, supplied: str, filename: str) -> str:
+def _detected_mime(header: bytes) -> str:
     if header.startswith(b"%PDF-"):
         return "application/pdf"
     if header.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if header.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
-    supplied = (supplied or "").split(";", 1)[0].strip().lower()
-    if supplied in ALLOWED_DOCUMENT_TYPES:
-        return supplied
-    guessed = (mimetypes.guess_type(filename)[0] or "").lower()
-    return guessed if guessed in ALLOWED_DOCUMENT_TYPES else "application/octet-stream"
+    return "application/octet-stream"
 
 
 def inspect_upload(upload):
@@ -50,12 +45,7 @@ def inspect_upload(upload):
             raise ValueError("Finance documents cannot exceed 25 MB.")
     if hasattr(upload, "seek"):
         upload.seek(0)
-    filename = getattr(upload, "name", "") or "finance-document"
-    mime_type = _detected_mime(
-        header,
-        getattr(upload, "content_type", "") or "",
-        filename,
-    )
+    mime_type = _detected_mime(header)
     if mime_type not in ALLOWED_DOCUMENT_TYPES:
         raise ValueError("Upload a PDF, PNG, or JPEG financial document.")
     return {
@@ -71,7 +61,7 @@ def _token(value, fallback=""):
         return fallback
     text = re.sub(r"\s+", "-", text)
     text = re.sub(r"[^A-Za-z0-9.-]+", "-", text)
-    return re.sub(r"-{2,}", "-", text).strip("-._") or fallback
+    return (re.sub(r"-{2,}", "-", text).strip("-._") or fallback)[:40]
 
 
 def _extension(original_name: str, mime_type: str) -> str:
@@ -115,7 +105,23 @@ def standardized_document_name(document: FinanceDocument, *, mime_type: str) -> 
             _token(document.reference, document.id.hex[:8].upper()),
         ]
     )
-    return "_".join(part for part in parts if part) + _extension(document.original_name, mime_type)
+    name = "_".join(part for part in parts if part) + _extension(
+        document.original_name, mime_type
+    )
+    return name[:255]
+
+
+def _unique_standardized_name(document: FinanceDocument, *, mime_type: str) -> str:
+    name = standardized_document_name(document, mime_type=mime_type)
+    collision = FinanceDocument.objects.filter(
+        legal_entity=document.legal_entity,
+        standardized_name=name,
+    ).exclude(pk=document.pk)
+    if collision.exists():
+        stem, extension = name.rsplit(".", 1)
+        unique_suffix = f"_{document.id.hex[:8].upper()}"
+        name = f"{stem[: 254 - len(extension) - len(unique_suffix)]}{unique_suffix}.{extension}"
+    return name
 
 
 def _duplicate_for(*, legal_entity, checksum_sha256: str):
@@ -155,7 +161,7 @@ def create_finance_document_with_metadata(
         **data,
     )
     hydrate_document_hierarchy(document)
-    document.standardized_name = standardized_document_name(
+    document.standardized_name = _unique_standardized_name(
         document,
         mime_type=integrity["mime_type"],
     )
@@ -174,7 +180,7 @@ def update_finance_document_metadata(*, document, validated_data):
             setattr(document, field, value)
     hydrate_document_hierarchy(document)
     metadata = document.integrity_metadata
-    document.standardized_name = standardized_document_name(
+    document.standardized_name = _unique_standardized_name(
         document,
         mime_type=metadata.mime_type,
     )
