@@ -197,6 +197,9 @@ def migrate_recurring_items(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # Data writes must commit before PostgreSQL schema cleanup to avoid pending trigger events.
+    atomic = False
+
     dependencies = [("operations", "0001_initial")]
 
     operations = [
