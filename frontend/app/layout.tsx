@@ -10,10 +10,11 @@ export const metadata: Metadata = {
     default: "MateERP",
     template: "%s | MateERP",
   },
-  description: "Enterprise financial and business operations ERP",
+  description: "Internal business, subscription and renewal management",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
+    icon: [{ url: "/images/favicon.png", sizes: "128x128", type: "image/png" }],
+    shortcut: "/images/favicon.png",
+    apple: "/images/favicon.png",
   },
 };
 
