@@ -15,6 +15,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name="notification",
+            name="kind",
+            field=models.CharField(
+                choices=[
+                    ("RENEWAL_DUE", "Renewal due"),
+                    ("EXPENSE_APPROVAL", "Expense approval"),
+                    ("REIMBURSEMENT_APPROVAL", "Reimbursement approval"),
+                    ("BUDGET_THRESHOLD", "Budget threshold"),
+                    ("MISSING_INVOICE", "Missing invoice"),
+                    ("INVOICE_OVERDUE", "Invoice overdue"),
+                    ("RECONCILIATION_NEEDED", "Reconciliation needed"),
+                    ("SYSTEM", "System"),
+                ],
+                max_length=32,
+            ),
+        ),
         migrations.CreateModel(
             name="AlertRule",
             fields=[
@@ -33,6 +50,8 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("RENEWAL_DUE", "Renewal due"),
+                            ("EXPENSE_APPROVAL", "Expense approval"),
+                            ("REIMBURSEMENT_APPROVAL", "Reimbursement approval"),
                             ("BUDGET_THRESHOLD", "Budget threshold"),
                             ("MISSING_INVOICE", "Missing invoice"),
                             ("INVOICE_OVERDUE", "Invoice overdue"),
@@ -162,6 +181,8 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 choices=[
                     ("RENEWAL_DUE", "Renewal due"),
+                    ("EXPENSE_APPROVAL", "Expense approval"),
+                    ("REIMBURSEMENT_APPROVAL", "Reimbursement approval"),
                     ("BUDGET_THRESHOLD", "Budget threshold"),
                     ("MISSING_INVOICE", "Missing invoice"),
                     ("INVOICE_OVERDUE", "Invoice overdue"),
