@@ -1,6 +1,5 @@
 import hashlib
 import re
-from pathlib import Path
 
 from django.db import transaction
 
@@ -65,10 +64,6 @@ def _token(value, fallback=""):
 
 
 def _extension(original_name: str, mime_type: str) -> str:
-    suffix = Path(original_name).suffix.lower()
-    allowed_suffixes = {".pdf", ".png", ".jpg", ".jpeg"}
-    if suffix in allowed_suffixes:
-        return ".jpg" if suffix == ".jpeg" else suffix
     return ALLOWED_DOCUMENT_TYPES[mime_type]
 
 
