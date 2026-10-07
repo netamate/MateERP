@@ -14,7 +14,7 @@ from django.utils import timezone
 from apps.audit.services import record_audit_event
 from apps.identity.models import LegalEntity, Organization
 from apps.notifications.crypto import decrypt_secret
-from apps.notifications.services import run_alert_rules
+from apps.notifications.services import dispatch_automation_failure_event, run_alert_rules
 from apps.operations.models import (
     BillingMode,
     OperationalStatus,
@@ -532,6 +532,8 @@ def run_automation_policy(
         },
         request=request_obj,
     )
+    if run.status == RunStatus.FAILED:
+        dispatch_automation_failure_event(policy=policy, run=run)
     return run
 
 
