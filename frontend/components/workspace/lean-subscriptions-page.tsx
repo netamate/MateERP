@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CheckCircle2, History, Pencil, Plus, X } from "lucide-react";
+import { Archive, CheckCircle2, History, Layers3, Pencil, Plus, X } from "lucide-react";
+import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 
 import {
@@ -19,6 +20,8 @@ import {
   type SessionPayload,
   type Subscription,
   type SubscriptionPayment,
+  type VendorService,
+  type ServiceAccount,
   type Vendor,
 } from "@/lib/api";
 
@@ -84,6 +87,8 @@ function subscriptionPayload(data: FormData, existing?: Subscription) {
     name: String(data.get("name") ?? ""),
     service_type: String(data.get("service_type") ?? "OTHER"),
     vendor: String(data.get("vendor") ?? "") || null,
+    service: String(data.get("service") ?? "") || null,
+    service_account: String(data.get("service_account") ?? "") || null,
     amount: String(data.get("amount") ?? "0"),
     currency: String(data.get("currency") ?? "USD"),
     billing_cycle: billingCycle,
@@ -192,16 +197,34 @@ function SelectField({
 function SubscriptionForm({
   subscription,
   vendors,
+  services,
+  serviceAccounts,
   defaultCurrency,
   pending,
   onSubmit,
 }: {
   subscription?: Subscription;
   vendors: Vendor[];
+  services: VendorService[];
+  serviceAccounts: ServiceAccount[];
   defaultCurrency: string;
   pending: boolean;
   onSubmit: (payload: Record<string, unknown>) => void;
 }) {
+  const [vendorId, setVendorId] = useState(subscription?.vendor ?? "");
+  const [serviceId, setServiceId] = useState(subscription?.service ?? "");
+  const [accountId, setAccountId] = useState(subscription?.service_account ?? "");
+  const availableServices = services.filter(
+    (service) => service.vendor === vendorId && (
+      service.status === "ACTIVE" || service.id === serviceId
+    ),
+  );
+  const availableAccounts = serviceAccounts.filter(
+    (account) => account.service === serviceId && (
+      account.status === "ACTIVE" || account.id === accountId
+    ),
+  );
+
   return (
     <form
       className="grid gap-4 p-4 sm:grid-cols-2"
@@ -228,20 +251,50 @@ function SubscriptionForm({
         <option value="AI">AI Service</option>
         <option value="OTHER">Other</option>
       </SelectField>
-      <SelectField
-        defaultValue={subscription?.vendor ?? ""}
-        label="Vendor"
-        name="vendor"
-      >
-        <option value="">No vendor</option>
-        {vendors
-          .filter((vendor) => vendor.status === "ACTIVE")
-          .map((vendor) => (
-            <option key={vendor.id} value={vendor.id}>
-              {vendor.name}
-            </option>
+      <label className="block text-xs font-medium">
+        <span className="mb-1 block text-[var(--color-text-muted)]">Vendor</span>
+        <select className="erp-field" name="vendor" value={vendorId}
+          onChange={(event) => {
+            setVendorId(event.target.value);
+            setServiceId("");
+            setAccountId("");
+          }}>
+          <option value="">No vendor / legacy subscription</option>
+          {vendors.filter((vendor) =>
+            vendor.status === "ACTIVE" || vendor.id === vendorId,
+          ).map((vendor) => (
+            <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
           ))}
-      </SelectField>
+        </select>
+      </label>
+      <label className="block text-xs font-medium">
+        <span className="mb-1 block text-[var(--color-text-muted)]">Vendor Service</span>
+        <select className="erp-field" name="service" value={serviceId}
+          disabled={!vendorId}
+          onChange={(event) => {
+            setServiceId(event.target.value);
+            setAccountId("");
+          }}>
+          <option value="">Unassigned service</option>
+          {availableServices.map((service) => (
+            <option key={service.id} value={service.id}>{service.name} · {service.code}</option>
+          ))}
+        </select>
+      </label>
+      <label className="block text-xs font-medium">
+        <span className="mb-1 block text-[var(--color-text-muted)]">Service Account</span>
+        <select className="erp-field" name="service_account" value={accountId}
+          disabled={!serviceId}
+          onChange={(event) => setAccountId(event.target.value)}>
+          <option value="">Unassigned account</option>
+          {availableAccounts.map((account) => (
+            <option key={account.id} value={account.id}>{account.alias} · {account.code}</option>
+          ))}
+        </select>
+        <span className="mt-1 block text-[11px] text-[var(--color-text-muted)]">
+          Choose an account to allow another subscription with the same name.
+        </span>
+      </label>
       <SelectField
         defaultValue={subscription?.billing_cycle ?? "MONTHLY"}
         label="Billing cycle"
@@ -374,6 +427,16 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
     queryFn: financeApi.vendors,
     enabled: Boolean(entity && viewAllowed),
   });
+  const services = useQuery({
+    queryKey: ["vendor-services", entity?.id],
+    queryFn: operationsApi.vendorServices,
+    enabled: Boolean(entity && viewAllowed),
+  });
+  const serviceAccounts = useQuery({
+    queryKey: ["service-accounts", entity?.id],
+    queryFn: operationsApi.serviceAccounts,
+    enabled: Boolean(entity && viewAllowed),
+  });
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["subscriptions", entity?.id] });
@@ -424,7 +487,11 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
         <div>
           <div className="font-semibold">{row.name}</div>
           <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-            {row.vendor_name || "No vendor"} · {row.service_type.replaceAll("_", " ")}
+            {row.vendor_name || "No vendor"} · {row.vendor_service_name || row.service_type.replaceAll("_", " ")}
+            {row.account_alias ? ` · ${row.account_alias}` : " · Unassigned account"}
+          </div>
+          <div className="mt-0.5 font-mono text-[10px] text-[var(--color-text-muted)]">
+            {row.subscription_code}
           </div>
         </div>
       ),
@@ -516,10 +583,15 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
             </button>
           ) : undefined
         }
-        description="Manage recurring business costs, payment dates, payment history, and reminder delivery from one place."
+        description="Track vendor subscriptions, linked billing identities, payment dates and reminders."
         eyebrow="Management"
         title="Subscriptions"
       />
+      <div className="flex justify-end px-4 pt-3 lg:px-6">
+        <Link className="erp-button" href="/operations/service-accounts">
+          <Layers3 size={14} /> Manage Services & Accounts
+        </Link>
+      </div>
       <div className="p-4 lg:p-6">
         {mode === "create" ? (
           <Panel
@@ -532,6 +604,8 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
               onSubmit={(body) => create.mutate(body)}
               pending={create.isPending}
               vendors={vendors.data ?? []}
+              services={services.data ?? []}
+              serviceAccounts={serviceAccounts.data ?? []}
             />
           </Panel>
         ) : null}
@@ -548,6 +622,8 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
               pending={update.isPending}
               subscription={selected}
               vendors={vendors.data ?? []}
+              services={services.data ?? []}
+              serviceAccounts={serviceAccounts.data ?? []}
             />
           </Panel>
         ) : null}
@@ -614,10 +690,12 @@ export function LeanSubscriptionsPage({ session }: { session: SessionPayload }) 
         ) : null}
 
         {mutationError ? <ErrorState message={errorMessage(mutationError)} /> : null}
-        {subscriptions.isLoading || vendors.isLoading ? (
+        {subscriptions.isLoading || vendors.isLoading || services.isLoading || serviceAccounts.isLoading ? (
           <LoadingState label="Loading subscriptions..." />
-        ) : subscriptions.error || vendors.error ? (
-          <ErrorState message={errorMessage(subscriptions.error ?? vendors.error)} />
+        ) : subscriptions.error || vendors.error || services.error || serviceAccounts.error ? (
+          <ErrorState message={errorMessage(
+            subscriptions.error ?? vendors.error ?? services.error ?? serviceAccounts.error,
+          )} />
         ) : (
           <DataTable
             columns={columns}
