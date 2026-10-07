@@ -200,6 +200,7 @@ class Subscription(models.Model):
     auto_renew = models.BooleanField(default=True)
     reminder_days = models.JSONField(default=list)
     reminder_in_app = models.BooleanField(default=True)
+    email_notifications_enabled = models.BooleanField(default=False)
     reminder_email = models.BooleanField(default=False)
     reminder_hermes = models.BooleanField(default=False)
     reminder_email_recipients = models.JSONField(default=list, blank=True)
