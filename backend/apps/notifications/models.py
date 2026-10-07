@@ -355,6 +355,20 @@ class AlertRule(models.Model):
             raise ValidationError("Recipient user IDs must be a list.")
         if not isinstance(self.email_recipients, list):
             raise ValidationError("Email recipients must be a list.")
+        if self.email_template_id:
+            if self.email_template.organization_id != self.organization_id:
+                raise ValidationError("Email template must belong to the alert rule organization.")
+            if self.email_template.signal not in {None, self.signal}:
+                raise ValidationError("Email template signal must match the alert rule signal.")
+            if (
+                self.email_template.legal_entity_id
+                and self.email_template.legal_entity_id != self.legal_entity_id
+            ):
+                raise ValidationError(
+                    "Entity-scoped email templates require a matching entity-scoped alert rule."
+                )
+            if self.email_template.status != EmailTemplateStatus.ACTIVE:
+                raise ValidationError("Alert rules can use active email templates only.")
         if not isinstance(self.renewal_days, list):
             raise ValidationError("Renewal days must be a list.")
         normalized_days = []
