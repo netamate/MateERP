@@ -261,7 +261,10 @@ class FinanceDocumentContentView(APIView):
         try:
             mime_type = document.integrity_metadata.mime_type
         except ObjectDoesNotExist:
-            mime_type = mimetypes.guess_type(document.original_name)[0] or "application/octet-stream"
+            mime_type = (
+                mimetypes.guess_type(document.original_name)[0]
+                or "application/octet-stream"
+            )
         document.file.open("rb")
         response = FileResponse(
             document.file,
