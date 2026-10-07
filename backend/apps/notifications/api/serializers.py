@@ -88,6 +88,11 @@ class AlertRuleSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     recipient_users = serializers.SerializerMethodField()
+    email_template_name = serializers.CharField(
+        source="email_template.name",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = AlertRule
@@ -102,6 +107,7 @@ class AlertRuleSerializer(serializers.ModelSerializer):
             "updated_at",
             "legal_entity_name",
             "recipient_users",
+            "email_template_name",
         ]
 
     def get_recipient_users(self, obj):
@@ -198,6 +204,39 @@ class AlertRuleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"schedule_hour": "Schedule hour must be between 0 and 23."}
             )
+        email_template = attrs.get(
+            "email_template",
+            getattr(self.instance, "email_template", None),
+        )
+        if email_template:
+            if organization and email_template.organization_id != organization.id:
+                raise serializers.ValidationError(
+                    {"email_template": "Template belongs to another organization."}
+                )
+            if email_template.status != "ACTIVE":
+                raise serializers.ValidationError(
+                    {"email_template": "Choose an active email template."}
+                )
+            if email_template.signal not in {None, signal}:
+                raise serializers.ValidationError(
+                    {"email_template": "Template signal does not match this alert rule."}
+                )
+            if (
+                email_template.legal_entity_id
+                and entity
+                and email_template.legal_entity_id != entity.id
+            ):
+                raise serializers.ValidationError(
+                    {"email_template": "Template belongs to a different legal entity."}
+                )
+            if email_template.legal_entity_id and entity is None:
+                raise serializers.ValidationError(
+                    {
+                        "email_template": (
+                            "Organization-level rules can use organization-level templates only."
+                        )
+                    }
+                )
         return attrs
 
 
