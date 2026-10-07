@@ -17,6 +17,8 @@ from apps.identity.policy import Permission, has_permission
 from ..crypto import encrypt_secret
 from ..models import (
     AlertRule,
+    CentralEmailEvent,
+    CentralEmailRecipient,
     Notification,
     NotificationDelivery,
     NotificationIntegrationSettings,
@@ -34,6 +36,7 @@ from ..services import (
 )
 from .serializers import (
     AlertRuleSerializer,
+    CentralEmailRecipientSerializer,
     NotificationDeliverySerializer,
     NotificationIntegrationSettingsSerializer,
     NotificationSerializer,
@@ -330,6 +333,119 @@ class NotificationDeliveryRetryView(APIView):
             request=request,
         )
         return Response(NotificationDeliverySerializer(delivery).data)
+
+
+class CentralEmailRecipientListCreateView(APIView):
+    def get(self, request):
+        membership = _membership(request, Permission.VIEW_NOTIFICATIONS)
+        queryset = CentralEmailRecipient.objects.filter(
+            organization=membership.organization
+        ).order_by("email")
+        return Response(CentralEmailRecipientSerializer(queryset, many=True).data)
+
+    def post(self, request):
+        membership = _membership(request, Permission.MANAGE_NOTIFICATIONS)
+        serializer = CentralEmailRecipientSerializer(
+            data=request.data,
+            context={"organization": membership.organization},
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            recipient = serializer.save(
+                organization=membership.organization,
+                created_by=request.user,
+                updated_by=request.user,
+            )
+        except IntegrityError as exc:
+            raise ValidationError(
+                {"email": "This email address is already configured for the organization."}
+            ) from exc
+        payload = CentralEmailRecipientSerializer(recipient).data
+        record_audit_event(
+            actor=request.user,
+            organization=membership.organization,
+            action="settings.central_email_recipient_created",
+            object_type="CentralEmailRecipient",
+            object_id=recipient.id,
+            new_state=payload,
+            request=request,
+        )
+        return Response(payload, status=201)
+
+
+class CentralEmailRecipientDetailView(APIView):
+    def _recipient(self, membership, recipient_id):
+        recipient = CentralEmailRecipient.objects.filter(
+            id=recipient_id,
+            organization=membership.organization,
+        ).first()
+        if recipient is None:
+            raise ValidationError("Central email recipient does not exist in this organization.")
+        return recipient
+
+    def get(self, request, recipient_id):
+        membership = _membership(request, Permission.VIEW_NOTIFICATIONS)
+        return Response(
+            CentralEmailRecipientSerializer(self._recipient(membership, recipient_id)).data
+        )
+
+    def patch(self, request, recipient_id):
+        membership = _membership(request, Permission.MANAGE_NOTIFICATIONS)
+        recipient = self._recipient(membership, recipient_id)
+        previous = CentralEmailRecipientSerializer(recipient).data
+        serializer = CentralEmailRecipientSerializer(
+            recipient,
+            data=request.data,
+            partial=True,
+            context={"organization": membership.organization},
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            recipient = serializer.save(updated_by=request.user)
+        except IntegrityError as exc:
+            raise ValidationError(
+                {"email": "This email address is already configured for the organization."}
+            ) from exc
+        current = CentralEmailRecipientSerializer(recipient).data
+        record_audit_event(
+            actor=request.user,
+            organization=membership.organization,
+            action="settings.central_email_recipient_updated",
+            object_type="CentralEmailRecipient",
+            object_id=recipient.id,
+            previous_state=previous,
+            new_state=current,
+            request=request,
+        )
+        return Response(current)
+
+    def delete(self, request, recipient_id):
+        membership = _membership(request, Permission.MANAGE_NOTIFICATIONS)
+        recipient = self._recipient(membership, recipient_id)
+        previous = CentralEmailRecipientSerializer(recipient).data
+        object_id = recipient.id
+        recipient.delete()
+        record_audit_event(
+            actor=request.user,
+            organization=membership.organization,
+            action="settings.central_email_recipient_deleted",
+            object_type="CentralEmailRecipient",
+            object_id=object_id,
+            previous_state=previous,
+            request=request,
+        )
+        return Response(status=204)
+
+
+class CentralEmailEventListView(APIView):
+    def get(self, request):
+        _membership(request, Permission.VIEW_NOTIFICATIONS)
+        return Response(
+            [
+                {"value": value, "label": label}
+                for value, label in CentralEmailEvent.choices
+            ]
+        )
 
 
 class NotificationIntegrationSettingsView(APIView):
