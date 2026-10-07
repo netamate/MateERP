@@ -37,6 +37,9 @@ from .email_templates import get_default_email_template, render_template
 from .models import (
     AlertFrequency,
     AlertRule,
+    CentralEmailEvent,
+    CentralEmailRecipient,
+    CentralEmailRecipientType,
     DeliveryChannel,
     DeliveryStatus,
     Notification,
@@ -95,6 +98,31 @@ def mark_all_notifications_read(queryset) -> int:
 
 def integration_settings_for(organization):
     return NotificationIntegrationSettings.objects.filter(organization=organization).first()
+
+
+def resolve_central_email_recipients(*, organization, event_type: str) -> dict[str, list[str]]:
+    allowed = {value for value, _ in CentralEmailEvent.choices}
+    if event_type not in allowed:
+        raise ValueError(f"Unsupported central email event type: {event_type}")
+
+    grouped = {
+        CentralEmailRecipientType.TO: [],
+        CentralEmailRecipientType.CC: [],
+        CentralEmailRecipientType.BCC: [],
+    }
+    recipients = CentralEmailRecipient.objects.filter(
+        organization=organization,
+        enabled=True,
+    ).order_by("email")
+    for recipient in recipients:
+        if event_type in recipient.event_types:
+            grouped[recipient.recipient_type].append(recipient.email)
+
+    return {
+        "to": grouped[CentralEmailRecipientType.TO],
+        "cc": grouped[CentralEmailRecipientType.CC],
+        "bcc": grouped[CentralEmailRecipientType.BCC],
+    }
 
 
 def integration_settings_payload(organization) -> dict:
