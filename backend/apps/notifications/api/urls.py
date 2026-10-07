@@ -5,6 +5,14 @@ from .email_views import (
     DirectEmailListCreateView,
     DirectEmailSendView,
 )
+from .template_views import (
+    EmailTemplateArchiveView,
+    EmailTemplateDetailView,
+    EmailTemplateListCreateView,
+    EmailTemplatePreviewView,
+    EmailTemplateTestView,
+    EmailTemplateVersionListView,
+)
 from .views import (
     AlertRuleDetailView,
     AlertRuleListCreateView,
@@ -21,6 +29,36 @@ from .views import (
 )
 
 urlpatterns = [
+    path(
+        "notifications/email-templates/",
+        EmailTemplateListCreateView.as_view(),
+        name="email-template-list-create",
+    ),
+    path(
+        "notifications/email-templates/preview/",
+        EmailTemplatePreviewView.as_view(),
+        name="email-template-preview",
+    ),
+    path(
+        "notifications/email-templates/test/",
+        EmailTemplateTestView.as_view(),
+        name="email-template-test",
+    ),
+    path(
+        "notifications/email-templates/<uuid:template_id>/",
+        EmailTemplateDetailView.as_view(),
+        name="email-template-detail",
+    ),
+    path(
+        "notifications/email-templates/<uuid:template_id>/archive/",
+        EmailTemplateArchiveView.as_view(),
+        name="email-template-archive",
+    ),
+    path(
+        "notifications/email-templates/<uuid:template_id>/versions/",
+        EmailTemplateVersionListView.as_view(),
+        name="email-template-version-list",
+    ),
     path(
         "notifications/email/",
         DirectEmailListCreateView.as_view(),
