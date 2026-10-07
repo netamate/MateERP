@@ -162,6 +162,9 @@ def test_private_content_stream_supports_preview_and_both_download_names(tmp_pat
 
     assert inline.status_code == 200
     assert inline["Cache-Control"] == "private, no-store"
+    assert inline["X-Frame-Options"] == "SAMEORIGIN"
+    assert inline["Content-Type"] == "application/pdf"
+    assert "inline" in inline["Content-Disposition"]
     assert b"stream-me" in b"".join(inline.streaming_content)
     assert created["standardized_name"] in standard["Content-Disposition"]
     assert "namecheap-original.pdf" in original["Content-Disposition"]
