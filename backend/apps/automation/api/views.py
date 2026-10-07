@@ -13,7 +13,6 @@ from apps.audit.services import record_audit_event
 from apps.identity.policy import Permission, has_permission
 from apps.identity.services import set_active_context
 from apps.notifications.crypto import decrypt_secret
-from apps.operations.models import Subscription
 
 from ..models import (
     AutomationPolicy,
@@ -27,7 +26,6 @@ from ..models import (
 from ..services import (
     VendorIntegrationError,
     ensure_default_automation_policies,
-    integration_config,
     run_automation_policy,
     sync_vendor_integration,
     test_vendor_configuration,
