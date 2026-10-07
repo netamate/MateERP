@@ -2,19 +2,13 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from apps.finance.models import Vendor
-from apps.identity.models import User
-from apps.identity.services import create_organization_with_owner
-from apps.operations.models import (
-    BillingMode,
-    Subscription,
-    SubscriptionBillingPeriod,
-    SubscriptionInvoice,
-)
 from django.core.management import call_command
 from django.test import Client
 from django.utils import timezone
 
+from apps.finance.models import Vendor
+from apps.identity.models import User
+from apps.identity.services import create_organization_with_owner
 from apps.notifications.models import (
     AlertFrequency,
     AlertRule,
@@ -24,6 +18,13 @@ from apps.notifications.models import (
     NotificationKind,
 )
 from apps.notifications.services import alert_rule_is_due, ensure_default_alert_rules
+
+from apps.operations.models import (
+    BillingMode,
+    Subscription,
+    SubscriptionBillingPeriod,
+    SubscriptionInvoice,
+)
 
 
 def signed_in_owner(email="alerts-owner@example.com"):
