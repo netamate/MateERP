@@ -228,7 +228,6 @@ def ensure_current_billing_period(subscription, *, actor=None, now=None):
     return period, created
 
 
-@transaction.atomic
 def sync_vendor_integration(
     integration: VendorIntegration,
     *,
@@ -253,33 +252,61 @@ def sync_vendor_integration(
         if subscription.billing_mode != BillingMode.PAYG:
             raise VendorIntegrationError("Vendor sync requires a PAYG subscription.")
 
-        payload, http_status = fetch_vendor_payload(integration_config(integration))
+        config = integration_config(integration)
+        payload, http_status = fetch_vendor_payload(config)
         extracted = extract_vendor_usage(
-            integration_config(integration),
+            config,
             payload,
             subscription=subscription,
         )
-        start, end = _month_bounds(subscription.legal_entity, now=now)
-        period = SubscriptionBillingPeriod.objects.filter(
-            subscription=subscription,
-            period_start=start,
-            period_end=end,
-        ).first()
-        if period is None:
-            if not integration.auto_create_period:
-                raise VendorIntegrationError(
-                    "No current billing period exists and automatic creation is disabled."
-                )
-            period, _ = ensure_current_billing_period(subscription, actor=actor, now=now)
-        if period.is_closed:
-            raise VendorIntegrationError("Current billing period is closed.")
 
-        period.current_usage_amount = extracted["cost_amount"]
-        period.usage_quantity = extracted["usage_quantity"]
-        if extracted["usage_unit"]:
-            period.usage_unit = extracted["usage_unit"]
-        period.current_usage_updated_at = now
-        period.save()
+        with transaction.atomic():
+            start_date, end_date = _month_bounds(subscription.legal_entity, now=now)
+            period = SubscriptionBillingPeriod.objects.select_for_update().filter(
+                subscription=subscription,
+                period_start=start_date,
+                period_end=end_date,
+            ).first()
+            if period is None:
+                if not integration.auto_create_period:
+                    raise VendorIntegrationError(
+                        "No current billing period exists and automatic creation is disabled."
+                    )
+                period, _ = ensure_current_billing_period(
+                    subscription,
+                    actor=actor,
+                    now=now,
+                )
+            if period.is_closed:
+                raise VendorIntegrationError("Current billing period is closed.")
+
+            period.current_usage_amount = extracted["cost_amount"]
+            period.usage_quantity = extracted["usage_quantity"]
+            if extracted["usage_unit"]:
+                period.usage_unit = extracted["usage_unit"]
+            period.current_usage_updated_at = now
+            period.save()
+
+            record_audit_event(
+                actor=actor,
+                organization=integration.organization,
+                legal_entity=integration.legal_entity,
+                action="automation.vendor_usage_synced",
+                object_type="VendorIntegration",
+                object_id=integration.id,
+                new_state={
+                    "subscription_id": str(subscription.id),
+                    "billing_period_id": str(period.id),
+                    "cost_amount": str(extracted["cost_amount"]),
+                    "usage_quantity": (
+                        str(extracted["usage_quantity"])
+                        if extracted["usage_quantity"] is not None
+                        else None
+                    ),
+                    "currency": extracted["currency"],
+                },
+                request=request_obj,
+            )
 
         run.status = RunStatus.SUCCESS
         run.http_status = http_status
@@ -291,32 +318,13 @@ def sync_vendor_integration(
         integration.last_sync_at = now
         integration.last_sync_status = SyncStatus.SUCCESS
         integration.last_sync_error = ""
-        record_audit_event(
-            actor=actor,
-            organization=integration.organization,
-            legal_entity=integration.legal_entity,
-            action="automation.vendor_usage_synced",
-            object_type="VendorIntegration",
-            object_id=integration.id,
-            new_state={
-                "subscription_id": str(subscription.id),
-                "billing_period_id": str(period.id),
-                "cost_amount": str(extracted["cost_amount"]),
-                "usage_quantity": (
-                    str(extracted["usage_quantity"])
-                    if extracted["usage_quantity"] is not None
-                    else None
-                ),
-                "currency": extracted["currency"],
-            },
-            request=request_obj,
-        )
     except Exception as exc:
         run.status = RunStatus.FAILED
         run.error = str(exc)[:2000]
         integration.last_sync_at = now
         integration.last_sync_status = SyncStatus.FAILED
         integration.last_sync_error = run.error
+
     run.finished_at = timezone.now()
     run.save()
     integration.save(
@@ -390,11 +398,16 @@ def automation_policy_is_due(policy, *, now=None):
 def _target_entities(policy):
     if policy.legal_entity_id:
         return [policy.legal_entity]
+    override_entity_ids = AutomationPolicy.objects.filter(
+        organization=policy.organization,
+        kind=policy.kind,
+        legal_entity__isnull=False,
+    ).values_list("legal_entity_id", flat=True)
     return list(
         LegalEntity.objects.filter(
             organization=policy.organization,
             status="ACTIVE",
-        )
+        ).exclude(id__in=override_entity_ids)
     )
 
 
@@ -452,7 +465,6 @@ def _refresh_alerts(policy):
     }
 
 
-@transaction.atomic
 def run_automation_policy(
     policy: AutomationPolicy,
     *,
@@ -467,7 +479,8 @@ def run_automation_policy(
     )
     try:
         if policy.kind == AutomationKind.ENSURE_PAYG_PERIODS:
-            summary = _ensure_periods(policy, actor=actor)
+            with transaction.atomic():
+                summary = _ensure_periods(policy, actor=actor)
         elif policy.kind == AutomationKind.SYNC_VENDOR_USAGE:
             summary = _sync_integrations(policy, actor=actor)
         elif policy.kind == AutomationKind.REFRESH_ALERTS:
