@@ -371,9 +371,7 @@ class SubscriptionBillingPeriodSerializer(serializers.ModelSerializer):
         for field in ("estimated_cost", "current_usage_amount"):
             value = attrs.get(field, getattr(self.instance, field, Decimal("0")))
             if value is not None and value < 0:
-                raise serializers.ValidationError(
-                    {field: "Billing values cannot be negative."}
-                )
+                raise serializers.ValidationError({field: "Billing values cannot be negative."})
         quantity = attrs.get(
             "usage_quantity",
             getattr(self.instance, "usage_quantity", None),
@@ -474,9 +472,7 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
                 {"billing_period": "Choose a billing period from the active legal entity."}
             )
         if vendor and vendor.legal_entity_id != entity.id:
-            raise serializers.ValidationError(
-                {"vendor": "Vendor belongs to another legal entity."}
-            )
+            raise serializers.ValidationError({"vendor": "Vendor belongs to another legal entity."})
         if document and document.legal_entity_id != entity.id:
             raise serializers.ValidationError(
                 {"document": "Document belongs to another legal entity."}
@@ -509,10 +505,7 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
         selected_vendor = vendor or period.subscription.vendor
         if selected_vendor is None:
             raise serializers.ValidationError({"vendor": "Invoice vendor is required."})
-        if (
-            period.subscription.vendor_id
-            and period.subscription.vendor_id != selected_vendor.id
-        ):
+        if period.subscription.vendor_id and period.subscription.vendor_id != selected_vendor.id:
             raise serializers.ValidationError(
                 {"vendor": "Invoice vendor must match the subscription vendor."}
             )
@@ -675,9 +668,7 @@ class BillingPaymentSerializer(serializers.ModelSerializer):
                 {"financial_account": "Financial account currency must match payment currency."}
             )
         if expense_payment:
-            duplicate_payment = BillingPayment.objects.filter(
-                expense_payment=expense_payment
-            )
+            duplicate_payment = BillingPayment.objects.filter(expense_payment=expense_payment)
             if self.instance:
                 duplicate_payment = duplicate_payment.exclude(pk=self.instance.pk)
             if duplicate_payment.exists():
@@ -692,10 +683,7 @@ class BillingPaymentSerializer(serializers.ModelSerializer):
                         )
                     }
                 )
-            if (
-                financial_account
-                and expense_payment.financial_account_id != financial_account.id
-            ):
+            if financial_account and expense_payment.financial_account_id != financial_account.id:
                 raise serializers.ValidationError(
                     {
                         "expense_payment": (
@@ -710,9 +698,7 @@ class BillingPaymentSerializer(serializers.ModelSerializer):
 
 
 class BillingAllocationItemSerializer(serializers.Serializer):
-    invoice = serializers.PrimaryKeyRelatedField(
-        queryset=SubscriptionInvoice.objects.all()
-    )
+    invoice = serializers.PrimaryKeyRelatedField(queryset=SubscriptionInvoice.objects.all())
     amount = serializers.DecimalField(max_digits=20, decimal_places=2)
 
 
@@ -724,13 +710,9 @@ class BillingAllocationsSerializer(serializers.Serializer):
         total = Decimal("0")
         for item in value:
             if item["invoice"].id in seen:
-                raise serializers.ValidationError(
-                    "Each invoice can appear only once."
-                )
+                raise serializers.ValidationError("Each invoice can appear only once.")
             if item["amount"] <= 0:
-                raise serializers.ValidationError(
-                    "Allocation amounts must be greater than zero."
-                )
+                raise serializers.ValidationError("Allocation amounts must be greater than zero.")
             seen.add(item["invoice"].id)
             total += item["amount"]
         return value

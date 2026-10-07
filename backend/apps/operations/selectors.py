@@ -6,8 +6,8 @@ from django.utils import timezone
 
 from .models import (
     BillingInvoiceStatus,
-    BillingPeriodStatus,
     BillingPayment,
+    BillingPeriodStatus,
     OperationalStatus,
     Subscription,
     SubscriptionBillingPeriod,
@@ -47,10 +47,7 @@ def renewal_calendar(legal_entity, *, start_date=None, end_date=None):
 
 
 def invoice_paid_amount(invoice):
-    return (
-        invoice.payment_allocations.aggregate(total=Sum("amount"))["total"]
-        or Decimal("0")
-    )
+    return invoice.payment_allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0")
 
 
 def billing_period_snapshot(period: SubscriptionBillingPeriod, *, today=None):
@@ -89,9 +86,7 @@ def billing_period_snapshot(period: SubscriptionBillingPeriod, *, today=None):
     budget_percent = None
     thresholds_reached = []
     if budget and budget > 0:
-        budget_percent = (tracked_cost / budget * Decimal("100")).quantize(
-            Decimal("0.1")
-        )
+        budget_percent = (tracked_cost / budget * Decimal("100")).quantize(Decimal("0.1"))
         thresholds_reached = [
             threshold
             for threshold in period.subscription.budget_alert_thresholds
@@ -209,12 +204,8 @@ def billing_dashboard(legal_entity):
 
     return {
         "totals_by_currency": list(totals_by_currency.values()),
-        "missing_invoice_count": sum(
-            1 for _, snapshot in snapshots if snapshot["missing_invoice"]
-        ),
-        "over_budget_period_count": sum(
-            1 for _, snapshot in snapshots if snapshot["over_budget"]
-        ),
+        "missing_invoice_count": sum(1 for _, snapshot in snapshots if snapshot["missing_invoice"]),
+        "over_budget_period_count": sum(1 for _, snapshot in snapshots if snapshot["over_budget"]),
         "unpaid_invoice_count": unpaid_invoice_count,
         "unreconciled_invoice_count": unreconciled_invoices,
         "unallocated_payment_by_currency": [
@@ -223,4 +214,3 @@ def billing_dashboard(legal_entity):
         ],
         "trend": list(trend_map.values())[-24:],
     }
-

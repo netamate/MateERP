@@ -2,8 +2,6 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from django.test import Client
-
 from apps.accounting.models import Account, AccountType, FiscalPeriod, NormalBalance
 from apps.finance.models import (
     Expense,
@@ -14,6 +12,8 @@ from apps.finance.models import (
 from apps.finance.services import approve_expense, pay_expense, submit_expense
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
+from django.test import Client
+
 from apps.operations.models import (
     BillingInvoiceStatus,
     BillingMode,
@@ -256,9 +256,7 @@ def test_invoice_duplicate_detection_and_partial_multi_invoice_payment_allocatio
     )
     assert final_allocation.status_code == 200, final_allocation.content
 
-    period_after = client.get(
-        f"/api/v1/operations/billing/periods/{period['id']}/"
-    ).json()
+    period_after = client.get(f"/api/v1/operations/billing/periods/{period['id']}/").json()
     assert period_after["actual_billed_amount"] == "15.00"
     assert period_after["paid_amount"] == "15.00"
     assert period_after["status"] == "PAID"
@@ -389,9 +387,7 @@ def test_invoice_and_payment_reconcile_to_accounting_records():
     )
     assert allocation.status_code == 200, allocation.content
 
-    refreshed = client.get(
-        f"/api/v1/operations/billing/invoices/{invoice['id']}/"
-    ).json()
+    refreshed = client.get(f"/api/v1/operations/billing/invoices/{invoice['id']}/").json()
     assert refreshed["status"] == "PAID"
     assert refreshed["outstanding_amount"] == "0.00"
 

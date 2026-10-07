@@ -1,14 +1,13 @@
 import uuid
 from decimal import Decimal
 
+from apps.finance.models import Vendor
+from apps.identity.models import LegalEntity
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.functions import Lower
-
-from apps.finance.models import Vendor
-from apps.identity.models import LegalEntity
 
 
 class OperationalStatus(models.TextChoices):
@@ -640,9 +639,7 @@ class BillingPayment(models.Model):
                 self.financial_account_id
                 and self.expense_payment.financial_account_id != self.financial_account_id
             ):
-                raise ValidationError(
-                    "Linked expense payment must use the same financial account."
-                )
+                raise ValidationError("Linked expense payment must use the same financial account.")
 
 
 class BillingPaymentAllocation(models.Model):
@@ -690,19 +687,17 @@ class BillingPaymentAllocation(models.Model):
         other_payment_allocations = BillingPaymentAllocation.objects.filter(
             payment=self.payment
         ).exclude(pk=self.pk)
-        payment_allocated = (
-            other_payment_allocations.aggregate(total=Sum("amount"))["total"]
-            or Decimal("0")
-        )
+        payment_allocated = other_payment_allocations.aggregate(total=Sum("amount"))[
+            "total"
+        ] or Decimal("0")
         if payment_allocated + self.amount > self.payment.amount:
             raise ValidationError("Allocation exceeds the unallocated payment amount.")
 
         other_invoice_allocations = BillingPaymentAllocation.objects.filter(
             invoice=self.invoice
         ).exclude(pk=self.pk)
-        invoice_paid = (
-            other_invoice_allocations.aggregate(total=Sum("amount"))["total"]
-            or Decimal("0")
+        invoice_paid = other_invoice_allocations.aggregate(total=Sum("amount"))["total"] or Decimal(
+            "0"
         )
         if invoice_paid + self.amount > self.invoice.total_amount:
             raise ValidationError("Allocation exceeds the outstanding invoice balance.")

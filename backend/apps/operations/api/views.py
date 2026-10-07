@@ -1,11 +1,10 @@
+from apps.identity.policy import Permission, has_permission
+from apps.identity.services import set_active_context
 from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.identity.policy import Permission, has_permission
-from apps.identity.services import set_active_context
 
 from ..models import (
     BillingPayment,
@@ -305,7 +304,6 @@ class SubscriptionMarkPaidView(APIView):
         )
 
 
-
 def _get_billing_period(context, object_id):
     period = (
         SubscriptionBillingPeriod.objects.filter(
@@ -390,9 +388,7 @@ class BillingPeriodListCreateView(APIView):
         subscription_id = request.query_params.get("subscription")
         if subscription_id:
             queryset = queryset.filter(subscription_id=subscription_id)
-        return Response(
-            SubscriptionBillingPeriodSerializer(queryset, many=True).data
-        )
+        return Response(SubscriptionBillingPeriodSerializer(queryset, many=True).data)
 
     def post(self, request):
         context = _context(request)
@@ -422,9 +418,7 @@ class BillingPeriodDetailView(APIView):
         context = _context(request)
         _require_view(context)
         return Response(
-            SubscriptionBillingPeriodSerializer(
-                _get_billing_period(context, object_id)
-            ).data
+            SubscriptionBillingPeriodSerializer(_get_billing_period(context, object_id)).data
         )
 
     def patch(self, request, object_id):
@@ -447,9 +441,7 @@ class BillingPeriodDetailView(APIView):
             request=request,
         )
         return Response(
-            SubscriptionBillingPeriodSerializer(
-                _get_billing_period(context, period.id)
-            ).data
+            SubscriptionBillingPeriodSerializer(_get_billing_period(context, period.id)).data
         )
 
 
@@ -473,9 +465,7 @@ class SubscriptionInvoiceListCreateView(APIView):
         if period_id:
             queryset = queryset.filter(billing_period_id=period_id)
         if subscription_id:
-            queryset = queryset.filter(
-                billing_period__subscription_id=subscription_id
-            )
+            queryset = queryset.filter(billing_period__subscription_id=subscription_id)
         return Response(SubscriptionInvoiceSerializer(queryset, many=True).data)
 
     def post(self, request):
@@ -511,9 +501,7 @@ class SubscriptionInvoiceDetailView(APIView):
         context = _context(request)
         _require_view(context)
         return Response(
-            SubscriptionInvoiceSerializer(
-                _get_subscription_invoice(context, object_id)
-            ).data
+            SubscriptionInvoiceSerializer(_get_subscription_invoice(context, object_id)).data
         )
 
     def patch(self, request, object_id):
@@ -542,9 +530,7 @@ class SubscriptionInvoiceDetailView(APIView):
                 {"invoice_number": "This vendor invoice number is already recorded."}
             ) from exc
         return Response(
-            SubscriptionInvoiceSerializer(
-                _get_subscription_invoice(context, invoice.id)
-            ).data
+            SubscriptionInvoiceSerializer(_get_subscription_invoice(context, invoice.id)).data
         )
 
 
@@ -558,9 +544,7 @@ class SubscriptionInvoiceVoidView(APIView):
             request=request,
         )
         return Response(
-            SubscriptionInvoiceSerializer(
-                _get_subscription_invoice(context, invoice.id)
-            ).data
+            SubscriptionInvoiceSerializer(_get_subscription_invoice(context, invoice.id)).data
         )
 
 
@@ -599,9 +583,7 @@ class BillingPaymentListCreateView(APIView):
             **data,
         )
         return Response(
-            BillingPaymentSerializer(
-                _get_billing_payment(context, payment.id)
-            ).data,
+            BillingPaymentSerializer(_get_billing_payment(context, payment.id)).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -610,9 +592,7 @@ class BillingPaymentDetailView(APIView):
     def get(self, request, object_id):
         context = _context(request)
         _require_view(context)
-        return Response(
-            BillingPaymentSerializer(_get_billing_payment(context, object_id)).data
-        )
+        return Response(BillingPaymentSerializer(_get_billing_payment(context, object_id)).data)
 
 
 class BillingPaymentAllocationView(APIView):
@@ -634,11 +614,7 @@ class BillingPaymentAllocationView(APIView):
             allocations=allocations,
             request=request,
         )
-        return Response(
-            BillingPaymentSerializer(
-                _get_billing_payment(context, payment.id)
-            ).data
-        )
+        return Response(BillingPaymentSerializer(_get_billing_payment(context, payment.id)).data)
 
 
 class RenewalCalendarView(APIView):

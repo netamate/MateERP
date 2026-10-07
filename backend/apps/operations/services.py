@@ -2,16 +2,15 @@ import calendar
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
-from django.db.models import Q, Sum
-from django.utils import timezone
-
 from apps.audit.services import record_audit_event
 from apps.identity.models import Membership
 from apps.identity.policy import Permission, has_permission
 from apps.notifications.models import Notification, NotificationKind
 from apps.notifications.services import resolve_notifications
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.db.models import Q, Sum
+from django.utils import timezone
 
 from .models import (
     BillingCycle,
@@ -163,10 +162,7 @@ def record_subscription_payment(
 def _refresh_invoice_status(invoice: SubscriptionInvoice) -> SubscriptionInvoice:
     if invoice.status == BillingInvoiceStatus.VOID:
         return invoice
-    paid = (
-        invoice.payment_allocations.aggregate(total=Sum("amount"))["total"]
-        or Decimal("0")
-    )
+    paid = invoice.payment_allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     if paid <= 0:
         next_status = BillingInvoiceStatus.OPEN
     elif paid < invoice.total_amount:
@@ -195,11 +191,7 @@ def create_billing_period(
 ) -> SubscriptionBillingPeriod:
     _require_permission(membership, Permission.MANAGE_OPERATIONS)
     _require_entity_scope(membership, subscription.legal_entity)
-    estimate = (
-        subscription.estimated_cost
-        if estimated_cost is None
-        else estimated_cost
-    )
+    estimate = subscription.estimated_cost if estimated_cost is None else estimated_cost
     if estimate == Decimal("0") and subscription.billing_mode == "FIXED":
         estimate = subscription.amount
     period = SubscriptionBillingPeriod.objects.create(
@@ -212,9 +204,7 @@ def create_billing_period(
         usage_quantity=usage_quantity,
         usage_unit=usage_unit or subscription.usage_unit,
         current_usage_updated_at=(
-            timezone.now()
-            if current_usage_amount or usage_quantity is not None
-            else None
+            timezone.now() if current_usage_amount or usage_quantity is not None else None
         ),
         notes=notes,
         created_by=membership.user,
@@ -276,9 +266,7 @@ def update_billing_period(
             "estimated_cost": str(period.estimated_cost),
             "current_usage_amount": str(period.current_usage_amount),
             "usage_quantity": (
-                str(period.usage_quantity)
-                if period.usage_quantity is not None
-                else None
+                str(period.usage_quantity) if period.usage_quantity is not None else None
             ),
             "is_closed": period.is_closed,
         },
@@ -361,9 +349,7 @@ def update_subscription_invoice(
     has_allocations = invoice.payment_allocations.exists()
     protected_amount_fields = {"subtotal", "tax_amount", "total_amount", "currency"}
     if has_allocations and protected_amount_fields.intersection(data):
-        raise ValidationError(
-            "Invoice amount and currency cannot change after payment allocation."
-        )
+        raise ValidationError("Invoice amount and currency cannot change after payment allocation.")
     for field in (
         "invoice_number",
         "invoice_date",
@@ -463,9 +449,7 @@ def create_billing_payment(
             "amount": str(payment.amount),
             "currency": payment.currency,
             "expense_payment_id": (
-                str(payment.expense_payment_id)
-                if payment.expense_payment_id
-                else None
+                str(payment.expense_payment_id) if payment.expense_payment_id else None
             ),
         },
         request=request,
@@ -496,16 +480,12 @@ def replace_billing_payment_allocations(
         raise ValidationError("Allocation total exceeds the payment amount.")
 
     old_invoices = list(
-        SubscriptionInvoice.objects.filter(
-            payment_allocations__payment=payment
-        ).distinct()
+        SubscriptionInvoice.objects.filter(payment_allocations__payment=payment).distinct()
     )
     payment.allocations.all().delete()
     created = []
     for item in allocations:
-        invoice = SubscriptionInvoice.objects.select_for_update().get(
-            pk=item["invoice"].pk
-        )
+        invoice = SubscriptionInvoice.objects.select_for_update().get(pk=item["invoice"].pk)
         if invoice.status == BillingInvoiceStatus.VOID:
             raise ValidationError("Voided invoices cannot receive payment allocations.")
         allocation = BillingPaymentAllocation.objects.create(
@@ -521,10 +501,7 @@ def replace_billing_payment_allocations(
     for invoice in touched.values():
         _refresh_invoice_status(invoice)
 
-    allocated = (
-        payment.allocations.aggregate(total=Sum("amount"))["total"]
-        or Decimal("0")
-    )
+    allocated = payment.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     audit_operations_change(
         membership=membership,
         legal_entity=payment.legal_entity,
