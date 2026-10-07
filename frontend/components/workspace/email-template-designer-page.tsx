@@ -153,11 +153,7 @@ export function EmailTemplateDesignerPage({ session }: { session: SessionPayload
   });
 
   useEffect(() => {
-    if (!draft) {
-      setPreview(null);
-      setPreviewError("");
-      return;
-    }
+    if (!draft) return;
     const timer = window.setTimeout(() => {
       notificationApi
         .previewEmailTemplate({
