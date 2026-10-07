@@ -319,10 +319,46 @@ export type SubscriptionPayment = {
   created_at: string;
 };
 
+export type VendorService = {
+  id: string;
+  vendor: string;
+  vendor_name: string;
+  code: string;
+  name: string;
+  service_type: Subscription["service_type"];
+  description: string;
+  status: "ACTIVE" | "ARCHIVED";
+  account_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ServiceAccount = {
+  id: string;
+  service: string;
+  service_name: string;
+  vendor_id: string;
+  vendor_name: string;
+  code: string;
+  alias: string;
+  reference: string;
+  status: "ACTIVE" | "ARCHIVED";
+  notes: string;
+  subscription_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Subscription = {
   id: string;
+  subscription_code: string;
   vendor: string | null;
   vendor_name: string | null;
+  service: string | null;
+  vendor_service_name: string | null;
+  service_account: string | null;
+  account_alias: string | null;
+  account_code: string | null;
   name: string;
   service_type: "DOMAIN" | "VPS" | "CLOUD" | "HOSTING" | "SAAS" | "API" | "STORAGE" | "EMAIL" | "AI" | "OTHER";
   description: string;
@@ -555,6 +591,24 @@ export const planningApi = {
 };
 
 export const operationsApi = {
+  vendorServices: () => request<VendorService[]>("/api/v1/operations/vendor-services/"),
+  createVendorService: (body: Record<string, unknown>) => request<VendorService>(
+    "/api/v1/operations/vendor-services/",
+    { method: "POST", body: JSON.stringify(body) }, true,
+  ),
+  updateVendorService: (id: string, body: Record<string, unknown>) => request<VendorService>(
+    `/api/v1/operations/vendor-services/${id}/`,
+    { method: "PATCH", body: JSON.stringify(body) }, true,
+  ),
+  serviceAccounts: () => request<ServiceAccount[]>("/api/v1/operations/service-accounts/"),
+  createServiceAccount: (body: Record<string, unknown>) => request<ServiceAccount>(
+    "/api/v1/operations/service-accounts/",
+    { method: "POST", body: JSON.stringify(body) }, true,
+  ),
+  updateServiceAccount: (id: string, body: Record<string, unknown>) => request<ServiceAccount>(
+    `/api/v1/operations/service-accounts/${id}/`,
+    { method: "PATCH", body: JSON.stringify(body) }, true,
+  ),
   subscriptions: () => request<Subscription[]>("/api/v1/operations/subscriptions/"),
   domains: () => request<DomainRecord[]>("/api/v1/operations/domains/"),
   infrastructure: () => request<InfrastructureAsset[]>("/api/v1/operations/infrastructure/"),
