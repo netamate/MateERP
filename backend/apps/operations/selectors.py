@@ -128,36 +128,37 @@ def billing_dashboard(legal_entity):
         .order_by("period_end")
     )
     snapshots = [(period, billing_period_snapshot(period)) for period in periods]
-    totals = {
-        "estimated_cost": sum(
-            (snapshot["estimated_cost"] for _, snapshot in snapshots),
-            Decimal("0"),
-        ),
-        "current_usage_amount": sum(
-            (snapshot["current_usage_amount"] for _, snapshot in snapshots),
-            Decimal("0"),
-        ),
-        "actual_billed_amount": sum(
-            (snapshot["actual_billed_amount"] for _, snapshot in snapshots),
-            Decimal("0"),
-        ),
-        "paid_amount": sum(
-            (snapshot["paid_amount"] for _, snapshot in snapshots),
-            Decimal("0"),
-        ),
-        "outstanding_amount": sum(
-            (snapshot["outstanding_amount"] for _, snapshot in snapshots),
-            Decimal("0"),
-        ),
-    }
 
+    totals_by_currency = {}
     trend_map = {}
     for period, snapshot in snapshots:
-        key = period.period_end.strftime("%Y-%m")
+        currency = period.subscription.currency
+        totals = totals_by_currency.setdefault(
+            currency,
+            {
+                "currency": currency,
+                "estimated_cost": Decimal("0"),
+                "current_usage_amount": Decimal("0"),
+                "actual_billed_amount": Decimal("0"),
+                "paid_amount": Decimal("0"),
+                "outstanding_amount": Decimal("0"),
+            },
+        )
+        for field in (
+            "estimated_cost",
+            "current_usage_amount",
+            "actual_billed_amount",
+            "paid_amount",
+            "outstanding_amount",
+        ):
+            totals[field] += snapshot[field]
+
+        key = (period.period_end.strftime("%Y-%m"), currency)
         row = trend_map.setdefault(
             key,
             {
-                "period": key,
+                "period": key[0],
+                "currency": currency,
                 "estimated_cost": Decimal("0"),
                 "current_usage_amount": Decimal("0"),
                 "actual_billed_amount": Decimal("0"),
@@ -171,7 +172,7 @@ def billing_dashboard(legal_entity):
         row["paid_amount"] += snapshot["paid_amount"]
         row["budget"] += period.subscription.monthly_budget or Decimal("0")
 
-    unallocated_payments = Decimal("0")
+    unallocated_by_currency = {}
     for payment in BillingPayment.objects.filter(legal_entity=legal_entity).prefetch_related(
         "allocations"
     ):
@@ -179,7 +180,10 @@ def billing_dashboard(legal_entity):
             (allocation.amount for allocation in payment.allocations.all()),
             Decimal("0"),
         )
-        unallocated_payments += max(payment.amount - allocated, Decimal("0"))
+        remaining = max(payment.amount - allocated, Decimal("0"))
+        unallocated_by_currency[payment.currency] = (
+            unallocated_by_currency.get(payment.currency, Decimal("0")) + remaining
+        )
 
     invoices = (
         legal_entity.subscription_invoices.exclude(status=BillingInvoiceStatus.VOID)
@@ -187,7 +191,6 @@ def billing_dashboard(legal_entity):
         .prefetch_related("payment_allocations")
     )
     unreconciled_invoices = 0
-    duplicate_risk_count = 0
     unpaid_invoice_count = 0
     for invoice in invoices:
         paid = sum(
@@ -203,12 +206,9 @@ def billing_dashboard(legal_entity):
             or invoice.expense.amount != invoice.total_amount
         ):
             unreconciled_invoices += 1
-        if not invoice.invoice_number.strip():
-            duplicate_risk_count += 1
 
     return {
-        "currency_scope": "mixed",
-        "totals": totals,
+        "totals_by_currency": list(totals_by_currency.values()),
         "missing_invoice_count": sum(
             1 for _, snapshot in snapshots if snapshot["missing_invoice"]
         ),
@@ -217,7 +217,10 @@ def billing_dashboard(legal_entity):
         ),
         "unpaid_invoice_count": unpaid_invoice_count,
         "unreconciled_invoice_count": unreconciled_invoices,
-        "duplicate_risk_count": duplicate_risk_count,
-        "unallocated_payment_amount": unallocated_payments,
-        "trend": list(trend_map.values())[-12:],
+        "unallocated_payment_by_currency": [
+            {"currency": currency, "amount": amount}
+            for currency, amount in sorted(unallocated_by_currency.items())
+        ],
+        "trend": list(trend_map.values())[-24:],
     }
+
