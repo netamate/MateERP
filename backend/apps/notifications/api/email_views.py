@@ -1,12 +1,13 @@
-from apps.audit.services import record_audit_event
-from apps.identity.models import Membership, MembershipStatus
-from apps.identity.policy import Permission, has_permission
-from apps.identity.selectors import accessible_legal_entities
 from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.audit.services import record_audit_event
+from apps.identity.models import Membership, MembershipStatus
+from apps.identity.policy import Permission, has_permission
+from apps.identity.selectors import accessible_legal_entities
 
 from ..direct_email import deliver_direct_email
 from ..models import DirectEmailNotification, DirectEmailStatus
