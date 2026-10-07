@@ -450,6 +450,8 @@ def deliver_email(
     due_date,
     title: str,
     message: str,
+    rule: AlertRule | None = None,
+    candidate=None,
 ) -> NotificationDelivery:
     delivery = _delivery(
         subscription=subscription,
@@ -462,12 +464,34 @@ def deliver_email(
     )
     if delivery.status == DeliveryStatus.SENT:
         return delivery
+    rendered = None
+    if rule is not None and candidate is not None:
+        rendered = _email_render_for_candidate(rule, candidate, destination)
+        delivery.alert_rule = rule
+        if rendered:
+            delivery.email_template = rendered["template"]
+            delivery.email_template_version = rendered["template_version"]
+            delivery.email_subject = rendered["subject"]
+            delivery.email_text_body = rendered["text_body"]
+            delivery.email_html_body = rendered["html_body"]
+        delivery.save(
+            update_fields=[
+                "alert_rule",
+                "email_template",
+                "email_template_version",
+                "email_subject",
+                "email_text_body",
+                "email_html_body",
+                "updated_at",
+            ]
+        )
     try:
         _send_email(
             organization=subscription.legal_entity.organization,
             destination=destination,
-            subject=title,
-            message=message,
+            subject=rendered["subject"] if rendered else title,
+            message=rendered["text_body"] if rendered else message,
+            html_message=rendered["html_body"] if rendered else None,
         )
         return _mark_sent(delivery)
     except Exception as exc:
@@ -1233,6 +1257,8 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
                     due_date=candidate.due_date,
                     title=candidate.title,
                     message=candidate.message,
+                    rule=rule,
+                    candidate=candidate,
                 )
                 if delivery.alert_rule_id is None:
                     delivery.alert_rule = rule
