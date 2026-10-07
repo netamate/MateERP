@@ -115,7 +115,6 @@ def test_mark_paid_advances_custom_cycle(operations_context):
     assert payment.next_due_date == date(2026, 11, 21)
 
 
-
 @pytest.mark.django_db
 def test_subscription_edit_with_vendor_writes_valid_audit_record(operations_context):
     context = operations_context
