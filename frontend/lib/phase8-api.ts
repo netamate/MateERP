@@ -180,6 +180,25 @@ export type NotificationDelivery = {
   created_at: string;
 };
 
+export type DirectEmailNotification = {
+  id: string;
+  legal_entity: string | null;
+  to_recipients: string[];
+  cc_recipients: string[];
+  bcc_recipients: string[];
+  subject: string;
+  body: string;
+  scheduled_for: string | null;
+  schedule_timezone: string;
+  status: "DRAFT" | "SCHEDULED" | "SENDING" | "SENT" | "FAILED" | "CANCELLED";
+  attempt_count: number;
+  last_error: string;
+  sent_at: string | null;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type NotificationIntegrationSettings = {
   smtp_enabled: boolean;
   smtp_host: string;
@@ -332,6 +351,26 @@ export const notificationApi = {
     request<{ detail: string }>(
       "/api/v1/notifications/integrations/test-hermes/",
       { method: "POST", body: JSON.stringify({ target }) },
+      true,
+    ),
+  directEmails: () =>
+    request<Paginated<DirectEmailNotification>>("/api/v1/notifications/email/"),
+  createDirectEmail: (body: Record<string, unknown>) =>
+    request<DirectEmailNotification>(
+      "/api/v1/notifications/email/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  sendDirectEmail: (id: string) =>
+    request<DirectEmailNotification>(
+      `/api/v1/notifications/email/${id}/send/`,
+      { method: "POST" },
+      true,
+    ),
+  cancelDirectEmail: (id: string) =>
+    request<DirectEmailNotification>(
+      `/api/v1/notifications/email/${id}/cancel/`,
+      { method: "POST" },
       true,
     ),
 };

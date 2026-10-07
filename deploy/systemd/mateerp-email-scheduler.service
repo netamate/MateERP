@@ -1,0 +1,10 @@
+# Send due direct email notifications inside the healthy production backend container.
+[Unit]
+Description=MateERP direct email scheduler
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/MateERP
+ExecStart=/usr/bin/docker compose exec -T backend python manage.py process_scheduled_emails

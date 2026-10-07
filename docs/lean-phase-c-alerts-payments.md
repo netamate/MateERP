@@ -110,3 +110,32 @@ Environment variables remain as a bootstrap/fallback path until ERP settings are
 For encryption, `MATEERP_SETTINGS_ENCRYPTION_KEY` can hold a dedicated Fernet key. If it is not supplied, MateERP derives a stable encryption key from Django `SECRET_KEY`.
 
 If a channel is enabled but its configuration is incomplete or delivery fails, the attempt is recorded as FAILED instead of disappearing silently.
+
+
+## Direct Email notifications
+
+MateERP has a first-class direct SMTP email lane that does not depend on Hermes.
+
+From **Email Notifications**, an authorized Owner or Administrator can:
+
+- send an email immediately
+- save a draft
+- schedule a message for a specific date and time
+- send to multiple To, CC, and BCC recipients
+- review sent, scheduled, failed, and cancelled messages
+- retry a draft, scheduled, or failed message manually
+- see attempt count and the last delivery error
+
+The production scheduler is `mateerp-email-scheduler.timer`, which checks once per minute and calls `process_scheduled_emails`.
+
+## Hermes / WhatsApp delivery
+
+MateERP uses Hermes' native Generic Webhook HMAC V2 contract instead of Bearer authentication:
+
+- `X-Webhook-Timestamp`
+- `X-Webhook-Signature-V2`
+- HMAC-SHA256 of `<timestamp>.<raw body>`
+
+Use a shared **Hermes Webhook Secret** in MateERP Settings and the Hermes `mateerp-alerts` route. Configure that route with `deliver_only: true`, `deliver: whatsapp`, and `prompt: "{message}"`.
+
+MateERP remains the source of truth for reminder timing. Hermes Cron is not required for MateERP subscription reminders; Hermes is the WhatsApp delivery layer.

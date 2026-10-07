@@ -27,6 +27,15 @@ class DeliveryStatus(models.TextChoices):
     FAILED = "FAILED", "Failed"
 
 
+class DirectEmailStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Draft"
+    SCHEDULED = "SCHEDULED", "Scheduled"
+    SENDING = "SENDING", "Sending"
+    SENT = "SENT", "Sent"
+    FAILED = "FAILED", "Failed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
 class Notification(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -175,3 +184,60 @@ class NotificationIntegrationSettings(models.Model):
 
     def __str__(self) -> str:
         return f"{self.organization.name} integrations"
+
+
+
+class DirectEmailNotification(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "identity.Organization",
+        on_delete=models.PROTECT,
+        related_name="direct_email_notifications",
+    )
+    legal_entity = models.ForeignKey(
+        "identity.LegalEntity",
+        on_delete=models.PROTECT,
+        related_name="direct_email_notifications",
+        null=True,
+        blank=True,
+    )
+    to_recipients = models.JSONField(default=list)
+    cc_recipients = models.JSONField(default=list, blank=True)
+    bcc_recipients = models.JSONField(default=list, blank=True)
+    subject = models.CharField(max_length=255)
+    body = models.TextField()
+    scheduled_for = models.DateTimeField(null=True, blank=True)
+    schedule_timezone = models.CharField(max_length=64, default="UTC")
+    status = models.CharField(
+        max_length=16,
+        choices=DirectEmailStatus.choices,
+        default=DirectEmailStatus.DRAFT,
+    )
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_direct_email_notifications",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["organization", "status", "scheduled_for"],
+                name="direct_email_due_idx",
+            ),
+            models.Index(
+                fields=["legal_entity", "created_at"],
+                name="direct_email_entity_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.subject} · {self.status}"

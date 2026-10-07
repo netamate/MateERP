@@ -7,6 +7,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogOut,
+  Mail,
   Menu,
   PackageOpen,
   Plus,
@@ -51,6 +52,7 @@ const navGroups: NavGroup[] = [
     label: "Alerts & Settings",
     items: [
       { label: "Alerts", href: "/administration/notifications", icon: Bell },
+      { label: "Email Notifications", href: "/administration/email-notifications", icon: Mail },
       { label: "Members & Access", href: "/administration/members", icon: Users },
       { label: "Settings", href: "/administration/settings", icon: Settings },
     ],
@@ -62,6 +64,7 @@ const commandItems: NavItem[] = navGroups.flatMap((group) => group.items);
 const quickActions: Array<[string, string]> = [
   ["Subscription", "/operations/subscriptions"],
   ["Vendor", "/vendors?new=1"],
+  ["Email Notification", "/administration/email-notifications"],
 ];
 
 type AppShellProps = {

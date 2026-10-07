@@ -1,4 +1,7 @@
+import hashlib
+import hmac
 import json
+import time
 from email.utils import parseaddr
 from urllib import error, request
 
@@ -101,7 +104,7 @@ def integration_settings_payload(organization) -> dict:
         "smtp_source": "ENV" if settings.EMAIL_HOST else "NONE",
         "hermes_enabled": bool(settings.MATEERP_HERMES_WEBHOOK_URL),
         "hermes_webhook_url": settings.MATEERP_HERMES_WEBHOOK_URL,
-        "hermes_token_configured": bool(settings.MATEERP_HERMES_WEBHOOK_TOKEN),
+        "hermes_token_configured": bool(settings.MATEERP_HERMES_WEBHOOK_SECRET),
         "hermes_default_target": "",
         "hermes_source": "ENV" if settings.MATEERP_HERMES_WEBHOOK_URL else "NONE",
         "updated_at": None,
@@ -144,7 +147,19 @@ def _email_config(organization) -> dict:
     }
 
 
-def _send_email(*, organization, destination: str, subject: str, message: str) -> None:
+def _send_email(
+    *,
+    organization,
+    subject: str,
+    message: str,
+    destination: str | None = None,
+    destinations: list[str] | None = None,
+    cc: list[str] | None = None,
+    bcc: list[str] | None = None,
+) -> None:
+    recipients = list(destinations or ([] if destination is None else [destination]))
+    if not recipients:
+        raise RuntimeError("At least one email recipient is required.")
     config = _email_config(organization)
     connection = get_connection(
         backend=config["backend"],
@@ -160,7 +175,9 @@ def _send_email(*, organization, destination: str, subject: str, message: str) -
         subject=subject,
         body=message,
         from_email=config["from_email"],
-        to=[destination],
+        to=recipients,
+        cc=list(cc or []),
+        bcc=list(bcc or []),
         connection=connection,
     ).send(fail_silently=False)
 
@@ -201,10 +218,20 @@ def _hermes_config(organization) -> dict:
 
 def _post_hermes(*, organization, payload: dict) -> None:
     config = _hermes_config(organization)
-    body = json.dumps(payload).encode("utf-8")
-    headers = {"Content-Type": "application/json"}
-    if config["token"]:
-        headers["Authorization"] = f"Bearer {config['token']}"
+    if not config["token"]:
+        raise RuntimeError("Hermes Webhook Secret is not configured in ERP Settings.")
+    body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+    timestamp = str(int(time.time()))
+    signature = hmac.new(
+        config["token"].encode(),
+        timestamp.encode() + b"." + body,
+        hashlib.sha256,
+    ).hexdigest()
+    headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Timestamp": timestamp,
+        "X-Webhook-Signature-V2": signature,
+    }
 
     webhook_request = request.Request(
         config["webhook_url"],

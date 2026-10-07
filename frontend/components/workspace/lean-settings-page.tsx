@@ -183,7 +183,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
           className="space-y-5"
           onSubmit={(event) => save.mutate(serializeSettings(event, current))}
         >
-          <IntegrationCard title="Email / SMTP" icon={<Mail size={15} />}>
+          <IntegrationCard title="Direct Email / SMTP" icon={<Mail size={15} />}>
             <div className="grid gap-4 p-4 sm:grid-cols-2">
               <div className="sm:col-span-2 flex items-center justify-between border border-[var(--color-border)] p-3">
                 <label className="flex items-center gap-2 text-sm">
@@ -193,7 +193,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
                     name="smtp_enabled"
                     type="checkbox"
                   />
-                  Enable email reminders
+                  Enable direct email notifications
                 </label>
                 <div className="flex items-center gap-2">
                   <StatusBadge value={current.smtp_source} />
@@ -232,7 +232,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
                   defaultValue={current.smtp_username}
                   disabled={!canManage}
                   name="smtp_username"
-                  placeholder="alerts@netamate.com"
+                  placeholder="erp@netamate.com"
                 />
               </label>
               <label>
@@ -259,7 +259,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
                   defaultValue={current.smtp_from_name}
                   disabled={!canManage}
                   name="smtp_from_name"
-                  placeholder="MateERP"
+                  placeholder="NetaMate ERP"
                 />
               </label>
               <label>
@@ -269,7 +269,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
                   defaultValue={current.smtp_from_email}
                   disabled={!canManage}
                   name="smtp_from_email"
-                  placeholder="alerts@netamate.com"
+                  placeholder="erp@netamate.com"
                   type="email"
                 />
               </label>
@@ -336,7 +336,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
                 <div className="flex items-center gap-2">
                   <StatusBadge value={current.hermes_source} />
                   <span className="text-xs text-[var(--color-text-muted)]">
-                    {current.hermes_token_configured ? "Token configured" : "No token"}
+                    {current.hermes_token_configured ? "Webhook secret configured" : "No webhook secret"}
                   </span>
                 </div>
               </div>
@@ -353,7 +353,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
               </label>
               <label>
                 <span className="erp-label">
-                  Hermes Token {current.hermes_token_configured ? "· configured" : ""}
+                  Hermes Webhook Secret {current.hermes_token_configured ? "· configured" : ""}
                 </span>
                 <input
                   autoComplete="new-password"
@@ -362,8 +362,8 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
                   name="hermes_token"
                   placeholder={
                     current.hermes_token_configured
-                      ? "••••••••  Leave blank to keep current token"
-                      : "Enter token"
+                      ? "••••••••  Leave blank to keep current secret"
+                      : "Enter shared HMAC secret"
                   }
                   type="password"
                 />
@@ -403,10 +403,32 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
           </IntegrationCard>
 
           <section className="erp-panel">
+            <div className="erp-panel-header">
+              <h2 className="text-sm font-semibold">Hermes WhatsApp Setup</h2>
+            </div>
+            <div className="space-y-2 p-4 text-xs text-[var(--color-text-muted)]">
+              <p><strong>1.</strong> In Hermes, enable the generic webhook platform and create a route named <code>mateerp-alerts</code>.</p>
+              <p><strong>2.</strong> Use the same Webhook Secret as above, set <code>deliver_only: true</code>, <code>deliver: whatsapp</code>, and <code>prompt: "{message}"</code>.</p>
+              <p><strong>3.</strong> Put that route URL here, ending in <code>/webhooks/mateerp-alerts</code>, then use <strong>Send Test Hermes</strong>.</p>
+              <p><strong>4.</strong> MateERP owns the reminder schedule. Hermes Cron is not needed for MateERP reminders; Hermes only verifies the HMAC request and delivers it to WhatsApp.</p>
+              <pre className="overflow-x-auto border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-[11px]">{`platforms:
+  webhook:
+    enabled: true
+    extra:
+      routes:
+        mateerp-alerts:
+          secret: <same secret as MateERP>
+          deliver_only: true
+          deliver: whatsapp
+          prompt: "{message}"`}</pre>
+            </div>
+          </section>
+
+          <section className="erp-panel">
             <div className="flex items-start gap-3 p-4 text-xs text-[var(--color-text-muted)]">
               <ShieldCheck size={16} className="mt-0.5 shrink-0" />
               <div>
-                SMTP passwords and Hermes tokens are encrypted before database storage.
+                SMTP passwords and Hermes webhook secrets are encrypted before database storage.
                 Secret values are never returned by the API or written into audit-log state.
                 Environment variables remain available only as a fallback until ERP settings
                 are saved.

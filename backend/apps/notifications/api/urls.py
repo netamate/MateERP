@@ -1,5 +1,11 @@
 from django.urls import path
 
+from .email_views import (
+    DirectEmailCancelView,
+    DirectEmailListCreateView,
+    DirectEmailSendView,
+)
+
 from .views import (
     NotificationDeliveryListView,
     NotificationIntegrationEmailTestView,
@@ -11,6 +17,21 @@ from .views import (
 )
 
 urlpatterns = [
+    path(
+        "notifications/email/",
+        DirectEmailListCreateView.as_view(),
+        name="direct-email-list-create",
+    ),
+    path(
+        "notifications/email/<uuid:notification_id>/send/",
+        DirectEmailSendView.as_view(),
+        name="direct-email-send",
+    ),
+    path(
+        "notifications/email/<uuid:notification_id>/cancel/",
+        DirectEmailCancelView.as_view(),
+        name="direct-email-cancel",
+    ),
     path("notifications/", NotificationListView.as_view(), name="notification-list"),
     path(
         "notifications/<uuid:notification_id>/read/",
