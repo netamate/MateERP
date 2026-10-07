@@ -201,6 +201,7 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
     currency: string;
     usage_unit: string;
   } | null>(null);
+  const [draftError, setDraftError] = useState("");
   const [policyEditor, setPolicyEditor] = useState<PolicyEditor>(null);
 
   const overview = useQuery({
@@ -275,6 +276,7 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
     onSuccess: (result) => {
       if (integrationDraft) setVerifiedFingerprint(draftFingerprint(integrationDraft));
       setTestResult(result);
+      setDraftError("");
     },
   });
   const syncIntegration = useMutation({
@@ -577,7 +579,10 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
     ?? updatePolicy.error
     ?? createPolicy.error;
 
-  function integrationPayload(draft: IntegrationDraft, includeSecret = true) {
+  function integrationPayload(
+    draft: IntegrationDraft,
+    options: { includeId?: boolean; includeSecret?: boolean } = {},
+  ) {
     let customHeaders: Record<string, string> = {};
     try {
       customHeaders = JSON.parse(draft.custom_headers || "{}") as Record<string, string>;
@@ -585,7 +590,7 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
       throw new Error("Custom Headers must be valid JSON.");
     }
     return {
-      integration_id: draft.id ?? null,
+      ...(options.includeId ? { integration_id: draft.id ?? null } : {}),
       name: draft.name,
       vendor: draft.vendor,
       subscription: draft.subscription,
@@ -594,7 +599,7 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
       endpoint_url: draft.endpoint_url,
       auth_type: draft.auth_type,
       auth_username: draft.auth_username,
-      ...(includeSecret ? { secret: draft.secret } : {}),
+      ...(options.includeSecret === false ? {} : { secret: draft.secret }),
       api_key_header: draft.api_key_header,
       custom_headers: customHeaders,
       cost_json_path: draft.cost_json_path,
@@ -609,21 +614,23 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
   function testCurrentDraft() {
     if (!integrationDraft) return;
     try {
-      testIntegration.mutate(integrationPayload(integrationDraft));
+      setDraftError("");
+      testIntegration.mutate(
+        integrationPayload(integrationDraft, { includeId: true }),
+      );
     } catch (error) {
       testIntegration.reset();
       setTestResult(null);
       setVerifiedFingerprint("");
-      // Surface through a local thrown error is awkward; browser validation is enough for JSON.
-      window.alert(errorMessage(error));
+      setDraftError(errorMessage(error));
     }
   }
 
   function saveCurrentDraft() {
     if (!integrationDraft) return;
-    const body = integrationPayload(integrationDraft);
-    delete body.integration_id;
-    if (!integrationDraft.secret) delete body.secret;
+    const body = integrationPayload(integrationDraft, {
+      includeSecret: Boolean(integrationDraft.secret),
+    });
     if (integrationDraft.id) {
       updateIntegration.mutate({ id: integrationDraft.id, body });
     } else {
@@ -638,7 +645,9 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
     const body = {
       name: String(data.get("name") ?? policyEditor.policy.name),
       kind: policyEditor.policy.kind,
-      legal_entity: policyEditor.createOverride ? entity.id : policyEditor.policy.legal_entity,
+      legal_entity: policyEditor.createOverride
+        ? entity?.id ?? null
+        : policyEditor.policy.legal_entity,
       enabled: data.get("enabled") === "on",
       frequency: String(data.get("frequency") ?? "DAILY"),
       schedule_hour: Number(data.get("schedule_hour") ?? 0),
@@ -1028,6 +1037,12 @@ export function AutomationIntegrationsPage({ session }: { session: SessionPayloa
                 Auto-create current PAYG period when missing
               </label>
             </div>
+
+            {draftError ? (
+              <div className="sm:col-span-2">
+                <ErrorState message={draftError} />
+              </div>
+            ) : null}
 
             {testResult ? (
               <div className="flex items-center gap-3 border border-[var(--color-success)] bg-[#f3fbf6] p-3 text-sm sm:col-span-2">
