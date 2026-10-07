@@ -1,12 +1,13 @@
 import uuid
 from decimal import Decimal
 
-from apps.accounting.models import Account, AccountType, JournalEntry, TaxCode
-from apps.identity.models import LegalEntity
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+from apps.accounting.models import Account, AccountType, JournalEntry, TaxCode
+from apps.identity.models import LegalEntity
 
 
 class VendorStatus(models.TextChoices):
