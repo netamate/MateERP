@@ -23,7 +23,6 @@ from apps.operations.models import (
 )
 from apps.planning.models import ExpenseAllocation
 
-
 POSTED_STATUSES = [JournalStatus.POSTED, JournalStatus.REVERSED]
 
 
