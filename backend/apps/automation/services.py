@@ -433,12 +433,12 @@ def _ensure_periods(policy, *, actor=None):
 
 
 def _sync_integrations(policy, *, actor=None):
+    target_entity_ids = [entity.id for entity in _target_entities(policy)]
     queryset = VendorIntegration.objects.filter(
         organization=policy.organization,
+        legal_entity_id__in=target_entity_ids,
         enabled=True,
     ).select_related("subscription", "legal_entity", "vendor")
-    if policy.legal_entity_id:
-        queryset = queryset.filter(legal_entity=policy.legal_entity)
     success = 0
     failed = 0
     for integration in queryset:
@@ -455,17 +455,21 @@ def _sync_integrations(policy, *, actor=None):
 
 
 def _refresh_alerts(policy):
-    result = run_alert_rules(
-        organization=policy.organization,
-        legal_entity=policy.legal_entity,
-        force=True,
-    )
-    return {
-        "rules_evaluated": result["rules_evaluated"],
-        "active_events": result["active_events"],
-        "deliveries_sent": result["deliveries_sent"],
-        "deliveries_failed": result["deliveries_failed"],
+    summary = {
+        "rules_evaluated": 0,
+        "active_events": 0,
+        "deliveries_sent": 0,
+        "deliveries_failed": 0,
     }
+    for entity in _target_entities(policy):
+        result = run_alert_rules(
+            organization=policy.organization,
+            legal_entity=entity,
+            force=True,
+        )
+        for key in summary:
+            summary[key] += result[key]
+    return summary
 
 
 def run_automation_policy(
