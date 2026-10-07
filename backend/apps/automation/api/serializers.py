@@ -3,14 +3,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rest_framework import serializers
 
-from apps.finance.models import Vendor
 from apps.notifications.crypto import encrypt_secret
 from apps.operations.models import BillingMode, Subscription
 
 from ..models import (
     AutomationPolicy,
     AutomationRun,
-    RunStatus,
     VendorAuthType,
     VendorIntegration,
     VendorSyncRun,
