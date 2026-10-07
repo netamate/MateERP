@@ -270,6 +270,11 @@ class FinanceDocumentContentView(APIView):
         )
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
+        if disposition == "inline":
+            # The application embeds authenticated previews in its own document
+            # library. Keep the global DENY policy everywhere else, but allow this
+            # private stream to be framed only by the same MateERP origin.
+            response["X-Frame-Options"] = "SAMEORIGIN"
 
         if disposition == "attachment":
             record_audit_event(
