@@ -21,7 +21,9 @@ class VendorServiceSerializer(serializers.ModelSerializer):
                 {"vendor": "Choose a vendor from the active legal entity."}
             )
         if not self.instance and vendor.status != "ACTIVE":
-            raise serializers.ValidationError({"vendor": "Archived vendors cannot accept new services."})
+            raise serializers.ValidationError(
+                {"vendor": "Archived vendor cannot accept a new service."}
+            )
         if self.instance and vendor.pk != self.instance.vendor_id:
             raise serializers.ValidationError(
                 {
@@ -72,7 +74,9 @@ class ServiceAccountSerializer(serializers.ModelSerializer):
                 {"service": "Choose a service from the active legal entity."}
             )
         if not self.instance and service.status != "ACTIVE":
-            raise serializers.ValidationError({"service": "Archived services cannot accept new accounts."})
+            raise serializers.ValidationError(
+                {"service": "Archived service cannot accept a new account."}
+            )
         if self.instance and service.pk != self.instance.service_id:
             raise serializers.ValidationError(
                 {
@@ -152,7 +156,9 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         if account and account.status != "ACTIVE" and (
             not self.instance or self.instance.service_account_id != account.pk
         ):
-            raise serializers.ValidationError({"service_account": "Archived accounts cannot be assigned."})
+            raise serializers.ValidationError(
+                {"service_account": "Archived accounts cannot be assigned."}
+            )
         if account and not service:
             raise serializers.ValidationError({"service_account": "Select a service first."})
         if account and account.service_id != service.pk:
