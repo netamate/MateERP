@@ -42,6 +42,9 @@ def seed_reminders_and_payment_history(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # Data writes must commit before PostgreSQL schema cleanup to avoid pending trigger events.
+    atomic = False
+
     dependencies = [
         ("operations", "0002_unify_recurring_items"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
