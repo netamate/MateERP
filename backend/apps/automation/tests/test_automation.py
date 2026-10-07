@@ -343,9 +343,12 @@ def test_disabled_entity_override_suppresses_organization_default_vendor_sync(mo
         updated_by=owner,
     )
 
+    def fail_vendor_sync(*args, **kwargs):
+        pytest.fail("Organization default must not sync an overridden entity.")
+
     monkeypatch.setattr(
         "apps.automation.services.sync_vendor_integration",
-        lambda *args, **kwargs: pytest.fail("Organization default must not sync an overridden entity."),
+        fail_vendor_sync,
     )
 
     run = run_automation_policy(default, actor=owner)
@@ -372,9 +375,12 @@ def test_disabled_entity_override_suppresses_organization_default_alert_refresh(
         updated_by=owner,
     )
 
+    def fail_alert_refresh(*args, **kwargs):
+        pytest.fail("Organization default must not refresh an overridden entity.")
+
     monkeypatch.setattr(
         "apps.automation.services.run_alert_rules",
-        lambda *args, **kwargs: pytest.fail("Organization default must not refresh an overridden entity."),
+        fail_alert_refresh,
     )
 
     run = run_automation_policy(default, actor=owner)
