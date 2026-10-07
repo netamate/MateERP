@@ -23,6 +23,9 @@ class NotificationSerializer(serializers.ModelSerializer):
             "severity",
             "title",
             "message",
+            "email_subject",
+            "email_text_body",
+            "email_html_body",
             "link",
             "due_date",
             "read_at",
@@ -44,6 +47,11 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     source_label = serializers.SerializerMethodField()
+    email_template_name = serializers.CharField(
+        source="email_template.name",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = NotificationDelivery
@@ -53,6 +61,9 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
             "subscription_name",
             "alert_rule",
             "alert_rule_name",
+            "email_template",
+            "email_template_name",
+            "email_template_version",
             "signal",
             "source_type",
             "source_id",
