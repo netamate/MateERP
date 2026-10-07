@@ -1,8 +1,9 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from rest_framework import serializers
+
 from apps.identity.models import Membership, MembershipStatus
 from apps.identity.policy import Permission, has_permission
-from rest_framework import serializers
 
 from ..models import (
     AlertRule,
@@ -22,9 +23,6 @@ class NotificationSerializer(serializers.ModelSerializer):
             "severity",
             "title",
             "message",
-            "email_subject",
-            "email_text_body",
-            "email_html_body",
             "link",
             "due_date",
             "read_at",
@@ -74,6 +72,9 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
             "severity",
             "title",
             "message",
+            "email_subject",
+            "email_text_body",
+            "email_html_body",
             "link",
             "status",
             "attempt_count",
