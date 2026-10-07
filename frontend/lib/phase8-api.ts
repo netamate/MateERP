@@ -341,10 +341,10 @@ export const notificationApi = {
       { method: "PATCH", body: JSON.stringify(body) },
       true,
     ),
-  testEmail: (recipient: string) =>
+  testEmail: (payload: { recipient: string; settings: Record<string, unknown> }) =>
     request<{ detail: string }>(
       "/api/v1/notifications/integrations/test-email/",
-      { method: "POST", body: JSON.stringify({ recipient }) },
+      { method: "POST", body: JSON.stringify({ ...payload.settings, recipient: payload.recipient }) },
       true,
     ),
   testHermes: (target: string) =>

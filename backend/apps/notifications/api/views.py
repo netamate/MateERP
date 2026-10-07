@@ -1,8 +1,10 @@
 from email.utils import parseaddr
+from smtplib import SMTPAuthenticationError, SMTPException
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -197,13 +199,29 @@ class NotificationIntegrationEmailTestView(APIView):
         serializer = TestEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         destination = serializer.validated_data["recipient"]
+        proposed = {
+            key: value for key, value in serializer.validated_data.items() if key != "recipient"
+        }
         try:
             send_test_email(
                 organization=membership.organization,
                 destination=destination,
+                proposed=proposed,
             )
-        except Exception as exc:
-            raise ValidationError(f"SMTP test failed: {exc}") from exc
+        except SMTPAuthenticationError as exc:
+            raise ValidationError(
+                "SMTP authentication was rejected. Check the mailbox username and password."
+            ) from exc
+        except SMTPException as exc:
+            raise ValidationError(
+                "SMTP server rejected the test. Check the sender, recipient and TLS settings."
+            ) from exc
+        except (TimeoutError, OSError) as exc:
+            raise ValidationError(
+                "Could not connect to the SMTP server. Check the host, port and TLS mode."
+            ) from exc
+        except RuntimeError as exc:
+            raise ValidationError(str(exc)) from exc
 
         record_audit_event(
             actor=request.user,
@@ -214,7 +232,14 @@ class NotificationIntegrationEmailTestView(APIView):
             new_state={"recipient": destination, "result": "success"},
             request=request,
         )
-        return Response({"detail": f"Test email sent to {destination}."})
+        return Response(
+            {
+                "detail": (
+                    f"SMTP accepted the test email for {destination}. "
+                    "The draft settings have not been saved."
+                )
+            }
+        )
 
 
 class NotificationIntegrationHermesTestView(APIView):

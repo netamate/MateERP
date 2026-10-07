@@ -89,8 +89,22 @@ class NotificationIntegrationSettingsSerializer(serializers.Serializer):
         return attrs
 
 
-class TestEmailSerializer(serializers.Serializer):
-    recipient = serializers.EmailField()
+class TestEmailSerializer(NotificationIntegrationSettingsSerializer):
+    """Test the draft SMTP fields; never persist them to the integration record."""
+
+    recipient = serializers.EmailField(required=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if not attrs.get("smtp_enabled", False):
+            raise serializers.ValidationError(
+                {"smtp_enabled": "Enable direct email notifications to run the SMTP test."}
+            )
+        if not attrs.get("smtp_host"):
+            raise serializers.ValidationError({"smtp_host": "SMTP Host is required."})
+        if not attrs.get("smtp_from_email"):
+            raise serializers.ValidationError({"smtp_from_email": "From Email is required."})
+        return attrs
 
 
 class TestHermesSerializer(serializers.Serializer):
