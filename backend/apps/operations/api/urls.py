@@ -1,11 +1,20 @@
 from django.urls import path
 
 from .views import (
+    BillingDashboardView,
+    BillingPaymentAllocationView,
+    BillingPaymentDetailView,
+    BillingPaymentListCreateView,
+    BillingPeriodDetailView,
+    BillingPeriodListCreateView,
     RenewalCalendarView,
     ServiceAccountDetailView,
     ServiceAccountListCreateView,
     SubscriptionDetailView,
     SubscriptionListCreateView,
+    SubscriptionInvoiceDetailView,
+    SubscriptionInvoiceListCreateView,
+    SubscriptionInvoiceVoidView,
     SubscriptionMarkPaidView,
     SubscriptionPaymentHistoryView,
     VendorServiceDetailView,
@@ -13,6 +22,51 @@ from .views import (
 )
 
 urlpatterns = [
+    path(
+        "operations/billing/summary/",
+        BillingDashboardView.as_view(),
+        name="billing-dashboard",
+    ),
+    path(
+        "operations/billing/periods/",
+        BillingPeriodListCreateView.as_view(),
+        name="billing-period-list",
+    ),
+    path(
+        "operations/billing/periods/<uuid:object_id>/",
+        BillingPeriodDetailView.as_view(),
+        name="billing-period-detail",
+    ),
+    path(
+        "operations/billing/invoices/",
+        SubscriptionInvoiceListCreateView.as_view(),
+        name="subscription-invoice-list",
+    ),
+    path(
+        "operations/billing/invoices/<uuid:object_id>/",
+        SubscriptionInvoiceDetailView.as_view(),
+        name="subscription-invoice-detail",
+    ),
+    path(
+        "operations/billing/invoices/<uuid:object_id>/void/",
+        SubscriptionInvoiceVoidView.as_view(),
+        name="subscription-invoice-void",
+    ),
+    path(
+        "operations/billing/payments/",
+        BillingPaymentListCreateView.as_view(),
+        name="billing-payment-list",
+    ),
+    path(
+        "operations/billing/payments/<uuid:object_id>/",
+        BillingPaymentDetailView.as_view(),
+        name="billing-payment-detail",
+    ),
+    path(
+        "operations/billing/payments/<uuid:object_id>/allocations/",
+        BillingPaymentAllocationView.as_view(),
+        name="billing-payment-allocations",
+    ),
     path(
         "operations/vendor-services/",
         VendorServiceListCreateView.as_view(),
