@@ -1,13 +1,13 @@
 from datetime import date
 
 import pytest
+from apps.identity.models import User
+from apps.identity.services import create_organization_with_owner
+from apps.operations.models import ServiceAccount, Subscription, VendorService
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, override_settings
 
 from apps.finance.models import Vendor
-from apps.identity.models import User
-from apps.identity.services import create_organization_with_owner
-from apps.operations.models import ServiceAccount, Subscription, VendorService
 
 
 def signed_in_owner(email: str, organization_name: str):
@@ -84,8 +84,7 @@ def test_smart_upload_generates_stable_name_and_virtual_folder(tmp_path):
     assert body["content_url"].endswith(f"/{body['id']}/content/")
     assert "file" not in body
     expected = (
-        f"OpenAI_ChatGPT_Rizwan-01_{subscription.subscription_code}_"
-        "INVOICE_2026-10-07_INV-42.pdf"
+        f"OpenAI_ChatGPT_Rizwan-01_{subscription.subscription_code}_INVOICE_2026-10-07_INV-42.pdf"
     )
     assert body["standardized_name"] == expected
     stored = subscription.documents.get()
@@ -134,14 +133,10 @@ def test_unassigned_document_can_be_uploaded_and_filtered(tmp_path):
                 "file": pdf(marker=b"unassigned"),
             },
         )
-        filtered = client.get(
-            "/api/v1/finance/documents/?year=2026&month=1&unassigned=1"
-        )
+        filtered = client.get("/api/v1/finance/documents/?year=2026&month=1&unassigned=1")
 
     assert response.status_code == 201, response.content
-    assert response.json()["standardized_name"].startswith(
-        "Unassigned_STATEMENT_2026-01-15_"
-    )
+    assert response.json()["standardized_name"].startswith("Unassigned_STATEMENT_2026-01-15_")
     assert filtered.status_code == 200
     assert [item["id"] for item in filtered.json()] == [response.json()["id"]]
 
@@ -162,12 +157,8 @@ def test_private_content_stream_supports_preview_and_both_download_names(tmp_pat
             },
         ).json()
         inline = client.get(created["content_url"])
-        standard = client.get(
-            created["content_url"] + "?disposition=attachment&name=standard"
-        )
-        original = client.get(
-            created["content_url"] + "?disposition=attachment&name=original"
-        )
+        standard = client.get(created["content_url"] + "?disposition=attachment&name=standard")
+        original = client.get(created["content_url"] + "?disposition=attachment&name=original")
 
     assert inline.status_code == 200
     assert inline["Cache-Control"] == "private, no-store"
@@ -205,9 +196,7 @@ def test_metadata_edit_rebuilds_standard_name_without_replacing_original(tmp_pat
     body = updated.json()
     assert body["original_name"] == "azure.pdf"
     assert body["document_date"] == "2026-10-01"
-    assert body["standardized_name"].endswith(
-        "PAYMENT_CONFIRMATION_2026-10-01_AZ-100.pdf"
-    )
+    assert body["standardized_name"].endswith("PAYMENT_CONFIRMATION_2026-10-01_AZ-100.pdf")
 
 
 @pytest.mark.django_db
