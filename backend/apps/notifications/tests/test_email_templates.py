@@ -1,12 +1,13 @@
 from decimal import Decimal
 
 import pytest
+from apps.identity.models import User
+from apps.identity.services import create_organization_with_owner
+from apps.operations.models import Subscription
 from django.core import mail
 from django.test import Client, override_settings
 from django.utils import timezone
 
-from apps.identity.models import User
-from apps.identity.services import create_organization_with_owner
 from apps.notifications.models import (
     AlertRule,
     DeliveryChannel,
@@ -14,7 +15,6 @@ from apps.notifications.models import (
     NotificationDelivery,
     NotificationKind,
 )
-from apps.operations.models import Subscription
 
 
 def signed_in_owner(email="template-owner@example.com"):
@@ -60,9 +60,9 @@ def test_default_templates_are_seeded_and_preview_is_sanitized():
             "subject_template": "{{alert_title}}",
             "text_body_template": "{{alert_message}}",
             "html_body_template": (
-                '<div><script>alert(1)</script>'
+                "<div><script>alert(1)</script>"
                 '<a href="javascript:alert(1)">{{alert_message}}</a>'
-                '<strong>{{subscription_name}}</strong></div>'
+                "<strong>{{subscription_name}}</strong></div>"
             ),
             "context": {
                 "alert_title": "Budget warning",
@@ -109,9 +109,7 @@ def test_template_content_update_creates_immutable_version_but_status_change_doe
     assert updated.status_code == 200, updated.content
     assert updated.json()["current_version"] == 2
 
-    versions = client.get(
-        f"/api/v1/notifications/email-templates/{template['id']}/versions/"
-    )
+    versions = client.get(f"/api/v1/notifications/email-templates/{template['id']}/versions/")
     assert versions.status_code == 200
     assert [row["version_number"] for row in versions.json()] == [2, 1]
 
@@ -122,10 +120,13 @@ def test_template_content_update_creates_immutable_version_but_status_change_doe
     )
     assert status_only.status_code == 200
     assert status_only.json()["current_version"] == 2
-    assert EmailTemplate.objects.get(
-        organization=organization,
-        id=template["id"],
-    ).versions.count() == 2
+    assert (
+        EmailTemplate.objects.get(
+            organization=organization,
+            id=template["id"],
+        ).versions.count()
+        == 2
+    )
 
 
 @pytest.mark.django_db
