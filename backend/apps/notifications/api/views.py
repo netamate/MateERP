@@ -161,6 +161,7 @@ class NotificationDeliveryListView(APIView):
         channel = request.query_params.get("channel")
         delivery_status = request.query_params.get("status")
         alert_rule = request.query_params.get("alert_rule")
+        central_only = request.query_params.get("central_only")
         if signal:
             queryset = queryset.filter(signal=signal)
         if channel:
@@ -169,6 +170,8 @@ class NotificationDeliveryListView(APIView):
             queryset = queryset.filter(status=delivery_status)
         if alert_rule:
             queryset = queryset.filter(alert_rule_id=alert_rule)
+        if central_only in {"1", "true", "yes"}:
+            queryset = queryset.filter(delivery_key__startswith="central:")
 
         paginator = PageNumberPagination()
         paginator.page_size = 100
@@ -316,7 +319,11 @@ class NotificationDeliveryRetryView(APIView):
         if delivery is None:
             raise ValidationError("Delivery does not exist in this organization.")
         legal_entity_id = request.session.get("active_legal_entity_id")
-        if legal_entity_id and str(delivery.legal_entity_id) != str(legal_entity_id):
+        if (
+            legal_entity_id
+            and delivery.legal_entity_id
+            and str(delivery.legal_entity_id) != str(legal_entity_id)
+        ):
             raise ValidationError("Delivery does not exist in the active legal entity.")
         delivery = retry_notification_delivery(delivery)
         record_audit_event(
