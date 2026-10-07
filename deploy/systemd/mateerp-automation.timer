@@ -1,0 +1,12 @@
+# Evaluate automation policies hourly and catch up after downtime.
+[Unit]
+Description=Schedule MateERP automation policies
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=4m
+Unit=mateerp-automation.service
+
+[Install]
+WantedBy=timers.target
