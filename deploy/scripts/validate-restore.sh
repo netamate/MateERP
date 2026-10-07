@@ -27,14 +27,38 @@ docker run -d --rm \
   -v "${backup_path}:/backup.dump:ro" \
   postgres:17-alpine >/dev/null
 
-for _ in $(seq 1 30); do
-  if docker exec "${container_name}" pg_isready -U postgres -d restorecheck >/dev/null 2>&1; then
+# The official PostgreSQL image briefly starts a temporary server while
+# initializing a fresh data directory, then shuts it down and starts the final
+# server. pg_isready can succeed during that temporary window, so wait until
+# the entrypoint reports that initialization is complete before accepting
+# readiness from the final server.
+init_complete=false
+for _ in $(seq 1 60); do
+  if docker logs "${container_name}" 2>&1 | grep -Fq     "PostgreSQL init process complete; ready for start up."; then
+    init_complete=true
     break
   fi
   sleep 1
 done
+if [[ "${init_complete}" != "true" ]]; then
+  echo "Timed out waiting for PostgreSQL restore-check initialization." >&2
+  docker logs "${container_name}" >&2 || true
+  exit 1
+fi
 
-docker exec "${container_name}" pg_isready -U postgres -d restorecheck >/dev/null
+ready=false
+for _ in $(seq 1 30); do
+  if docker exec "${container_name}"     pg_isready -U postgres -d restorecheck >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "${ready}" != "true" ]]; then
+  echo "Timed out waiting for final PostgreSQL restore-check server." >&2
+  docker logs "${container_name}" >&2 || true
+  exit 1
+fi
 docker exec "${container_name}" pg_restore \
   -U postgres \
   -d restorecheck \
