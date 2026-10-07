@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import {
+  BarChart3,
   Bell,
   Building2,
   CalendarDays,
@@ -57,6 +58,7 @@ const navGroups: NavGroup[] = [
       { label: "Documents", href: "/documents", icon: FileArchive },
       { label: "Vendors", href: "/vendors", icon: Building2 },
       { label: "Renewals", href: "/operations/renewals", icon: CalendarDays },
+      { label: "Reports", href: "/reporting", icon: BarChart3 },
     ],
   },
   {
