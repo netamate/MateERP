@@ -14,7 +14,13 @@ from django.core.mail import EmailMessage, get_connection
 from django.db.models import F
 from django.utils import timezone
 
-from apps.identity.models import LegalEntity, Membership, MembershipStatus, Organization, User
+from apps.identity.models import (
+    LegalEntity,
+    Membership,
+    MembershipStatus,
+    Organization,
+    User,
+)
 from apps.identity.policy import Permission, has_permission
 from apps.operations.models import (
     BillingInvoiceStatus,
@@ -87,7 +93,9 @@ def mark_all_notifications_read(queryset) -> int:
 
 
 def integration_settings_for(organization):
-    return NotificationIntegrationSettings.objects.filter(organization=organization).first()
+    return NotificationIntegrationSettings.objects.filter(
+        organization=organization
+    ).first()
 
 
 def integration_settings_payload(organization) -> dict:
@@ -109,7 +117,9 @@ def integration_settings_payload(organization) -> dict:
             "hermes_token_configured": bool(configured.hermes_token_encrypted),
             "hermes_default_target": configured.hermes_default_target,
             "hermes_source": "ERP",
-            "updated_at": configured.updated_at.isoformat() if configured.updated_at else None,
+            "updated_at": configured.updated_at.isoformat()
+            if configured.updated_at
+            else None,
         }
 
     return {
@@ -221,7 +231,9 @@ def _send_email(
     recipients = list(destinations or ([] if destination is None else [destination]))
     if not recipients:
         raise RuntimeError("At least one email recipient is required.")
-    config = config_override if config_override is not None else _email_config(organization)
+    config = (
+        config_override if config_override is not None else _email_config(organization)
+    )
     connection = get_connection(
         backend=config["backend"],
         fail_silently=False,
@@ -372,7 +384,9 @@ def _mark_sent(delivery: NotificationDelivery) -> NotificationDelivery:
     return delivery
 
 
-def _mark_failed(delivery: NotificationDelivery, exc: Exception) -> NotificationDelivery:
+def _mark_failed(
+    delivery: NotificationDelivery, exc: Exception
+) -> NotificationDelivery:
     delivery.status = DeliveryStatus.FAILED
     delivery.attempt_count += 1
     delivery.last_error = str(exc)[:2000]
@@ -811,7 +825,10 @@ def _missing_invoice_candidates(rule: AlertRule, entity, today) -> list[AlertCan
     )
     rows = []
     for period in periods:
-        if any(invoice.status != BillingInvoiceStatus.VOID for invoice in period.invoices.all()):
+        if any(
+            invoice.status != BillingInvoiceStatus.VOID
+            for invoice in period.invoices.all()
+        ):
             continue
         subscription = period.subscription
         title = f"Missing invoice: {subscription.name}"
@@ -943,14 +960,11 @@ def _reconciliation_candidates(rule: AlertRule, entity, today) -> list[AlertCand
             )
         )
 
-    payments = (
-        BillingPayment.objects.filter(
-            legal_entity=entity,
-            paid_on__lte=cutoff,
-            expense_payment__isnull=True,
-        )
-        .select_related("subscription", "financial_account")
-    )
+    payments = BillingPayment.objects.filter(
+        legal_entity=entity,
+        paid_on__lte=cutoff,
+        expense_payment__isnull=True,
+    ).select_related("subscription", "financial_account")
     for payment in payments:
         rows.append(
             AlertCandidate(
@@ -1045,10 +1059,14 @@ def _attempt_rule_delivery(
     try:
         if delivery.channel == DeliveryChannel.IN_APP:
             if recipient is None:
-                recipient = User.objects.filter(email__iexact=delivery.destination).first()
+                recipient = User.objects.filter(
+                    email__iexact=delivery.destination
+                ).first()
             if recipient is None:
                 raise RuntimeError("In-app notification recipient no longer exists.")
-            dedupe_key = delivery.context.get("notification_key") or delivery.delivery_key
+            dedupe_key = (
+                delivery.context.get("notification_key") or delivery.delivery_key
+            )
             upsert_notification(
                 organization=delivery.organization,
                 legal_entity=delivery.legal_entity,
@@ -1110,7 +1128,10 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
     deliveries = []
     active_notification_keys = []
 
-    if candidate.signal == NotificationKind.RENEWAL_DUE and rule.respect_subscription_channels:
+    if (
+        candidate.signal == NotificationKind.RENEWAL_DUE
+        and rule.respect_subscription_channels
+    ):
         subscription = candidate.subscription
         if subscription.reminder_in_app:
             for membership in viewers:
@@ -1150,7 +1171,9 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
         if subscription.reminder_hermes:
             delivery = deliver_hermes(
                 subscription=subscription,
-                destination=subscription.hermes_target or rule.hermes_target or "default",
+                destination=subscription.hermes_target
+                or rule.hermes_target
+                or "default",
                 days_before=candidate.reminder_days_before,
                 due_date=candidate.due_date,
                 title=candidate.title,
@@ -1269,7 +1292,10 @@ def evaluate_alert_rule(rule: AlertRule, *, entities=None, now=None) -> dict:
                         sent += 1
                     elif delivery.status == DeliveryStatus.FAILED:
                         failed += 1
-            if rule.signal == NotificationKind.RENEWAL_DUE and rule.respect_subscription_channels:
+            if (
+                rule.signal == NotificationKind.RENEWAL_DUE
+                and rule.respect_subscription_channels
+            ):
                 _resolve_stale_renewal_notifications(entity, viewers)
             else:
                 _resolve_stale_rule_notifications(rule, entity, active_keys)
@@ -1363,4 +1389,3 @@ def run_alert_rules(
         "deliveries_failed": sum(row["failed"] for row in results),
         "results": results,
     }
-
