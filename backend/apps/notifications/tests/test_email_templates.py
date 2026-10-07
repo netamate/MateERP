@@ -265,7 +265,7 @@ def test_alert_email_delivery_snapshots_template_content_and_version():
         subscription=subscription,
         channel=DeliveryChannel.EMAIL,
     )
-    assert delivery.email_template_id == template["id"]
+    assert str(delivery.email_template_id) == template["id"]
     assert delivery.email_template_version == 1
     assert delivery.email_subject == "Renewal: ChatGPT Plus"
     first_html = delivery.email_html_body
