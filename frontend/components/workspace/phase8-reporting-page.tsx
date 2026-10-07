@@ -67,8 +67,15 @@ function errorMessage(error: unknown) {
 }
 
 function totalsLabel(
-  rows: Array<{ currency: string; [key: string]: string }>,
-  field: string,
+  rows: CostIntelligenceCurrency[],
+  field:
+    | "estimated_cost"
+    | "current_usage"
+    | "actual_billed"
+    | "paid"
+    | "outstanding"
+    | "forecast"
+    | "budget",
 ) {
   if (!rows.length) return "—";
   return rows.map((row) => money(row[field], row.currency)).join(" · ");
