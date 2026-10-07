@@ -34,6 +34,8 @@ class Permission(StrEnum):
     VIEW_AUDIT_LOG = "VIEW_AUDIT_LOG"
     VIEW_NOTIFICATIONS = "VIEW_NOTIFICATIONS"
     MANAGE_NOTIFICATIONS = "MANAGE_NOTIFICATIONS"
+    VIEW_AUTOMATION = "VIEW_AUTOMATION"
+    MANAGE_AUTOMATION = "MANAGE_AUTOMATION"
     VIEW_RECONCILIATION = "VIEW_RECONCILIATION"
     MANAGE_RECONCILIATION = "MANAGE_RECONCILIATION"
 
@@ -66,6 +68,8 @@ FINANCE_PERMISSIONS = frozenset(
         Permission.VIEW_AUDIT_LOG,
         Permission.VIEW_NOTIFICATIONS,
         Permission.MANAGE_NOTIFICATIONS,
+        Permission.VIEW_AUTOMATION,
+        Permission.MANAGE_AUTOMATION,
         Permission.VIEW_RECONCILIATION,
         Permission.MANAGE_RECONCILIATION,
     }
@@ -88,6 +92,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_PLANNING,
             Permission.VIEW_REPORTS,
             Permission.VIEW_NOTIFICATIONS,
+            Permission.VIEW_AUTOMATION,
         }
     ),
     Role.MEMBER: frozenset(
@@ -103,6 +108,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_PLANNING,
             Permission.VIEW_REPORTS,
             Permission.VIEW_NOTIFICATIONS,
+            Permission.VIEW_AUTOMATION,
         }
     ),
     Role.VIEWER: frozenset(
@@ -116,6 +122,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_PLANNING,
             Permission.VIEW_REPORTS,
             Permission.VIEW_NOTIFICATIONS,
+            Permission.VIEW_AUTOMATION,
             Permission.VIEW_RECONCILIATION,
         }
     ),
