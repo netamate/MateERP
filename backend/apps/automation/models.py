@@ -138,6 +138,10 @@ class VendorIntegration(models.Model):
     def __str__(self) -> str:
         return f"{self.vendor.name} · {self.name}"
 
+    def __str__(self) -> str:
+        scope = self.legal_entity.name if self.legal_entity_id else self.organization.name
+        return f"{scope} · {self.name}"
+
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
@@ -220,6 +224,9 @@ class VendorSyncRun(models.Model):
                 name="vendor_sync_status_idx",
             )
         ]
+
+    def __str__(self) -> str:
+        return f"{self.integration.name} · {self.status} · {self.started_at}"
 
 
 class AutomationPolicy(models.Model):
@@ -335,3 +342,6 @@ class AutomationRun(models.Model):
                 name="automation_run_status_idx",
             )
         ]
+
+    def __str__(self) -> str:
+        return f"{self.policy.name} · {self.status} · {self.started_at}"
