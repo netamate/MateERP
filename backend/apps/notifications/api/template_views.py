@@ -1,3 +1,5 @@
+from smtplib import SMTPAuthenticationError, SMTPException
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError
 from rest_framework import status
@@ -57,6 +59,11 @@ def _template(membership, template_id):
     ).select_related("legal_entity", "created_by", "updated_by").first()
     if template is None:
         raise ValidationError("Email template does not exist in this organization.")
+    if (
+        template.legal_entity_id
+        and not accessible_legal_entities(membership).filter(id=template.legal_entity_id).exists()
+    ):
+        raise PermissionDenied("You cannot access this legal entity template.")
     return template
 
 
@@ -252,13 +259,28 @@ class EmailTemplateTestView(APIView):
             html_body_template=data.get("html_body_template", ""),
             context=context,
         )
-        _send_email(
-            organization=membership.organization,
-            destination=data["recipient"],
-            subject=rendered["subject"],
-            message=rendered["text_body"],
-            html_message=rendered["html_body"],
-        )
+        try:
+            _send_email(
+                organization=membership.organization,
+                destination=data["recipient"],
+                subject=rendered["subject"],
+                message=rendered["text_body"],
+                html_message=rendered["html_body"],
+            )
+        except SMTPAuthenticationError as exc:
+            raise ValidationError(
+                "SMTP authentication was rejected. Check the mailbox username and password."
+            ) from exc
+        except SMTPException as exc:
+            raise ValidationError(
+                "SMTP server rejected the template test email."
+            ) from exc
+        except (TimeoutError, OSError) as exc:
+            raise ValidationError(
+                "Could not connect to the SMTP server."
+            ) from exc
+        except RuntimeError as exc:
+            raise ValidationError(str(exc)) from exc
         return Response(
             {
                 "detail": (
