@@ -1,16 +1,15 @@
 from smtplib import SMTPAuthenticationError, SMTPException
 
+from apps.audit.services import record_audit_event
+from apps.identity.models import Membership, MembershipStatus
+from apps.identity.policy import Permission, has_permission
+from apps.identity.selectors import accessible_legal_entities
 from django.db import IntegrityError
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.audit.services import record_audit_event
-from apps.identity.models import Membership, MembershipStatus
-from apps.identity.policy import Permission, has_permission
-from apps.identity.selectors import accessible_legal_entities
 
 from ..email_templates import (
     create_email_template,
@@ -54,10 +53,14 @@ def _active_entity(request, membership):
 
 
 def _template(membership, template_id):
-    template = EmailTemplate.objects.filter(
-        id=template_id,
-        organization=membership.organization,
-    ).select_related("legal_entity", "created_by", "updated_by").first()
+    template = (
+        EmailTemplate.objects.filter(
+            id=template_id,
+            organization=membership.organization,
+        )
+        .select_related("legal_entity", "created_by", "updated_by")
+        .first()
+    )
     if template is None:
         raise ValidationError("Email template does not exist in this organization.")
     if (
@@ -79,9 +82,7 @@ class EmailTemplateListCreateView(APIView):
         )
         entity = _active_entity(request, membership)
         if entity:
-            queryset = queryset.filter(
-                Q(legal_entity__isnull=True) | Q(legal_entity=entity)
-            )
+            queryset = queryset.filter(Q(legal_entity__isnull=True) | Q(legal_entity=entity))
         if request.query_params.get("include_archived") not in {"1", "true", "yes"}:
             queryset = queryset.filter(status=EmailTemplateStatus.ACTIVE)
         signal = request.query_params.get("signal")
@@ -104,9 +105,7 @@ class EmailTemplateListCreateView(APIView):
                 data=data,
             )
         except IntegrityError as exc:
-            raise ValidationError(
-                {"template_key": "This template key already exists."}
-            ) from exc
+            raise ValidationError({"template_key": "This template key already exists."}) from exc
         record_audit_event(
             actor=request.user,
             organization=membership.organization,
@@ -151,9 +150,7 @@ class EmailTemplateDetailView(APIView):
                 data=dict(serializer.validated_data),
             )
         except IntegrityError as exc:
-            raise ValidationError(
-                {"template_key": "This template key already exists."}
-            ) from exc
+            raise ValidationError({"template_key": "This template key already exists."}) from exc
         record_audit_event(
             actor=request.user,
             organization=membership.organization,
@@ -208,9 +205,7 @@ class EmailTemplateVersionListView(APIView):
     def get(self, request, template_id):
         membership = _membership(request, Permission.VIEW_NOTIFICATIONS)
         template = _template(membership, template_id)
-        return Response(
-            EmailTemplateVersionSerializer(template.versions.all(), many=True).data
-        )
+        return Response(EmailTemplateVersionSerializer(template.versions.all(), many=True).data)
 
 
 class EmailTemplatePreviewView(APIView):
@@ -273,13 +268,9 @@ class EmailTemplateTestView(APIView):
                 "SMTP authentication was rejected. Check the mailbox username and password."
             ) from exc
         except SMTPException as exc:
-            raise ValidationError(
-                "SMTP server rejected the template test email."
-            ) from exc
+            raise ValidationError("SMTP server rejected the template test email.") from exc
         except (TimeoutError, OSError) as exc:
-            raise ValidationError(
-                "Could not connect to the SMTP server."
-            ) from exc
+            raise ValidationError("Could not connect to the SMTP server.") from exc
         except RuntimeError as exc:
             raise ValidationError(str(exc)) from exc
         return Response(
