@@ -7,6 +7,8 @@ from .views import (
     ExpenseReportView,
     FinancialOverviewView,
     FounderCapitalView,
+    OperationsCostExportView,
+    OperationsCostIntelligenceView,
     ProductCostView,
     RevenueReportView,
     VendorSpendView,
@@ -37,5 +39,15 @@ urlpatterns = [
         "reporting/founder-capital/",
         FounderCapitalView.as_view(),
         name="reporting-founder-capital",
+    ),
+    path(
+        "reporting/cost-intelligence/",
+        OperationsCostIntelligenceView.as_view(),
+        name="reporting-cost-intelligence",
+    ),
+    path(
+        "reporting/cost-intelligence/export/",
+        OperationsCostExportView.as_view(),
+        name="reporting-cost-intelligence-export",
     ),
 ]
