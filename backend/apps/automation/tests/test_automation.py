@@ -204,6 +204,50 @@ def test_vendor_integration_api_never_returns_secret(monkeypatch):
 
 
 @pytest.mark.django_db
+def test_saved_secret_cannot_be_reused_against_changed_endpoint():
+    client, _, _, entity, _ = signed_in_owner("secret-reuse@example.com")
+    vendor, subscription = payg_subscription(entity)
+    created = client.post(
+        "/api/v1/automation/vendor-integrations/",
+        data={
+            "name": "Protected Secret",
+            "vendor": str(vendor.id),
+            "subscription": str(subscription.id),
+            "connector_type": "GENERIC_JSON",
+            "enabled": True,
+            "endpoint_url": "https://api.vendor.example/usage",
+            "auth_type": "BEARER",
+            "secret": "protected-token",
+            "api_key_header": "X-API-Key",
+            "custom_headers": {},
+            "cost_json_path": "cost",
+            "timeout_seconds": 15,
+            "auto_create_period": True,
+        },
+        content_type="application/json",
+    )
+    assert created.status_code == 201, created.content
+
+    blocked = client.post(
+        "/api/v1/automation/vendor-integrations/test/",
+        data={
+            "integration_id": created.json()["id"],
+            "subscription": str(subscription.id),
+            "endpoint_url": "https://attacker.example/collect",
+            "auth_type": "BEARER",
+            "secret": "",
+            "api_key_header": "X-API-Key",
+            "custom_headers": {},
+            "cost_json_path": "cost",
+            "timeout_seconds": 15,
+        },
+        content_type="application/json",
+    )
+    assert blocked.status_code == 400
+    assert "re-enter the secret" in str(blocked.json()).lower()
+
+
+@pytest.mark.django_db
 def test_private_vendor_endpoint_is_blocked_before_http_request(monkeypatch):
     monkeypatch.setattr(
         "apps.automation.services.socket.getaddrinfo",
@@ -221,6 +265,32 @@ def test_private_vendor_endpoint_is_blocked_before_http_request(monkeypatch):
                 "timeout_seconds": 5,
             }
         )
+
+
+@pytest.mark.django_db
+def test_disabled_entity_override_suppresses_organization_default():
+    _, owner, organization, entity, _ = signed_in_owner("override-disable@example.com")
+    _, subscription = payg_subscription(entity)
+    default = next(
+        policy
+        for policy in ensure_default_automation_policies(organization, actor=owner)
+        if policy.kind == AutomationKind.ENSURE_PAYG_PERIODS
+    )
+    AutomationPolicy.objects.create(
+        organization=organization,
+        legal_entity=entity,
+        name="Disable entity period automation",
+        kind=AutomationKind.ENSURE_PAYG_PERIODS,
+        enabled=False,
+        created_by=owner,
+        updated_by=owner,
+    )
+
+    run = run_automation_policy(default, actor=owner)
+
+    assert run.status == RunStatus.SUCCESS
+    assert run.summary["created"] == 0
+    assert SubscriptionBillingPeriod.objects.filter(subscription=subscription).count() == 0
 
 
 @pytest.mark.django_db
