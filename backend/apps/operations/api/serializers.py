@@ -151,6 +151,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             "account_code",
             "payments",
             "payment_count",
+            "reminder_email",
+            "reminder_email_recipients",
         ]
 
     def validate(self, attrs):
