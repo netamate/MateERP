@@ -441,7 +441,7 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
             <>
               <div className="font-semibold">Per-subscription channels</div>
               <div className="text-[var(--color-text-muted)]">
-                Keeps each subscription's In-App / Email / Hermes choices
+                Keeps each subscription’s In-App / Email / Hermes choices
               </div>
             </>
           ) : (
@@ -882,7 +882,7 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
                         name="respect_subscription_channels"
                         type="checkbox"
                       />
-                      Preserve each subscription's own reminder channels and recipients
+                      Preserve each subscription’s own reminder channels and recipients
                     </label>
                     <label className="block text-xs font-medium">
                       <span className="mb-1 block text-[var(--color-text-muted)]">
@@ -935,7 +935,7 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
                     placeholder="finance@example.com, owner@example.com"
                   />
                   <span className="mt-1 block text-[10px] text-[var(--color-text-muted)]">
-                    Blank uses selected in-app members' email addresses.
+                    Blank uses selected in-app members’ email addresses.
                   </span>
                 </label>
 
