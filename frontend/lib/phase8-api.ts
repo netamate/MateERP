@@ -216,6 +216,8 @@ export type AlertRule = {
   }>;
   email_recipients: string[];
   hermes_target: string;
+  email_template: string | null;
+  email_template_name: string | null;
   renewal_days: number[];
   grace_days: number;
   respect_subscription_channels: boolean;
@@ -249,8 +251,12 @@ export type DirectEmailNotification = {
   to_recipients: string[];
   cc_recipients: string[];
   bcc_recipients: string[];
+  template: string | null;
+  template_name: string | null;
+  template_version: number | null;
   subject: string;
   body: string;
+  html_body: string;
   scheduled_for: string | null;
   schedule_timezone: string;
   status: "DRAFT" | "SCHEDULED" | "SENDING" | "SENT" | "FAILED" | "CANCELLED";
@@ -260,6 +266,54 @@ export type DirectEmailNotification = {
   created_by_email: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type EmailTemplate = {
+  id: string;
+  legal_entity: string | null;
+  legal_entity_name: string | null;
+  template_key: string;
+  name: string;
+  description: string;
+  signal:
+    | "RENEWAL_DUE"
+    | "BUDGET_THRESHOLD"
+    | "MISSING_INVOICE"
+    | "INVOICE_OVERDUE"
+    | "RECONCILIATION_NEEDED"
+    | null;
+  subject_template: string;
+  html_body_template: string;
+  text_body_template: string;
+  status: "ACTIVE" | "ARCHIVED";
+  current_version: number;
+  is_system_default: boolean;
+  created_by_email: string | null;
+  updated_by_email: string | null;
+  available_variables: Record<string, string>;
+  version_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EmailTemplateVersion = {
+  id: string;
+  version_number: number;
+  name: string;
+  description: string;
+  signal: EmailTemplate["signal"];
+  subject_template: string;
+  html_body_template: string;
+  text_body_template: string;
+  created_at: string;
+};
+
+export type EmailTemplatePreview = {
+  subject: string;
+  text_body: string;
+  html_body: string;
+  used_variables: string[];
+  context: Record<string, unknown>;
 };
 
 export type NotificationIntegrationSettings = {
@@ -400,6 +454,45 @@ export const auditApi = {
 };
 
 export const notificationApi = {
+  emailTemplates: (includeArchived = false) =>
+    request<EmailTemplate[]>(
+      `/api/v1/notifications/email-templates/${includeArchived ? "?include_archived=1" : ""}`,
+    ),
+  createEmailTemplate: (body: Record<string, unknown>) =>
+    request<EmailTemplate>(
+      "/api/v1/notifications/email-templates/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  updateEmailTemplate: (id: string, body: Record<string, unknown>) =>
+    request<EmailTemplate>(
+      `/api/v1/notifications/email-templates/${id}/`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  archiveEmailTemplate: (id: string) =>
+    request<EmailTemplate>(
+      `/api/v1/notifications/email-templates/${id}/archive/`,
+      { method: "POST" },
+      true,
+    ),
+  emailTemplateVersions: (id: string) =>
+    request<EmailTemplateVersion[]>(
+      `/api/v1/notifications/email-templates/${id}/versions/`,
+    ),
+  previewEmailTemplate: (body: Record<string, unknown>) =>
+    request<EmailTemplatePreview>(
+      "/api/v1/notifications/email-templates/preview/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  testEmailTemplate: (body: Record<string, unknown>) =>
+    request<{ detail: string; subject: string }>(
+      "/api/v1/notifications/email-templates/test/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+
   inbox: (
     includeResolved = false,
     filters?: { kind?: string; severity?: string; state?: string },
