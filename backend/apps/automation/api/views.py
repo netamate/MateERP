@@ -20,6 +20,7 @@ from ..models import (
     RunStatus,
     RunTrigger,
     SyncStatus,
+    VendorAuthType,
     VendorIntegration,
     VendorSyncRun,
 )
@@ -206,7 +207,26 @@ class VendorIntegrationTestView(APIView):
         integration = None
         if integration_id:
             integration = _integration(context, integration_id)
-            if not secret and integration.secret_encrypted:
+            if (
+                data.get("auth_type") != VendorAuthType.NONE
+                and not secret
+                and integration.secret_encrypted
+            ):
+                sensitive_destination_changed = (
+                    data.get("endpoint_url") != integration.endpoint_url
+                    or data.get("auth_type") != integration.auth_type
+                    or data.get("auth_username", "") != integration.auth_username
+                    or data.get("api_key_header", "") != integration.api_key_header
+                )
+                if sensitive_destination_changed:
+                    raise ValidationError(
+                        {
+                            "secret": (
+                                "Re-enter the secret before testing a changed endpoint "
+                                "or authentication configuration."
+                            )
+                        }
+                    )
                 secret = decrypt_secret(integration.secret_encrypted)
         data["secret"] = secret
 
