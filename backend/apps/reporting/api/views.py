@@ -1,12 +1,11 @@
 import csv
 
+from apps.identity.policy import Permission, has_permission
+from apps.identity.services import set_active_context
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.identity.policy import Permission, has_permission
-from apps.identity.services import set_active_context
 
 from ..selectors import (
     account_balances,
@@ -142,9 +141,7 @@ class OperationsCostExportView(APIView):
             "monthly": data["monthly_trend"],
         }
         if section not in sections:
-            raise ValidationError(
-                "section must be one of: subscriptions, vendors, monthly."
-            )
+            raise ValidationError("section must be one of: subscriptions, vendors, monthly.")
         rows = sections[section]
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = (

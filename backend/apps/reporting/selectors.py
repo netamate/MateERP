@@ -2,9 +2,6 @@ from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Q, Sum
-from django.utils import timezone
-
 from apps.accounting.models import AccountType, JournalLine, JournalStatus
 from apps.accounting.selectors import cash_flow_summary, profit_and_loss, trial_balance
 from apps.automation.models import (
@@ -22,6 +19,8 @@ from apps.operations.models import (
     SubscriptionInvoice,
 )
 from apps.planning.models import ExpenseAllocation
+from django.db.models import Q, Sum
+from django.utils import timezone
 
 POSTED_STATUSES = [JournalStatus.POSTED, JournalStatus.REVERSED]
 
@@ -291,9 +290,7 @@ def _billing_periods_in_range(legal_entity, *, start_date=None, end_date=None):
 
 def _period_actuals(period):
     invoices = [
-        invoice
-        for invoice in period.invoices.all()
-        if invoice.status != BillingInvoiceStatus.VOID
+        invoice for invoice in period.invoices.all() if invoice.status != BillingInvoiceStatus.VOID
     ]
     billed = sum((invoice.total_amount for invoice in invoices), Decimal("0"))
     paid = sum(
@@ -542,9 +539,7 @@ def operations_cost_intelligence(legal_entity, *, start_date=None, end_date=None
     enabled_policies = AutomationPolicy.objects.filter(
         organization=legal_entity.organization,
         enabled=True,
-    ).filter(
-        Q(legal_entity__isnull=True) | Q(legal_entity=legal_entity)
-    )
+    ).filter(Q(legal_entity__isnull=True) | Q(legal_entity=legal_entity))
     failures_24h = AutomationRun.objects.filter(
         policy__in=enabled_policies,
         status=RunStatus.FAILED,

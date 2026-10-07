@@ -1,5 +1,9 @@
 from datetime import timedelta
 
+from apps.audit.services import record_audit_event
+from apps.identity.policy import Permission, has_permission
+from apps.identity.services import set_active_context
+from apps.notifications.crypto import decrypt_secret
 from django.db import IntegrityError
 from django.db.models import Q
 from django.utils import timezone
@@ -8,11 +12,6 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.audit.services import record_audit_event
-from apps.identity.policy import Permission, has_permission
-from apps.identity.services import set_active_context
-from apps.notifications.crypto import decrypt_secret
 
 from ..models import (
     AutomationPolicy,
@@ -248,9 +247,7 @@ class VendorIntegrationTestView(APIView):
                 "http_status": result["http_status"],
                 "cost_amount": str(result["cost_amount"]),
                 "usage_quantity": (
-                    str(result["usage_quantity"])
-                    if result["usage_quantity"] is not None
-                    else None
+                    str(result["usage_quantity"]) if result["usage_quantity"] is not None else None
                 ),
                 "currency": result["currency"],
                 "usage_unit": result["usage_unit"],
@@ -322,9 +319,7 @@ class AutomationPolicyListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         entity = serializer.validated_data.get("legal_entity")
         if entity is None:
-            raise ValidationError(
-                {"legal_entity": "New policies must be legal-entity overrides."}
-            )
+            raise ValidationError({"legal_entity": "New policies must be legal-entity overrides."})
         if entity.id != context.legal_entity.id:
             raise ValidationError(
                 {"legal_entity": "Choose the active legal entity for this override."}
@@ -403,8 +398,7 @@ class AutomationRunListView(APIView):
         queryset = (
             AutomationRun.objects.filter(policy__organization=context.organization)
             .filter(
-                Q(policy__legal_entity__isnull=True)
-                | Q(policy__legal_entity=context.legal_entity)
+                Q(policy__legal_entity__isnull=True) | Q(policy__legal_entity=context.legal_entity)
             )
             .select_related("policy")
             .order_by("-started_at")
@@ -431,15 +425,12 @@ class AutomationOverviewView(APIView):
         )
         policies = AutomationPolicy.objects.filter(
             organization=context.organization,
-        ).filter(
-            Q(legal_entity__isnull=True) | Q(legal_entity=context.legal_entity)
-        )
+        ).filter(Q(legal_entity__isnull=True) | Q(legal_entity=context.legal_entity))
         runs = AutomationRun.objects.filter(
             policy__organization=context.organization,
             started_at__gte=since,
         ).filter(
-            Q(policy__legal_entity__isnull=True)
-            | Q(policy__legal_entity=context.legal_entity)
+            Q(policy__legal_entity__isnull=True) | Q(policy__legal_entity=context.legal_entity)
         )
         last_sync = (
             VendorSyncRun.objects.filter(
@@ -453,9 +444,7 @@ class AutomationOverviewView(APIView):
         )
         payload = {
             "active_integrations": integrations.filter(enabled=True).count(),
-            "failed_integrations": integrations.filter(
-                last_sync_status=SyncStatus.FAILED
-            ).count(),
+            "failed_integrations": integrations.filter(last_sync_status=SyncStatus.FAILED).count(),
             "enabled_policies": policies.filter(enabled=True).count(),
             "failed_runs_24h": runs.filter(status=RunStatus.FAILED).count(),
             "last_vendor_sync_at": last_sync,
