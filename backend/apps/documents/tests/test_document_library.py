@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, override_settings
 
 from apps.finance.models import Vendor
-from apps.identity.models import User
+from apps.identity.models import Membership, Role, User
 from apps.identity.services import create_organization_with_owner
 from apps.operations.models import ServiceAccount, Subscription, VendorService
 
@@ -235,3 +235,51 @@ def test_cross_entity_document_association_and_invalid_file_are_blocked(tmp_path
     assert cross.status_code == 400
     assert invalid.status_code == 400
     assert entity1.finance_documents.count() == 0
+
+
+@pytest.mark.django_db
+def test_payslip_hidden_from_regular_finance_viewer(tmp_path):
+    owner, entity = signed_in_owner("payroll-owner@example.com", "Payroll Org")
+    member_user = User.objects.create_user(
+        email="payroll-member@example.com", password="test-pass-123"
+    )
+    Membership.objects.create(
+        organization=entity.organization,
+        user=member_user,
+        role=Role.MEMBER,
+        all_legal_entities=True,
+    )
+    member = Client()
+    member.force_login(member_user)
+    member_session = member.session
+    member_session["active_organization_id"] = str(entity.organization_id)
+    member_session["active_legal_entity_id"] = str(entity.id)
+    member_session.save()
+
+    with override_settings(MEDIA_ROOT=tmp_path):
+        created = owner.post(
+            "/api/v1/finance/documents/",
+            data={
+                "document_type": "PAYSLIP",
+                "document_date": "2026-10-07",
+                "file": pdf(name="payroll.pdf", marker=b"confidential"),
+            },
+        )
+        assert created.status_code == 201, created.content
+        payslip_id = created.json()["id"]
+
+        assert member.get("/api/v1/finance/documents/").json() == []
+        assert member.get(f"/api/v1/finance/documents/{payslip_id}/").status_code == 403
+        assert (
+            member.get(f"/api/v1/finance/documents/{payslip_id}/content/").status_code
+            == 403
+        )
+        denied_upload = member.post(
+            "/api/v1/finance/documents/",
+            data={
+                "document_type": "PAYSLIP",
+                "document_date": "2026-10-07",
+                "file": pdf(name="unauthorized.pdf", marker=b"unauthorized"),
+            },
+        )
+        assert denied_upload.status_code == 403
