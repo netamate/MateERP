@@ -485,6 +485,26 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"expense": "Expense belongs to another legal entity."}
             )
+        if document:
+            if document.document_type != "INVOICE":
+                raise serializers.ValidationError(
+                    {"document": "Linked finance document must be an invoice."}
+                )
+            duplicate_document = SubscriptionInvoice.objects.filter(document=document)
+            if self.instance:
+                duplicate_document = duplicate_document.exclude(pk=self.instance.pk)
+            if duplicate_document.exists():
+                raise serializers.ValidationError(
+                    {"document": "This invoice document is already linked."}
+                )
+        if expense:
+            duplicate_expense = SubscriptionInvoice.objects.filter(expense=expense)
+            if self.instance:
+                duplicate_expense = duplicate_expense.exclude(pk=self.instance.pk)
+            if duplicate_expense.exists():
+                raise serializers.ValidationError(
+                    {"expense": "This accounting expense is already linked to another invoice."}
+                )
 
         selected_vendor = vendor or period.subscription.vendor
         if selected_vendor is None:
@@ -495,6 +515,10 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
         ):
             raise serializers.ValidationError(
                 {"vendor": "Invoice vendor must match the subscription vendor."}
+            )
+        if expense and expense.vendor_id and expense.vendor_id != selected_vendor.id:
+            raise serializers.ValidationError(
+                {"expense": "Expense vendor must match the invoice vendor."}
             )
 
         number = attrs.get(
@@ -592,13 +616,9 @@ class BillingPaymentSerializer(serializers.ModelSerializer):
         ]
 
     def get_allocated_amount(self, obj):
-        return (
-            obj.allocations.aggregate(total=serializers.models.models.Sum("amount"))["total"]
-            if False
-            else sum(
-                (allocation.amount for allocation in obj.allocations.all()),
-                Decimal("0"),
-            )
+        return sum(
+            (allocation.amount for allocation in obj.allocations.all()),
+            Decimal("0"),
         )
 
     def get_unallocated_amount(self, obj):
@@ -655,6 +675,15 @@ class BillingPaymentSerializer(serializers.ModelSerializer):
                 {"financial_account": "Financial account currency must match payment currency."}
             )
         if expense_payment:
+            duplicate_payment = BillingPayment.objects.filter(
+                expense_payment=expense_payment
+            )
+            if self.instance:
+                duplicate_payment = duplicate_payment.exclude(pk=self.instance.pk)
+            if duplicate_payment.exists():
+                raise serializers.ValidationError(
+                    {"expense_payment": "This accounting payment is already linked."}
+                )
             if expense_payment.amount != amount or expense_payment.currency != currency:
                 raise serializers.ValidationError(
                     {
