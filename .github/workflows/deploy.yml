@@ -177,6 +177,8 @@ jobs:
           docker compose ps
           curl --fail --silent --show-error http://127.0.0.1:8035/api/v1/health/ >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:3035/ >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:3035/images/logo.png >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:3035/images/favicon.png >/dev/null
           REMOTE
       - name: Logout private GHCR credential
         if: always()
