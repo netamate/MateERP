@@ -344,6 +344,11 @@ export function NotificationsPage({ session }: { session: SessionPayload }) {
           <div className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
             {row.alert_rule_name ?? "Legacy subscription reminder"}
           </div>
+          {row.email_template_name ? (
+            <div className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
+              {row.email_template_name} · v{row.email_template_version}
+            </div>
+          ) : null}
         </div>
       ),
     },
