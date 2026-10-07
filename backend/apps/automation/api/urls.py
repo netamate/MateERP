@@ -1,0 +1,67 @@
+from django.urls import path
+
+from .views import (
+    AutomationOverviewView,
+    AutomationPolicyDetailView,
+    AutomationPolicyListCreateView,
+    AutomationPolicyRunView,
+    AutomationRunListView,
+    VendorIntegrationDetailView,
+    VendorIntegrationListCreateView,
+    VendorIntegrationSyncView,
+    VendorIntegrationTestView,
+    VendorSyncRunListView,
+)
+
+urlpatterns = [
+    path(
+        "automation/overview/",
+        AutomationOverviewView.as_view(),
+        name="automation-overview",
+    ),
+    path(
+        "automation/vendor-integrations/",
+        VendorIntegrationListCreateView.as_view(),
+        name="vendor-integration-list-create",
+    ),
+    path(
+        "automation/vendor-integrations/test/",
+        VendorIntegrationTestView.as_view(),
+        name="vendor-integration-test",
+    ),
+    path(
+        "automation/vendor-integrations/<uuid:integration_id>/",
+        VendorIntegrationDetailView.as_view(),
+        name="vendor-integration-detail",
+    ),
+    path(
+        "automation/vendor-integrations/<uuid:integration_id>/sync/",
+        VendorIntegrationSyncView.as_view(),
+        name="vendor-integration-sync",
+    ),
+    path(
+        "automation/vendor-sync-runs/",
+        VendorSyncRunListView.as_view(),
+        name="vendor-sync-run-list",
+    ),
+    path(
+        "automation/policies/",
+        AutomationPolicyListCreateView.as_view(),
+        name="automation-policy-list-create",
+    ),
+    path(
+        "automation/policies/<uuid:policy_id>/",
+        AutomationPolicyDetailView.as_view(),
+        name="automation-policy-detail",
+    ),
+    path(
+        "automation/policies/<uuid:policy_id>/run/",
+        AutomationPolicyRunView.as_view(),
+        name="automation-policy-run",
+    ),
+    path(
+        "automation/runs/",
+        AutomationRunListView.as_view(),
+        name="automation-run-list",
+    ),
+]
