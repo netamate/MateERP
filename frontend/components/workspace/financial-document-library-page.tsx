@@ -771,8 +771,27 @@ export function FinancialDocumentLibraryPage({ session }: { session: SessionPayl
           <div className="grid min-h-[70vh] lg:grid-cols-[minmax(0,1fr)_300px]">
             <div className="min-h-[65vh] border-r border-[var(--color-border)] bg-[#eef1f5] p-3">
               {selected.mime_type === "application/pdf" ? (
-                <iframe title={selected.standardized_name} className="h-[68vh] w-full border border-[var(--color-border)] bg-white"
-                  src={selected.content_url} />
+                <div className="flex h-[68vh] flex-col border border-[var(--color-border)] bg-white">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 text-xs">
+                    <span className="text-[var(--color-text-muted)]">
+                      Secure PDF preview
+                    </span>
+                    <a
+                      className="erp-button !h-7 !min-h-7 !px-2 text-[11px]"
+                      href={`${selected.content_url}?disposition=inline&name=standard`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <Eye size={12} /> Open PDF
+                    </a>
+                  </div>
+                  <iframe
+                    title={selected.standardized_name}
+                    className="min-h-0 flex-1 w-full bg-white"
+                    loading="eager"
+                    src={`${selected.content_url}?disposition=inline&name=standard#view=FitH`}
+                  />
+                </div>
               ) : selected.mime_type?.startsWith("image/") ? (
                 <div className="grid h-[68vh] place-items-center overflow-auto border border-[var(--color-border)] bg-white p-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
