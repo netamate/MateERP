@@ -8,6 +8,18 @@ from ..models import DirectEmailNotification, EmailTemplateStatus
 
 
 class DirectEmailNotificationSerializer(serializers.ModelSerializer):
+    to_recipients = serializers.ListField(
+        child=serializers.EmailField(),
+        allow_empty=False,
+    )
+    cc_recipients = serializers.ListField(
+        child=serializers.EmailField(),
+        required=False,
+    )
+    bcc_recipients = serializers.ListField(
+        child=serializers.EmailField(),
+        required=False,
+    )
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
     template_name = serializers.CharField(source="template.name", read_only=True, allow_null=True)
     action = serializers.ChoiceField(
@@ -56,9 +68,6 @@ class DirectEmailNotificationSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         extra_kwargs = {
-            "to_recipients": {"allow_empty": False},
-            "cc_recipients": {"required": False},
-            "bcc_recipients": {"required": False},
             "scheduled_for": {"required": False, "allow_null": True},
             "schedule_timezone": {"required": False},
         }
