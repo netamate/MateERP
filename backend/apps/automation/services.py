@@ -35,7 +35,6 @@ from .models import (
     VendorSyncRun,
 )
 
-
 MAX_VENDOR_RESPONSE_BYTES = 2 * 1024 * 1024
 
 
