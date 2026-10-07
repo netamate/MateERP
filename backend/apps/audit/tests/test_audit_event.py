@@ -27,7 +27,6 @@ def test_audit_event_is_append_only():
         AuditEvent.objects.filter(pk=event.pk).update(action="test.changed")
 
 
-
 @pytest.mark.django_db
 def test_audit_event_serializes_uuid_decimal_and_dates_to_json_values():
     reference = uuid.uuid4()
