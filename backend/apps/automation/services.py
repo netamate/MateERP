@@ -54,12 +54,18 @@ def _validate_public_https_url(value: str) -> str:
     if not parsed.hostname or parsed.username or parsed.password:
         raise VendorIntegrationError("Vendor API endpoint is invalid.")
     hostname = parsed.hostname.lower()
-    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
+    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(
+        ".local"
+    ):
         raise VendorIntegrationError("Local vendor API endpoints are not allowed.")
     try:
-        addresses = socket.getaddrinfo(hostname, parsed.port or 443, type=socket.SOCK_STREAM)
+        addresses = socket.getaddrinfo(
+            hostname, parsed.port or 443, type=socket.SOCK_STREAM
+        )
     except socket.gaierror as exc:
-        raise VendorIntegrationError("Vendor API hostname could not be resolved.") from exc
+        raise VendorIntegrationError(
+            "Vendor API hostname could not be resolved."
+        ) from exc
     for item in addresses:
         address = ipaddress.ip_address(item[4][0])
         if (
@@ -70,7 +76,9 @@ def _validate_public_https_url(value: str) -> str:
             or address.is_reserved
             or address.is_unspecified
         ):
-            raise VendorIntegrationError("Vendor API endpoint resolves to a non-public address.")
+            raise VendorIntegrationError(
+                "Vendor API endpoint resolves to a non-public address."
+            )
     return value
 
 
@@ -81,7 +89,9 @@ def _json_path(data, path: str):
             try:
                 value = value[int(part)]
             except (ValueError, IndexError) as exc:
-                raise VendorIntegrationError(f"JSON path '{path}' was not found.") from exc
+                raise VendorIntegrationError(
+                    f"JSON path '{path}' was not found."
+                ) from exc
         elif isinstance(value, dict) and part in value:
             value = value[part]
         else:
@@ -120,7 +130,9 @@ def _request_headers(config: dict) -> dict[str, str]:
     elif auth_type == VendorAuthType.BASIC:
         username = config.get("auth_username") or ""
         if not username or not secret:
-            raise VendorIntegrationError("Basic authentication requires username and password.")
+            raise VendorIntegrationError(
+                "Basic authentication requires username and password."
+            )
         token = base64.b64encode(f"{username}:{secret}".encode()).decode()
         headers["Authorization"] = f"Basic {token}"
     return headers
@@ -131,7 +143,9 @@ def fetch_vendor_payload(config: dict) -> tuple[object, int]:
     req = request.Request(endpoint, headers=_request_headers(config), method="GET")
     opener = request.build_opener(_NoRedirectHandler())
     try:
-        with opener.open(req, timeout=int(config.get("timeout_seconds") or 15)) as response:
+        with opener.open(
+            req, timeout=int(config.get("timeout_seconds") or 15)
+        ) as response:
             status = int(response.status)
             raw = response.read(MAX_VENDOR_RESPONSE_BYTES + 1)
     except VendorIntegrationError:
@@ -141,7 +155,9 @@ def fetch_vendor_payload(config: dict) -> tuple[object, int]:
     except (error.URLError, TimeoutError, OSError) as exc:
         raise VendorIntegrationError("Could not connect to the vendor API.") from exc
     if len(raw) > MAX_VENDOR_RESPONSE_BYTES:
-        raise VendorIntegrationError("Vendor API response exceeded the 2 MB safety limit.")
+        raise VendorIntegrationError(
+            "Vendor API response exceeded the 2 MB safety limit."
+        )
     try:
         return json.loads(raw.decode("utf-8")), status
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -163,14 +179,18 @@ def extract_vendor_usage(config: dict, payload, *, subscription) -> dict:
         )
     currency = subscription.currency
     if config.get("currency_json_path"):
-        currency = str(_json_path(payload, config["currency_json_path"])).strip().upper()
+        currency = (
+            str(_json_path(payload, config["currency_json_path"])).strip().upper()
+        )
     if currency != subscription.currency:
         raise VendorIntegrationError(
             f"Vendor returned {currency}, but the subscription currency is {subscription.currency}."
         )
     usage_unit = subscription.usage_unit
     if config.get("usage_unit_json_path"):
-        usage_unit = str(_json_path(payload, config["usage_unit_json_path"])).strip()[:40]
+        usage_unit = str(_json_path(payload, config["usage_unit_json_path"])).strip()[
+            :40
+        ]
     return {
         "cost_amount": cost,
         "usage_quantity": quantity,
@@ -243,9 +263,9 @@ def sync_vendor_integration(
     try:
         if not integration.enabled:
             raise VendorIntegrationError("Vendor integration is disabled.")
-        subscription = Subscription.objects.select_related("legal_entity", "vendor").get(
-            pk=integration.subscription_id
-        )
+        subscription = Subscription.objects.select_related(
+            "legal_entity", "vendor"
+        ).get(pk=integration.subscription_id)
         if subscription.status != OperationalStatus.ACTIVE:
             raise VendorIntegrationError("Subscription is not active.")
         if subscription.billing_mode != BillingMode.PAYG:
@@ -261,11 +281,15 @@ def sync_vendor_integration(
 
         with transaction.atomic():
             start_date, end_date = _month_bounds(subscription.legal_entity, now=now)
-            period = SubscriptionBillingPeriod.objects.select_for_update().filter(
-                subscription=subscription,
-                period_start=start_date,
-                period_end=end_date,
-            ).first()
+            period = (
+                SubscriptionBillingPeriod.objects.select_for_update()
+                .filter(
+                    subscription=subscription,
+                    period_start=start_date,
+                    period_end=end_date,
+                )
+                .first()
+            )
             if period is None:
                 if not integration.auto_create_period:
                     raise VendorIntegrationError(
@@ -386,12 +410,15 @@ def automation_policy_is_due(policy, *, now=None):
     local_now = now.astimezone(ZoneInfo(policy.schedule_timezone))
     if policy.last_run_at is None:
         return (
-            policy.frequency == AutomationFrequency.HOURLY or local_now.hour >= policy.schedule_hour
+            policy.frequency == AutomationFrequency.HOURLY
+            or local_now.hour >= policy.schedule_hour
         )
     last_local = policy.last_run_at.astimezone(ZoneInfo(policy.schedule_timezone))
     if policy.frequency == AutomationFrequency.HOURLY:
         return (last_local.date(), last_local.hour) < (local_now.date(), local_now.hour)
-    return last_local.date() < local_now.date() and local_now.hour >= policy.schedule_hour
+    return (
+        last_local.date() < local_now.date() and local_now.hour >= policy.schedule_hour
+    )
 
 
 def _target_entities(policy):
