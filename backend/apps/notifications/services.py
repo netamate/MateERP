@@ -147,6 +147,45 @@ def _email_config(organization) -> dict:
     }
 
 
+def _smtp_preview_config(organization, proposed: dict) -> dict:
+    """Build an SMTP configuration from the unsaved form, without persisting secrets."""
+    stored = integration_settings_for(organization)
+    previous = integration_settings_payload(organization)
+    draft = {**previous, **proposed}
+
+    if not draft["smtp_enabled"]:
+        raise RuntimeError("Enable direct email notifications before running the test.")
+    if not draft["smtp_host"]:
+        raise RuntimeError("Enter an SMTP host before testing.")
+    if not draft["smtp_from_email"]:
+        raise RuntimeError("Enter a From Email address before testing.")
+    if draft["smtp_use_tls"] and draft["smtp_use_ssl"]:
+        raise RuntimeError("Choose either TLS or SSL, not both.")
+
+    password = proposed.get("smtp_password")
+    if not password:
+        password = (
+            decrypt_secret(stored.smtp_password_encrypted)
+            if stored
+            else settings.EMAIL_HOST_PASSWORD
+        )
+    if draft["smtp_username"] and not password:
+        raise RuntimeError("Enter the SMTP mailbox password before testing.")
+
+    from_name = draft["smtp_from_name"]
+    from_email = draft["smtp_from_email"]
+    return {
+        "backend": "django.core.mail.backends.smtp.EmailBackend",
+        "host": draft["smtp_host"],
+        "port": draft["smtp_port"],
+        "username": draft["smtp_username"],
+        "password": password,
+        "use_tls": draft["smtp_use_tls"],
+        "use_ssl": draft["smtp_use_ssl"],
+        "from_email": f"{from_name} <{from_email}>" if from_name else from_email,
+    }
+
+
 def _send_email(
     *,
     organization,
@@ -156,11 +195,12 @@ def _send_email(
     destinations: list[str] | None = None,
     cc: list[str] | None = None,
     bcc: list[str] | None = None,
+    config_override: dict | None = None,
 ) -> None:
     recipients = list(destinations or ([] if destination is None else [destination]))
     if not recipients:
         raise RuntimeError("At least one email recipient is required.")
-    config = _email_config(organization)
+    config = config_override if config_override is not None else _email_config(organization)
     connection = get_connection(
         backend=config["backend"],
         fail_silently=False,
@@ -170,6 +210,7 @@ def _send_email(
         password=config["password"],
         use_tls=config["use_tls"],
         use_ssl=config["use_ssl"],
+        timeout=15,
     )
     EmailMessage(
         subject=subject,
@@ -182,10 +223,12 @@ def _send_email(
     ).send(fail_silently=False)
 
 
-def send_test_email(*, organization, destination: str) -> None:
+def send_test_email(*, organization, destination: str, proposed: dict) -> None:
+    config = _smtp_preview_config(organization, proposed)
     _send_email(
         organization=organization,
         destination=destination,
+        config_override=config,
         subject="MateERP SMTP test",
         message=(
             "This is a test email from MateERP. "
