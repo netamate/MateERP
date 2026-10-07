@@ -200,9 +200,7 @@ class NotificationIntegrationEmailTestView(APIView):
         serializer.is_valid(raise_exception=True)
         destination = serializer.validated_data["recipient"]
         proposed = {
-            key: value
-            for key, value in serializer.validated_data.items()
-            if key != "recipient"
+            key: value for key, value in serializer.validated_data.items() if key != "recipient"
         }
         try:
             send_test_email(
@@ -234,12 +232,14 @@ class NotificationIntegrationEmailTestView(APIView):
             new_state={"recipient": destination, "result": "success"},
             request=request,
         )
-        return Response({
-            "detail": (
-                f"SMTP accepted the test email for {destination}. "
-                "The draft settings have not been saved."
-            )
-        })
+        return Response(
+            {
+                "detail": (
+                    f"SMTP accepted the test email for {destination}. "
+                    "The draft settings have not been saved."
+                )
+            }
+        )
 
 
 class NotificationIntegrationHermesTestView(APIView):

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Mail, MessageSquareText, ShieldCheck, Send, XCircle } from "lucide-react";
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import {
   ErrorState,
@@ -131,7 +131,7 @@ function SmtpSection({
 
   const fingerprint = JSON.stringify({ recipient: recipient.trim(), settings: smtpPayload(draft) });
   const fingerprintRef = useRef(fingerprint);
-  fingerprintRef.current = fingerprint;
+  useEffect(() => { fingerprintRef.current = fingerprint; }, [fingerprint]);
   const verified = draft.smtp_enabled && verifiedFingerprint === fingerprint;
 
   const test = useMutation({
