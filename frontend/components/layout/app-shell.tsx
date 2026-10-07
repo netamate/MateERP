@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarDays,
   FileArchive,
+  Gauge,
   ChevronDown,
   LayoutDashboard,
   LogOut,
@@ -46,6 +47,7 @@ const navGroups: NavGroup[] = [
     label: "Management",
     items: [
       { label: "Subscriptions", href: "/operations/subscriptions", icon: PackageOpen },
+      { label: "Billing & Costs", href: "/operations/billing", icon: Gauge },
       { label: "Services & Accounts", href: "/operations/service-accounts", icon: Layers3 },
       { label: "Documents", href: "/documents", icon: FileArchive },
       { label: "Vendors", href: "/vendors", icon: Building2 },
@@ -67,6 +69,7 @@ const commandItems: NavItem[] = navGroups.flatMap((group) => group.items);
 
 const quickActions: Array<[string, string]> = [
   ["Subscription", "/operations/subscriptions"],
+  ["Billing Period", "/operations/billing"],
   ["Vendor", "/vendors?new=1"],
   ["Document", "/documents"],
   ["Email Notification", "/administration/email-notifications"],
