@@ -32,6 +32,39 @@ COMMON_VARIABLES = {
 }
 
 SIGNAL_VARIABLES = {
+    NotificationKind.DOCUMENT_UPLOADED: {
+        "document_name": "Standardized document filename",
+        "document_type": "Document type",
+        "document_date": "Document date",
+        "document_reference": "Document reference",
+        "vendor_name": "Vendor name",
+        "subscription_name": "Subscription name",
+        "subscription_code": "Subscription permanent code",
+        "uploaded_by": "Uploader email address",
+        "file_size": "Document size",
+    },
+    NotificationKind.INVOICE_RECORDED: {
+        "subscription_name": "Subscription name",
+        "subscription_code": "Subscription permanent code",
+        "invoice_number": "Vendor invoice number",
+        "vendor_name": "Vendor name",
+        "amount": "Invoice total",
+        "currency": "Currency",
+        "due_date": "Invoice due date",
+    },
+    NotificationKind.PAYMENT_RECORDED: {
+        "subscription_name": "Subscription name",
+        "subscription_code": "Subscription permanent code",
+        "payment_code": "Payment reference or system code",
+        "amount": "Payment amount",
+        "currency": "Currency",
+        "payment_date": "Payment date",
+    },
+    NotificationKind.AUTOMATION_FAILURE: {
+        "automation_name": "Automation policy name",
+        "automation_kind": "Automation policy kind",
+        "error_message": "Automation failure message",
+    },
     NotificationKind.RENEWAL_DUE: {
         "subscription_name": "Subscription name",
         "subscription_code": "Subscription permanent code",
@@ -119,6 +152,30 @@ ALLOWED_ATTRIBUTES = {
 SAFE_PROTOCOLS = {"http", "https", "mailto"}
 
 DEFAULT_EMAIL_TEMPLATES = (
+    {
+        "template_key": "event-document-uploaded",
+        "name": "Document Uploaded",
+        "signal": NotificationKind.DOCUMENT_UPLOADED,
+        "description": "Default email when a financial document is uploaded.",
+    },
+    {
+        "template_key": "event-invoice-recorded",
+        "name": "Invoice Recorded",
+        "signal": NotificationKind.INVOICE_RECORDED,
+        "description": "Default email when a subscription invoice is recorded.",
+    },
+    {
+        "template_key": "event-payment-recorded",
+        "name": "Payment Recorded",
+        "signal": NotificationKind.PAYMENT_RECORDED,
+        "description": "Default email when a subscription payment is recorded.",
+    },
+    {
+        "template_key": "event-automation-failure",
+        "name": "Automation Failure",
+        "signal": NotificationKind.AUTOMATION_FAILURE,
+        "description": "Default email when an ERP automation policy fails.",
+    },
     {
         "template_key": "alert-renewal-due",
         "name": "Subscription Renewal Alert",
@@ -387,12 +444,26 @@ def sample_context(signal=None, *, organization=None, legal_entity=None) -> dict
         "overdue_days": "4",
         "payment_code": "PAY-EXAMPLE01",
         "reason": "the linked expense does not match the invoice total",
+        "document_name": "OpenAI_SUB-EXAMPLE01_INVOICE_2026-10-07.pdf",
+        "document_type": "INVOICE",
+        "document_date": str(today),
+        "document_reference": "INV-2026-1042",
+        "uploaded_by": "rizwan@netamate.com",
+        "file_size": "42.1 KB",
+        "payment_date": str(today),
+        "automation_name": "Sync vendor usage",
+        "automation_kind": "SYNC_VENDOR_USAGE",
+        "error_message": "Vendor API returned an unexpected response.",
     }
     return {key: values.get(key, "") for key in variable_catalog(signal)}
 
 
 def _default_subject(signal):
     subjects = {
+        NotificationKind.DOCUMENT_UPLOADED: "{{alert_title}}",
+        NotificationKind.INVOICE_RECORDED: "{{alert_title}}",
+        NotificationKind.PAYMENT_RECORDED: "{{alert_title}}",
+        NotificationKind.AUTOMATION_FAILURE: "{{alert_title}}",
         NotificationKind.RENEWAL_DUE: "{{alert_title}}",
         NotificationKind.BUDGET_THRESHOLD: "{{alert_title}}",
         NotificationKind.MISSING_INVOICE: "{{alert_title}}",
