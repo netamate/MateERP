@@ -1,13 +1,12 @@
 import uuid
 from decimal import Decimal
 
+from apps.accounting.models import Account, AccountType, JournalEntry, TaxCode
+from apps.identity.models import LegalEntity
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
-
-from apps.accounting.models import Account, AccountType, JournalEntry, TaxCode
-from apps.identity.models import LegalEntity
 
 
 class VendorStatus(models.TextChoices):
@@ -888,9 +887,7 @@ class FinanceDocument(models.Model):
             self.founder_funding,
         ]
         if len([target for target in finance_targets if target is not None]) > 1:
-            raise ValidationError(
-                "A finance document can link to at most one transaction record."
-            )
+            raise ValidationError("A finance document can link to at most one transaction record.")
         scoped_records = [
             ("Vendor", self.vendor),
             ("Service", self.service),
@@ -924,4 +921,3 @@ class FinanceDocument(models.Model):
                 and self.subscription.service_account_id != self.service_account_id
             ):
                 raise ValidationError("Document account must match the subscription account.")
-
