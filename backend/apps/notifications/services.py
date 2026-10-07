@@ -962,7 +962,8 @@ def _reconciliation_candidates(rule: AlertRule, entity, today) -> list[AlertCand
                 title=f"Payment reconciliation needed: {payment.payment_code}",
                 message=(
                     f"{payment.payment_code} for {payment.subscription.name} has not been matched "
-                    f"to an accounting expense payment. Amount: {payment.amount} {payment.currency}."
+                    "to an accounting expense payment. "
+                    f"Amount: {payment.amount} {payment.currency}."
                 ),
                 link=f"/operations/billing?subscription={payment.subscription_id}",
                 severity=rule.severity,
