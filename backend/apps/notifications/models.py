@@ -8,6 +8,8 @@ from django.db import models
 
 class NotificationKind(models.TextChoices):
     RENEWAL_DUE = "RENEWAL_DUE", "Renewal due"
+    EXPENSE_APPROVAL = "EXPENSE_APPROVAL", "Expense approval"
+    REIMBURSEMENT_APPROVAL = "REIMBURSEMENT_APPROVAL", "Reimbursement approval"
     BUDGET_THRESHOLD = "BUDGET_THRESHOLD", "Budget threshold"
     MISSING_INVOICE = "MISSING_INVOICE", "Missing invoice"
     INVOICE_OVERDUE = "INVOICE_OVERDUE", "Invoice overdue"
