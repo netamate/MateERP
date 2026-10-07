@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import html
 import re
 from datetime import timedelta
@@ -221,9 +222,7 @@ class EmailHTMLSanitizer(HTMLParser):
             return
         if self.suppressed_depth or tag not in ALLOWED_TAGS:
             return
-        allowed = set(ALLOWED_ATTRIBUTES.get("*", set())) | set(
-            ALLOWED_ATTRIBUTES.get(tag, set())
-        )
+        allowed = set(ALLOWED_ATTRIBUTES.get("*", set())) | set(ALLOWED_ATTRIBUTES.get(tag, set()))
         cleaned = []
         for name, value in attrs:
             name = name.lower()
