@@ -137,11 +137,7 @@ class EmailTemplateSerializer(serializers.ModelSerializer):
             incompatible = self.instance.alert_rules.filter(enabled=True).exclude(signal=signal)
             if signal is not None and incompatible.exists():
                 raise serializers.ValidationError(
-                    {
-                        "signal": (
-                            "This template is used by active alert rules with another signal."
-                        )
-                    }
+                    {"signal": ("This template is used by active alert rules with another signal.")}
                 )
         duplicates = EmailTemplate.objects.filter(
             organization=organization,
