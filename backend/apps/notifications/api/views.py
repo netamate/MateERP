@@ -149,7 +149,7 @@ class NotificationDeliveryListView(APIView):
         legal_entity_id = request.session.get("active_legal_entity_id")
         queryset = NotificationDelivery.objects.filter(
             organization=membership.organization
-        ).select_related("subscription")
+        ).select_related("subscription", "alert_rule", "email_template")
         if legal_entity_id:
             queryset = queryset.filter(legal_entity_id=legal_entity_id)
         signal = request.query_params.get("signal")
