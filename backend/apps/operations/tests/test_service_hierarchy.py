@@ -160,8 +160,14 @@ def test_scope_checks_and_case_insensitive_account_alias():
     )
     assert moved.status_code == 400
 
-    invisible = second.get(f"/api/v1/operations/service-accounts/{account1.id}/")
-    assert invisible.status_code == 405  # detail only supports PATCH; no cross-tenant data
+    invisible = json_patch(
+        second,
+        f"/api/v1/operations/service-accounts/{account1.id}/",
+        {"alias": "Hijacked"},
+    )
+    assert invisible.status_code == 400
+    account1.refresh_from_db()
+    assert account1.alias == "Rizwan-01"
 
 
 @pytest.mark.django_db
