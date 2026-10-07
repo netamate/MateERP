@@ -37,10 +37,7 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "The request could not be completed.";
 }
 
-function serializeSettings(
-  event: FormEvent<HTMLFormElement>,
-  current: NotificationIntegrationSettings,
-) {
+function serializeSettings(event: FormEvent<HTMLFormElement>) {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const payload: Record<string, unknown> = {
@@ -181,7 +178,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
 
         <form
           className="space-y-5"
-          onSubmit={(event) => save.mutate(serializeSettings(event, current))}
+          onSubmit={(event) => save.mutate(serializeSettings(event))}
         >
           <IntegrationCard title="Direct Email / SMTP" icon={<Mail size={15} />}>
             <div className="grid gap-4 p-4 sm:grid-cols-2">
@@ -408,7 +405,7 @@ export function LeanSettingsPage({ session }: { session: SessionPayload }) {
             </div>
             <div className="space-y-2 p-4 text-xs text-[var(--color-text-muted)]">
               <p><strong>1.</strong> In Hermes, enable the generic webhook platform and create a route named <code>mateerp-alerts</code>.</p>
-              <p><strong>2.</strong> Use the same Webhook Secret as above, set <code>deliver_only: true</code>, <code>deliver: whatsapp</code>, and <code>prompt: "{message}"</code>.</p>
+              <p><strong>2.</strong> Use the same Webhook Secret as above, set <code>deliver_only: true</code>, <code>deliver: whatsapp</code>, and use the message field as the prompt template.</p>
               <p><strong>3.</strong> Put that route URL here, ending in <code>/webhooks/mateerp-alerts</code>, then use <strong>Send Test Hermes</strong>.</p>
               <p><strong>4.</strong> MateERP owns the reminder schedule. Hermes Cron is not needed for MateERP reminders; Hermes only verifies the HMAC request and delivers it to WhatsApp.</p>
               <pre className="overflow-x-auto border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-[11px]">{`platforms:
