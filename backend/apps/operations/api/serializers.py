@@ -32,6 +32,15 @@ class VendorServiceSerializer(serializers.ModelSerializer):
                     )
                 }
             )
+        next_type = attrs.get("service_type", getattr(self.instance, "service_type", "OTHER"))
+        if (
+            self.instance
+            and next_type != self.instance.service_type
+            and self.instance.subscriptions.exists()
+        ):
+            raise serializers.ValidationError(
+                {"service_type": "Category cannot change while subscriptions are linked."}
+            )
         if not code:
             raise serializers.ValidationError({"code": "Service code is required."})
         others = VendorService.objects.filter(legal_entity=entity, vendor=vendor, code__iexact=code)
