@@ -11,7 +11,11 @@ from apps.audit.services import record_audit_event
 from apps.identity.models import Membership
 from apps.identity.policy import Permission, has_permission
 from apps.notifications.models import Notification, NotificationKind
-from apps.notifications.services import resolve_notifications
+from apps.notifications.services import (
+    dispatch_invoice_recorded_event,
+    dispatch_payment_recorded_event,
+    resolve_notifications,
+)
 
 from .models import (
     BillingCycle,
@@ -156,6 +160,19 @@ def record_subscription_payment(
             "reference": payment.reference,
         },
         request=request,
+    )
+    transaction.on_commit(
+        lambda payment_id=payment.id, subscription_id=subscription.id: (
+            dispatch_payment_recorded_event(
+                source_type="SubscriptionPayment",
+                source_id=payment_id,
+                subscription=Subscription.objects.get(id=subscription_id),
+                payment_code=payment.reference or str(payment.id),
+                amount=payment.amount,
+                currency=payment.currency,
+                payment_date=payment.paid_on,
+            )
+        )
     )
     return payment
 
@@ -331,6 +348,7 @@ def create_subscription_invoice(
         },
         request=request,
     )
+    transaction.on_commit(lambda invoice_id=invoice.id: dispatch_invoice_recorded_event(invoice_id))
     return invoice
 
 
@@ -454,6 +472,19 @@ def create_billing_payment(
             ),
         },
         request=request,
+    )
+    transaction.on_commit(
+        lambda payment_id=payment.id, subscription_id=subscription.id: (
+            dispatch_payment_recorded_event(
+                source_type="BillingPayment",
+                source_id=payment_id,
+                subscription=Subscription.objects.get(id=subscription_id),
+                payment_code=payment.payment_code,
+                amount=payment.amount,
+                currency=payment.currency,
+                payment_date=payment.paid_on,
+            )
+        )
     )
     return payment
 
