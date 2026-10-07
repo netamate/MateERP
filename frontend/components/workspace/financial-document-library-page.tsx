@@ -215,7 +215,7 @@ function filenamePreview({
   if (service) parts.push(token(service.name, "Service"));
   if (account) parts.push(token(account.alias, "Account"));
   if (subscription) parts.push(token(subscription.subscription_code, "Subscription"));
-  parts.push(token(documentType, "DOCUMENT"));
+  parts.push(documentType);
   parts.push(documentDate || "YYYY-MM-DD");
   parts.push(token(reference, "AUTO-ID"));
   return `${parts.join("_")}.pdf`;
