@@ -793,6 +793,6 @@ export const operationsApi = {
 };
 
 export const adminApi = {
-  members: () => request<Array<Record<string, unknown>>>("/api/v1/memberships/"),
+  members: () => request<Membership[]>("/api/v1/memberships/"),
   legalEntities: () => request<LegalEntity[]>("/api/v1/legal-entities/"),
 };
