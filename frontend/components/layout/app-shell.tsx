@@ -21,7 +21,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { MateERPBrand } from "@/components/brand/mateerp-brand";
+import { MateERPLogoMark } from "@/components/brand/mateerp-brand";
 import type { SessionPayload } from "@/lib/api";
 
 type NavItem = {
@@ -81,6 +81,7 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -139,46 +140,90 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
     setUserMenuOpen(false);
   }
 
-  const sidebar = (
-    <aside className="erp-scrollbar flex h-full w-[var(--sidebar-width)] flex-col overflow-y-auto border-r border-[#202938] bg-[var(--color-sidebar)] text-[var(--color-sidebar-text)]">
-      <div className="flex h-[76px] shrink-0 items-center border-b border-[#253044] px-[18px]">
-        <MateERPBrand
-          className="text-white"
-          logoClassName="h-8 w-9 shrink-0"
-          wordmarkClassName="text-[22px] tracking-[0.04em]"
-        />
+  const sidebar = (collapsed: boolean) => (
+    <aside className="erp-scrollbar flex h-full w-full flex-col overflow-hidden border-r border-[#1C2739] bg-[#0D1523] text-white">
+      <div className={`flex h-14 shrink-0 items-center gap-2.5 border-b border-[#1C2739] ${collapsed ? "justify-center px-2" : "px-3.5"}`}>
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#2A3A54] bg-[#16243B]">
+          <MateERPLogoMark className="h-[18px] w-[18px]" />
+        </div>
+        {!collapsed ? (
+          <div className="mateerp-wordmark truncate text-[18px] tracking-[0.04em] text-white">
+            MateERP
+          </div>
+        ) : null}
       </div>
 
-      <nav className="pb-6" aria-label="Primary navigation">
+      <nav className="erp-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-2.5" aria-label="Primary navigation">
         {navGroups.map((group) => (
-          <div className="pt-3" key={group.label}>
-            <div className="px-[17px] pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7f8ba3]">
-              {group.label}
-            </div>
+          <div className="mb-3" key={group.label}>
+            {!collapsed ? (
+              <div className="px-2 py-1.5 text-[9.5px] font-semibold uppercase tracking-[0.15em] text-[#5C6F8E]">
+                {group.label}
+              </div>
+            ) : null}
             {group.items.map(({ label, href, icon: Icon }) => (
               <Link
-                className={`flex min-h-9 items-center gap-2.5 border-l-[3px] px-4 py-2 text-[13px] transition-colors ${
-                  isActive(href)
-                    ? "border-[#2e78ff] bg-[var(--color-sidebar-active)] text-white"
-                    : "border-transparent text-[#c5cedd] hover:bg-[#172133] hover:text-white"
+                aria-label={label}
+                className={`relative mb-px flex h-9 items-center gap-2.5 px-2 text-[12.5px] transition-colors ${isActive(href)
+                  ? "bg-[#182437] text-white before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-[#4B85E8]"
+                  : "text-[#9FB0CA] hover:bg-[#18243A] hover:text-white"
                 }`}
                 href={href}
                 key={href}
                 onClick={closeNavigationUi}
+                title={label}
               >
-                <Icon className="shrink-0 text-[#9fb1ca]" size={16} strokeWidth={1.75} />
-                {label}
+                <Icon className="shrink-0" size={16} strokeWidth={1.7} />
+                {!collapsed ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
               </Link>
             ))}
           </div>
         ))}
       </nav>
+
+      <div className="shrink-0 border-t border-[#1C2739] p-2.5">
+        <div className="flex items-center gap-2.5 p-1.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center bg-[#1B4DB1] text-[10.5px] font-semibold text-white" aria-hidden="true">
+            {(session.user.display_name || session.user.email).trim().charAt(0).toUpperCase()}
+          </div>
+          {!collapsed ? (
+            <div className="min-w-0">
+              <div className="truncate text-[12px] font-semibold text-[#E8EDF5]">
+                {session.user.display_name || session.user.email}
+              </div>
+              <div className="truncate text-[10px] uppercase tracking-[0.1em] text-[#6F84A6]">
+                {activeMembership?.role ?? "Member"}
+              </div>
+            </div>
+          ) : null}
+        </div>
+        {!collapsed ? (
+          <div className="mt-2 grid grid-cols-2 gap-1">
+            <Link
+              className="border border-[#27344A] py-1.5 text-center text-[11px] text-[#A8B7CE] hover:text-white"
+              href="/administration/settings"
+              onClick={closeNavigationUi}
+            >
+              Settings
+            </Link>
+            <button
+              className="border border-[#27344A] py-1.5 text-center text-[11px] text-[#A8B7CE] hover:text-white"
+              onClick={() => void onLogout()}
+              type="button"
+            >
+              Sign out
+            </button>
+          </div>
+        ) : null}
+      </div>
     </aside>
   );
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
-      <div className="fixed inset-y-0 left-0 z-30 hidden lg:block">{sidebar}</div>
+      <div className={`fixed inset-y-0 left-0 z-30 hidden lg:block ${sidebarCollapsed ? "w-[60px]" : "w-[232px]"}`}>
+        {sidebar(sidebarCollapsed)}
+      </div>
 
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -188,12 +233,12 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             onClick={() => setMobileOpen(false)}
             type="button"
           />
-          <div className="relative h-full w-[var(--sidebar-width)]">{sidebar}</div>
+          <div className="relative h-full w-[232px]">{sidebar(false)}</div>
         </div>
       ) : null}
 
-      <div className="lg:pl-[var(--sidebar-width)]">
-        <header className="sticky top-0 z-20 flex min-h-[var(--header-height)] items-center gap-2 border-b border-[var(--color-border)] bg-white px-3 lg:px-[18px]">
+      <div className={sidebarCollapsed ? "lg:pl-[60px]" : "lg:pl-[232px]"}>
+        <header className="sticky top-0 z-20 flex h-14 min-h-[var(--header-height)] items-center gap-2 border-b border-[#E2E5EB] bg-white px-3 lg:px-4">
           <button
             aria-label="Open navigation"
             className="erp-button !h-8 !min-h-8 !w-8 !p-0 lg:hidden"
@@ -203,8 +248,21 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             <Menu size={16} />
           </button>
 
-          <div className="hidden min-w-32 text-xs text-[var(--color-text-muted)] xl:block">
-            MateERP / {commandItems.find((item) => isActive(item.href))?.label ?? "Dashboard"}
+          <button
+            aria-label="Toggle sidebar"
+            aria-expanded={!sidebarCollapsed}
+            className="hidden h-7 w-7 shrink-0 items-center justify-center border border-[#E2E5EB] text-[#5B6472] lg:flex"
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+            type="button"
+          >
+            <Menu size={15} />
+          </button>
+          <div className="hidden min-w-0 items-center gap-1.5 text-[12.5px] lg:flex">
+            <span className="hidden text-[#7B8494] xl:inline">MateERP</span>
+            <span className="hidden text-[#C3C9D3] xl:inline">/</span>
+            <span className="truncate font-semibold">
+              {commandItems.find((item) => isActive(item.href))?.label ?? "Dashboard"}
+            </span>
           </div>
 
           <button

@@ -10,24 +10,25 @@
 
 :root {
   --radius: 0px;
-  --color-bg: #f3f5f8;
+  --color-bg: #f6f7f9;
   --color-surface: #ffffff;
   --color-surface-subtle: #f7f8fa;
-  --color-border: #d9dee7;
-  --color-border-soft: #e7eaf0;
+  --color-border: #e2e5eb;
+  --color-border-soft: #edeff3;
   --color-border-strong: #bfc6d1;
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --color-brand: #0b4dbb;
-  --color-brand-strong: #083b8c;
-  --color-sidebar: #111827;
-  --color-sidebar-active: #172a49;
-  --color-sidebar-text: #d5dbea;
+  --color-text: #0b1220;
+  --color-text-muted: #7b8494;
+  --color-brand: #1b4db1;
+  --color-brand-strong: #163f92;
+  --color-sidebar: #0d1523;
+  --color-sidebar-active: #182437;
+  --color-sidebar-text: #9fb0ca;
   --color-success: #16803c;
   --color-warning: #b7791f;
   --color-danger: #c62828;
-  --header-height: 58px;
-  --sidebar-width: 252px;
+  --header-height: 56px;
+  --sidebar-width: 232px;
+  --sidebar-collapsed-width: 60px;
 }
 
 * {
@@ -205,14 +206,8 @@ textarea:focus-visible {
 }
 
 .erp-scrollbar {
-  scrollbar-color: #6b7280 #111827;
+  scrollbar-color: #5c6f8e #0d1523;
   scrollbar-width: thin;
-}
-
-@media (max-width: 1023px) {
-  :root {
-    --sidebar-width: 232px;
-  }
 }
 
 .mateerp-wordmark {
