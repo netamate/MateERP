@@ -123,6 +123,8 @@ jobs:
             deploy/systemd/mateerp-notifications.timer \
             deploy/systemd/mateerp-email-scheduler.service \
             deploy/systemd/mateerp-email-scheduler.timer \
+            deploy/systemd/mateerp-automation.service \
+            deploy/systemd/mateerp-automation.timer \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/"
           ssh -p "$VPS_PORT" "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             'sudo install -m 640 /tmp/mateerp-docker-compose.yml /opt/MateERP/docker-compose.yml &&
@@ -132,8 +134,10 @@ jobs:
              sudo install -m 644 /tmp/mateerp-notifications.timer /etc/systemd/system/mateerp-notifications.timer &&
              sudo install -m 644 /tmp/mateerp-email-scheduler.service /etc/systemd/system/mateerp-email-scheduler.service &&
              sudo install -m 644 /tmp/mateerp-email-scheduler.timer /etc/systemd/system/mateerp-email-scheduler.timer &&
+             sudo install -m 644 /tmp/mateerp-automation.service /etc/systemd/system/mateerp-automation.service &&
+             sudo install -m 644 /tmp/mateerp-automation.timer /etc/systemd/system/mateerp-automation.timer &&
              sudo systemctl daemon-reload &&
-             sudo systemctl enable --now mateerp-notifications.timer mateerp-email-scheduler.timer'
+             sudo systemctl enable --now mateerp-notifications.timer mateerp-email-scheduler.timer mateerp-automation.timer'
       - name: Authenticate MateServer to private GHCR
         shell: bash
         run: |
@@ -160,6 +164,11 @@ jobs:
           done
           [[ "$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1)" == "healthy" ]]
           if [[ "$RUN_MIGRATIONS" == "true" ]]; then
+            backup_output="$(/opt/MateERP/scripts/backup-db.sh)"
+            printf '%s\n' "$backup_output"
+            backup_path="$(printf '%s\n' "$backup_output" | sed -n 's/^MateERP database backup created: //p' | tail -n 1)"
+            test -n "$backup_path"
+            /opt/MateERP/scripts/validate-restore.sh "$backup_path"
             docker compose run --rm -T backend python manage.py migrate --noinput </dev/null
             docker compose run --rm -T backend python manage.py backfill_document_metadata </dev/null
           fi

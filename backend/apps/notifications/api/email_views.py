@@ -57,9 +57,19 @@ class DirectEmailListCreateView(APIView):
 
     def post(self, request):
         membership = _membership(request, Permission.MANAGE_ORGANIZATION)
-        serializer = DirectEmailNotificationSerializer(data=request.data)
+        entity = _active_entity(request, membership)
+        serializer = DirectEmailNotificationSerializer(
+            data=request.data,
+            context={
+                "organization": membership.organization,
+                "legal_entity": entity,
+            },
+        )
         serializer.is_valid(raise_exception=True)
         validated = dict(serializer.validated_data)
+        template = validated.get("template")
+        if template is not None:
+            validated["template_version"] = template.current_version
         action = validated.pop("action", "DRAFT")
         email_status = (
             DirectEmailStatus.SCHEDULED if action == "SCHEDULE" else DirectEmailStatus.DRAFT
@@ -69,7 +79,7 @@ class DirectEmailListCreateView(APIView):
 
         notification = DirectEmailNotification.objects.create(
             organization=membership.organization,
-            legal_entity=_active_entity(request, membership),
+            legal_entity=entity,
             created_by=request.user,
             status=email_status,
             **validated,

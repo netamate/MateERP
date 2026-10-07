@@ -319,10 +319,46 @@ export type SubscriptionPayment = {
   created_at: string;
 };
 
+export type VendorService = {
+  id: string;
+  vendor: string;
+  vendor_name: string;
+  code: string;
+  name: string;
+  service_type: Subscription["service_type"];
+  description: string;
+  status: "ACTIVE" | "ARCHIVED";
+  account_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ServiceAccount = {
+  id: string;
+  service: string;
+  service_name: string;
+  vendor_id: string;
+  vendor_name: string;
+  code: string;
+  alias: string;
+  reference: string;
+  status: "ACTIVE" | "ARCHIVED";
+  notes: string;
+  subscription_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Subscription = {
   id: string;
+  subscription_code: string;
   vendor: string | null;
   vendor_name: string | null;
+  service: string | null;
+  vendor_service_name: string | null;
+  service_account: string | null;
+  account_alias: string | null;
+  account_code: string | null;
   name: string;
   service_type: "DOMAIN" | "VPS" | "CLOUD" | "HOSTING" | "SAAS" | "API" | "STORAGE" | "EMAIL" | "AI" | "OTHER";
   description: string;
@@ -330,6 +366,11 @@ export type Subscription = {
   payment_method: string;
   amount: string;
   currency: string;
+  billing_mode: "FIXED" | "PAYG";
+  estimated_cost: string;
+  monthly_budget: string | null;
+  budget_alert_thresholds: number[];
+  usage_unit: string;
   billing_cycle: string;
   custom_cycle_days: number | null;
   started_on: string | null;
@@ -345,6 +386,129 @@ export type Subscription = {
   notes: string;
   payments: SubscriptionPayment[];
   payment_count: number;
+};
+
+export type BillingPeriod = {
+  id: string;
+  subscription: string;
+  subscription_name: string;
+  subscription_code: string;
+  vendor_name: string | null;
+  service_name: string | null;
+  account_alias: string | null;
+  billing_mode: "FIXED" | "PAYG";
+  currency: string;
+  period_start: string;
+  period_end: string;
+  estimated_cost: string;
+  current_usage_amount: string;
+  usage_quantity: string | null;
+  usage_unit: string;
+  current_usage_updated_at: string | null;
+  is_closed: boolean;
+  notes: string;
+  status: "OPEN" | "AWAITING_INVOICE" | "INVOICED" | "PARTIALLY_PAID" | "PAID" | "CLOSED";
+  actual_billed_amount: string;
+  paid_amount: string;
+  outstanding_amount: string;
+  variance_from_estimate: string;
+  monthly_budget: string | null;
+  budget_percent: string | null;
+  budget_thresholds_reached: number[];
+  over_budget: boolean;
+  missing_invoice: boolean;
+  invoice_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SubscriptionInvoice = {
+  id: string;
+  billing_period: string;
+  subscription: string;
+  subscription_name: string;
+  subscription_code: string;
+  vendor: string;
+  vendor_name: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string | null;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  subtotal: string;
+  tax_amount: string;
+  total_amount: string;
+  document: string | null;
+  document_name: string | null;
+  expense: string | null;
+  expense_description: string | null;
+  status: "OPEN" | "PARTIALLY_PAID" | "PAID" | "VOID";
+  paid_amount: string;
+  outstanding_amount: string;
+  expense_reconciliation_status: "UNMATCHED" | "MISMATCH" | "MATCHED";
+  expense_difference: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingPaymentAllocation = {
+  id: string;
+  invoice: string;
+  invoice_number: string;
+  amount: string;
+  created_at: string;
+};
+
+export type BillingPayment = {
+  id: string;
+  subscription: string;
+  subscription_name: string;
+  subscription_code: string;
+  payment_code: string;
+  paid_on: string;
+  amount: string;
+  currency: string;
+  reference: string;
+  financial_account: string | null;
+  financial_account_name: string | null;
+  expense_payment: string | null;
+  expense_payment_reference: string | null;
+  notes: string;
+  allocations: BillingPaymentAllocation[];
+  allocated_amount: string;
+  unallocated_amount: string;
+  reconciliation_status: "UNMATCHED" | "ACCOUNT_IDENTIFIED" | "MATCHED";
+  created_at: string;
+};
+
+export type BillingDashboard = {
+  totals_by_currency: Array<{
+    currency: string;
+    estimated_cost: string;
+    current_usage_amount: string;
+    actual_billed_amount: string;
+    paid_amount: string;
+    outstanding_amount: string;
+  }>;
+  missing_invoice_count: number;
+  over_budget_period_count: number;
+  unpaid_invoice_count: number;
+  unreconciled_invoice_count: number;
+  unallocated_payment_by_currency: Array<{
+    currency: string;
+    amount: string;
+  }>;
+  trend: Array<{
+    period: string;
+    currency: string;
+    estimated_cost: string;
+    current_usage_amount: string;
+    actual_billed_amount: string;
+    paid_amount: string;
+    budget: string;
+  }>;
 };
 
 export type DomainRecord = {
@@ -555,6 +719,57 @@ export const planningApi = {
 };
 
 export const operationsApi = {
+  billingSummary: () => request<BillingDashboard>("/api/v1/operations/billing/summary/"),
+  billingPeriods: () => request<BillingPeriod[]>("/api/v1/operations/billing/periods/"),
+  createBillingPeriod: (body: Record<string, unknown>) => request<BillingPeriod>(
+    "/api/v1/operations/billing/periods/",
+    { method: "POST", body: JSON.stringify(body) }, true,
+  ),
+  updateBillingPeriod: (id: string, body: Record<string, unknown>) => request<BillingPeriod>(
+    `/api/v1/operations/billing/periods/${id}/`,
+    { method: "PATCH", body: JSON.stringify(body) }, true,
+  ),
+  billingInvoices: () => request<SubscriptionInvoice[]>("/api/v1/operations/billing/invoices/"),
+  createBillingInvoice: (body: Record<string, unknown>) => request<SubscriptionInvoice>(
+    "/api/v1/operations/billing/invoices/",
+    { method: "POST", body: JSON.stringify(body) }, true,
+  ),
+  updateBillingInvoice: (id: string, body: Record<string, unknown>) => request<SubscriptionInvoice>(
+    `/api/v1/operations/billing/invoices/${id}/`,
+    { method: "PATCH", body: JSON.stringify(body) }, true,
+  ),
+  voidBillingInvoice: (id: string) => request<SubscriptionInvoice>(
+    `/api/v1/operations/billing/invoices/${id}/void/`,
+    { method: "POST" }, true,
+  ),
+  billingPayments: () => request<BillingPayment[]>("/api/v1/operations/billing/payments/"),
+  createBillingPayment: (body: Record<string, unknown>) => request<BillingPayment>(
+    "/api/v1/operations/billing/payments/",
+    { method: "POST", body: JSON.stringify(body) }, true,
+  ),
+  replaceBillingAllocations: (id: string, allocations: Array<{ invoice: string; amount: string }>) =>
+    request<BillingPayment>(
+      `/api/v1/operations/billing/payments/${id}/allocations/`,
+      { method: "PUT", body: JSON.stringify({ allocations }) }, true,
+    ),
+  vendorServices: () => request<VendorService[]>("/api/v1/operations/vendor-services/"),
+  createVendorService: (body: Record<string, unknown>) => request<VendorService>(
+    "/api/v1/operations/vendor-services/",
+    { method: "POST", body: JSON.stringify(body) }, true,
+  ),
+  updateVendorService: (id: string, body: Record<string, unknown>) => request<VendorService>(
+    `/api/v1/operations/vendor-services/${id}/`,
+    { method: "PATCH", body: JSON.stringify(body) }, true,
+  ),
+  serviceAccounts: () => request<ServiceAccount[]>("/api/v1/operations/service-accounts/"),
+  createServiceAccount: (body: Record<string, unknown>) => request<ServiceAccount>(
+    "/api/v1/operations/service-accounts/",
+    { method: "POST", body: JSON.stringify(body) }, true,
+  ),
+  updateServiceAccount: (id: string, body: Record<string, unknown>) => request<ServiceAccount>(
+    `/api/v1/operations/service-accounts/${id}/`,
+    { method: "PATCH", body: JSON.stringify(body) }, true,
+  ),
   subscriptions: () => request<Subscription[]>("/api/v1/operations/subscriptions/"),
   domains: () => request<DomainRecord[]>("/api/v1/operations/domains/"),
   infrastructure: () => request<InfrastructureAsset[]>("/api/v1/operations/infrastructure/"),
@@ -578,6 +793,6 @@ export const operationsApi = {
 };
 
 export const adminApi = {
-  members: () => request<Array<Record<string, unknown>>>("/api/v1/memberships/"),
+  members: () => request<Membership[]>("/api/v1/memberships/"),
   legalEntities: () => request<LegalEntity[]>("/api/v1/legal-entities/"),
 };

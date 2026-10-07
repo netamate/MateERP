@@ -19,7 +19,7 @@ def test_finance_document_stores_sha256_mime_type_and_size(tmp_path):
         base_currency="USD",
     )
     vendor = Vendor.objects.create(legal_entity=entity, code="DOC", name="Document Vendor")
-    payload = b"mateerp-document-integrity"
+    payload = b"%PDF-1.4\nmateerp-document-integrity\n%%EOF"
     upload = SimpleUploadedFile("invoice.pdf", payload, content_type="application/pdf")
 
     with override_settings(MEDIA_ROOT=tmp_path):

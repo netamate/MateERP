@@ -1,19 +1,27 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+
 import {
+  BarChart3,
   Bell,
   Building2,
   CalendarDays,
+  FileArchive,
+  FileCode2,
+  Gauge,
   ChevronDown,
   LayoutDashboard,
   LogOut,
   Mail,
   Menu,
   PackageOpen,
+  Layers3,
   Plus,
   Search,
   Settings,
   Users,
+  Workflow,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +31,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { MateERPLogoMark } from "@/components/brand/mateerp-brand";
 import type { SessionPayload } from "@/lib/api";
+import { notificationApi } from "@/lib/phase8-api";
 
 type NavItem = {
   label: string;
@@ -44,15 +53,21 @@ const navGroups: NavGroup[] = [
     label: "Management",
     items: [
       { label: "Subscriptions", href: "/operations/subscriptions", icon: PackageOpen },
+      { label: "Billing & Costs", href: "/operations/billing", icon: Gauge },
+      { label: "Services & Accounts", href: "/operations/service-accounts", icon: Layers3 },
+      { label: "Documents", href: "/documents", icon: FileArchive },
       { label: "Vendors", href: "/vendors", icon: Building2 },
       { label: "Renewals", href: "/operations/renewals", icon: CalendarDays },
+      { label: "Reports", href: "/reporting", icon: BarChart3 },
     ],
   },
   {
     label: "Alerts & Settings",
     items: [
-      { label: "Alerts", href: "/administration/notifications", icon: Bell },
+      { label: "Notification Center", href: "/administration/notifications", icon: Bell },
       { label: "Email Notifications", href: "/administration/email-notifications", icon: Mail },
+      { label: "Email Templates", href: "/administration/email-templates", icon: FileCode2 },
+      { label: "Automation & Integrations", href: "/administration/automation", icon: Workflow },
       { label: "Members & Access", href: "/administration/members", icon: Users },
       { label: "Settings", href: "/administration/settings", icon: Settings },
     ],
@@ -63,8 +78,12 @@ const commandItems: NavItem[] = navGroups.flatMap((group) => group.items);
 
 const quickActions: Array<[string, string]> = [
   ["Subscription", "/operations/subscriptions"],
+  ["Billing Period", "/operations/billing"],
   ["Vendor", "/vendors?new=1"],
+  ["Document", "/documents"],
   ["Email Notification", "/administration/email-notifications"],
+  ["Email Template", "/administration/email-templates"],
+  ["Vendor Integration", "/administration/automation"],
 ];
 
 type AppShellProps = {
@@ -82,6 +101,12 @@ export function AppShell({ children, session, onLogout }: AppShellProps) {
   const [quickOpen, setQuickOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const notificationSummary = useQuery({
+    queryKey: ["notifications", session.active_organization_id, session.active_legal_entity_id, "shell"],
+    queryFn: () => notificationApi.inbox(false, { state: "UNREAD" }),
+    enabled: Boolean(session.active_organization_id),
+    staleTime: 30_000,
+  });
 
   const activeOrganization = session.organizations.find(
     (organization) => organization.id === session.active_organization_id,
@@ -286,11 +311,21 @@ export function AppShell({ children, session, onLogout }: AppShellProps) {
           </div>
 
           <Link
-            aria-label="Notifications"
-            className="erp-button !h-8 !min-h-8 !w-8 !p-0"
+            aria-label="Notification Center"
+            className="erp-button relative !h-8 !min-h-8 !w-8 !p-0"
             href="/administration/notifications"
           >
             <Bell size={14} />
+            {(notificationSummary.data?.unread_count ?? 0) > 0 ? (
+              <span
+                className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center bg-[var(--color-danger)] px-1 text-[9px] font-bold leading-none text-white"
+                aria-label={`${notificationSummary.data?.unread_count ?? 0} unread notifications`}
+              >
+                {(notificationSummary.data?.unread_count ?? 0) > 99
+                  ? "99+"
+                  : notificationSummary.data?.unread_count}
+              </span>
+            ) : null}
           </Link>
           <div className="relative">
             <button

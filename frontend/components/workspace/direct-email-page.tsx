@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MailPlus, Send, XCircle } from "lucide-react";
+import { LayoutTemplate, MailPlus, Send, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
@@ -55,6 +55,8 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [composing, setComposing] = useState(false);
   const [message, setMessage] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [htmlBody, setHtmlBody] = useState("");
   const allowed = can(session, "VIEW_NOTIFICATIONS");
   const manageAllowed = can(session, "MANAGE_ORGANIZATION");
 
@@ -72,6 +74,16 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
     queryFn: notificationApi.integrations,
     enabled: allowed && Boolean(session.active_organization_id),
   });
+  const templates = useQuery({
+    queryKey: [
+      "email-templates",
+      session.active_organization_id,
+      session.active_legal_entity_id,
+      "direct-email",
+    ],
+    queryFn: () => notificationApi.emailTemplates(false),
+    enabled: allowed && Boolean(session.active_organization_id),
+  });
 
   const create = useMutation({
     mutationFn: notificationApi.createDirectEmail,
@@ -85,6 +97,8 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
       );
       setComposing(false);
       formRef.current?.reset();
+      setSelectedTemplateId("");
+      setHtmlBody("");
       await queryClient.invalidateQueries({
         queryKey: ["direct-email-notifications"],
       });
@@ -118,8 +132,10 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
       to_recipients: emails(form.get("to_recipients")),
       cc_recipients: emails(form.get("cc_recipients")),
       bcc_recipients: emails(form.get("bcc_recipients")),
+      template: selectedTemplateId || null,
       subject: String(form.get("subject") ?? "").trim(),
       body: String(form.get("body") ?? ""),
+      html_body: htmlBody,
       schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       scheduled_for: scheduledLocal ? new Date(scheduledLocal).toISOString() : null,
     });
@@ -132,11 +148,11 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
       </PermissionNotice>
     );
   }
-  if (rows.isLoading || integrations.isLoading) {
+  if (rows.isLoading || integrations.isLoading || templates.isLoading) {
     return <LoadingState label="Loading email notifications..." />;
   }
-  if (rows.error || integrations.error) {
-    return <ErrorState message={errorMessage(rows.error ?? integrations.error)} />;
+  if (rows.error || integrations.error || templates.error) {
+    return <ErrorState message={errorMessage(rows.error ?? integrations.error ?? templates.error)} />;
   }
 
   const data = rows.data?.results ?? [];
@@ -155,6 +171,11 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
           <div className="mt-0.5 max-w-lg truncate text-xs text-[var(--color-text-muted)]">
             To: {row.to_recipients.join(", ")}
           </div>
+          {row.template_name ? (
+            <div className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
+              Template: {row.template_name} · v{row.template_version}
+            </div>
+          ) : null}
         </div>
       ),
     },
@@ -220,7 +241,7 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
       <PageHeader
         eyebrow="Alerts & Delivery"
         title="Email Notifications"
-        description="Send or schedule direct SMTP email from MateERP without depending on Hermes."
+        description="Send or schedule direct SMTP email, optionally starting from a versioned reusable template."
         actions={
           manageAllowed ? (
             <button
@@ -271,6 +292,53 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
               </div>
             </div>
             <form className="grid gap-4 p-4 sm:grid-cols-2" ref={formRef}>
+              <div className="sm:col-span-2">
+                <span className="erp-label">Start From Template (optional)</span>
+                <div className="flex gap-2">
+                  <select
+                    className="erp-field"
+                    value={selectedTemplateId}
+                    onChange={(event) => setSelectedTemplateId(event.target.value)}
+                  >
+                    <option value="">Blank email</option>
+                    {(templates.data ?? [])
+                      .filter((template) => template.status === "ACTIVE" && template.signal === null)
+                      .map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name} · v{template.current_version}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    className="erp-button"
+                    disabled={!selectedTemplateId}
+                    onClick={() => {
+                      const template = (templates.data ?? []).find(
+                        (item) => item.id === selectedTemplateId,
+                      );
+                      if (!template || !formRef.current) return;
+                      notificationApi
+                        .previewEmailTemplate({
+                          signal: template.signal,
+                          subject_template: template.subject_template,
+                          text_body_template: template.text_body_template,
+                          html_body_template: template.html_body_template,
+                        })
+                        .then((preview) => {
+                          const subject = formRef.current?.elements.namedItem("subject");
+                          const body = formRef.current?.elements.namedItem("body");
+                          if (subject instanceof HTMLInputElement) subject.value = preview.subject;
+                          if (body instanceof HTMLTextAreaElement) body.value = preview.text_body;
+                          setHtmlBody(preview.html_body);
+                        })
+                        .catch((error: unknown) => setMessage(errorMessage(error)));
+                    }}
+                    type="button"
+                  >
+                    <LayoutTemplate size={13} /> Apply
+                  </button>
+                </div>
+              </div>
               <label className="sm:col-span-2">
                 <span className="erp-label">To</span>
                 <textarea

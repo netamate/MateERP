@@ -1,6 +1,6 @@
-# Run the idempotent MateERP notification refresh inside the healthy production backend container.
+# Evaluate MateERP alert rules inside the healthy production backend container.
 [Unit]
-Description=MateERP notification refresh
+Description=MateERP alert rule evaluation
 Requires=docker.service
 After=docker.service
 

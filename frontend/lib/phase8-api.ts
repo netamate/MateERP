@@ -85,6 +85,172 @@ export type FounderCapitalRow = {
   base_amount: string;
 };
 
+export type CostIntelligenceCurrency = {
+  currency: string;
+  estimated_cost: string;
+  current_usage: string;
+  actual_billed: string;
+  paid: string;
+  outstanding: string;
+  forecast: string;
+  budget: string;
+};
+
+export type CostIntelligenceSubscription = {
+  subscription_id: string;
+  subscription_code: string;
+  subscription_name: string;
+  vendor_id: string | null;
+  vendor_name: string | null;
+  billing_mode: string;
+  currency: string;
+  estimated_cost: string;
+  current_usage: string;
+  actual_billed: string;
+  paid: string;
+  outstanding: string;
+  forecast: string;
+  budget: string;
+  forecast_variance: string;
+  over_budget_forecast: boolean;
+  period_count: number;
+};
+
+export type CostIntelligenceVendor = {
+  vendor_id: string;
+  vendor_name: string;
+  currency: string;
+  tracked_cost: string;
+  actual_billed: string;
+  forecast: string;
+};
+
+export type CostIntelligenceMonth = {
+  month: string;
+  currency: string;
+  estimated_cost: string;
+  current_usage: string;
+  actual_billed: string;
+  paid: string;
+  forecast: string;
+};
+
+export type OperationsCostIntelligence = {
+  currency_totals: CostIntelligenceCurrency[];
+  subscriptions: CostIntelligenceSubscription[];
+  vendors: CostIntelligenceVendor[];
+  monthly_trend: CostIntelligenceMonth[];
+  reconciliation_health: {
+    invoice_total: number;
+    invoice_matched: number;
+    invoice_mismatch: number;
+    invoice_unmatched: number;
+    payment_total: number;
+    payment_matched: number;
+    payment_unmatched: number;
+  };
+  integration_health: {
+    active: number;
+    failed: number;
+    never_synced: number;
+    stale: number;
+  };
+  automation_health: {
+    enabled_policies: number;
+    failed_runs_24h: number;
+  };
+};
+
+export type VendorIntegration = {
+  id: string;
+  vendor: string;
+  vendor_name: string;
+  subscription: string;
+  subscription_name: string;
+  subscription_code: string;
+  name: string;
+  connector_type: "GENERIC_JSON";
+  enabled: boolean;
+  endpoint_url: string;
+  auth_type: "NONE" | "BEARER" | "API_KEY_HEADER" | "BASIC";
+  auth_username: string;
+  api_key_header: string;
+  custom_headers: Record<string, string>;
+  cost_json_path: string;
+  usage_quantity_json_path: string;
+  currency_json_path: string;
+  usage_unit_json_path: string;
+  timeout_seconds: number;
+  auto_create_period: boolean;
+  secret_configured: boolean;
+  last_test_at: string | null;
+  last_test_status: "NEVER" | "SUCCESS" | "FAILED";
+  last_test_error: string;
+  last_sync_at: string | null;
+  last_sync_status: "NEVER" | "SUCCESS" | "FAILED";
+  last_sync_error: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VendorSyncRun = {
+  id: string;
+  integration: string;
+  integration_name: string;
+  vendor_name: string;
+  subscription_name: string;
+  trigger: "MANUAL" | "SCHEDULED";
+  status: "RUNNING" | "SUCCESS" | "FAILED" | "SKIPPED";
+  http_status: number | null;
+  billing_period: string | null;
+  cost_amount: string | null;
+  usage_quantity: string | null;
+  currency: string;
+  usage_unit: string;
+  error: string;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type AutomationPolicy = {
+  id: string;
+  legal_entity: string | null;
+  legal_entity_name: string | null;
+  name: string;
+  kind: "ENSURE_PAYG_PERIODS" | "SYNC_VENDOR_USAGE" | "REFRESH_ALERTS";
+  enabled: boolean;
+  frequency: "HOURLY" | "DAILY";
+  schedule_hour: number;
+  schedule_timezone: string;
+  last_run_at: string | null;
+  last_status: "RUNNING" | "SUCCESS" | "FAILED" | "SKIPPED";
+  last_summary: Record<string, unknown>;
+  last_error: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AutomationRun = {
+  id: string;
+  policy: string;
+  policy_name: string;
+  policy_kind: string;
+  trigger: "MANUAL" | "SCHEDULED";
+  status: "RUNNING" | "SUCCESS" | "FAILED" | "SKIPPED";
+  summary: Record<string, unknown>;
+  error: string;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type AutomationOverview = {
+  active_integrations: number;
+  failed_integrations: number;
+  enabled_policies: number;
+  failed_runs_24h: number;
+  last_vendor_sync_at: string | null;
+};
+
 export type ReconciliationSummary = {
   reconciliation_id: string;
   currency: string;
@@ -149,9 +315,13 @@ export type AuditEvent = {
 export type Notification = {
   id: string;
   kind: string;
+  legal_entity: string | null;
   severity: string;
   title: string;
   message: string;
+  email_subject: string;
+  email_text_body: string;
+  email_html_body: string;
   link: string;
   due_date: string | null;
   read_at: string | null;
@@ -165,19 +335,86 @@ export type NotificationInbox = Paginated<Notification> & {
 
 export type NotificationDelivery = {
   id: string;
-  subscription: string;
-  subscription_name: string;
+  subscription: string | null;
+  subscription_name: string | null;
+  alert_rule: string | null;
+  alert_rule_name: string | null;
+  email_template: string | null;
+  email_template_name: string | null;
+  email_template_version: number | null;
+  signal: string;
+  source_type: string;
+  source_id: string;
+  source_label: string;
   channel: "IN_APP" | "EMAIL" | "HERMES";
   destination: string;
-  reminder_days_before: number;
-  due_date: string;
+  reminder_days_before: number | null;
+  due_date: string | null;
+  severity: string;
   title: string;
   message: string;
+  link: string;
   status: "PENDING" | "SENT" | "FAILED";
   attempt_count: number;
   last_error: string;
   sent_at: string | null;
   created_at: string;
+};
+
+export type AlertRule = {
+  id: string;
+  legal_entity: string | null;
+  legal_entity_name: string | null;
+  name: string;
+  signal:
+    | "RENEWAL_DUE"
+    | "BUDGET_THRESHOLD"
+    | "MISSING_INVOICE"
+    | "INVOICE_OVERDUE"
+    | "RECONCILIATION_NEEDED";
+  enabled: boolean;
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  frequency: "HOURLY" | "DAILY";
+  schedule_hour: number;
+  schedule_timezone: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  hermes_enabled: boolean;
+  recipient_user_ids: string[];
+  recipient_users: Array<{
+    id: string;
+    email: string;
+    display_name: string;
+  }>;
+  email_recipients: string[];
+  hermes_target: string;
+  email_template: string | null;
+  email_template_name: string | null;
+  renewal_days: number[];
+  grace_days: number;
+  respect_subscription_channels: boolean;
+  last_evaluated_at: string | null;
+  last_delivery_count: number;
+  last_failure_count: number;
+  last_error: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AlertRunResult = {
+  rules_evaluated: number;
+  rules_skipped: number;
+  active_events: number;
+  deliveries_sent: number;
+  deliveries_failed: number;
+  results: Array<{
+    rule_id: string;
+    signal: string;
+    active_events: number;
+    sent: number;
+    failed: number;
+    error: string;
+  }>;
 };
 
 export type DirectEmailNotification = {
@@ -186,8 +423,12 @@ export type DirectEmailNotification = {
   to_recipients: string[];
   cc_recipients: string[];
   bcc_recipients: string[];
+  template: string | null;
+  template_name: string | null;
+  template_version: number | null;
   subject: string;
   body: string;
+  html_body: string;
   scheduled_for: string | null;
   schedule_timezone: string;
   status: "DRAFT" | "SCHEDULED" | "SENDING" | "SENT" | "FAILED" | "CANCELLED";
@@ -197,6 +438,54 @@ export type DirectEmailNotification = {
   created_by_email: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type EmailTemplate = {
+  id: string;
+  legal_entity: string | null;
+  legal_entity_name: string | null;
+  template_key: string;
+  name: string;
+  description: string;
+  signal:
+    | "RENEWAL_DUE"
+    | "BUDGET_THRESHOLD"
+    | "MISSING_INVOICE"
+    | "INVOICE_OVERDUE"
+    | "RECONCILIATION_NEEDED"
+    | null;
+  subject_template: string;
+  html_body_template: string;
+  text_body_template: string;
+  status: "ACTIVE" | "ARCHIVED";
+  current_version: number;
+  is_system_default: boolean;
+  created_by_email: string | null;
+  updated_by_email: string | null;
+  available_variables: Record<string, string>;
+  version_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EmailTemplateVersion = {
+  id: string;
+  version_number: number;
+  name: string;
+  description: string;
+  signal: EmailTemplate["signal"];
+  subject_template: string;
+  html_body_template: string;
+  text_body_template: string;
+  created_at: string;
+};
+
+export type EmailTemplatePreview = {
+  subject: string;
+  text_body: string;
+  html_body: string;
+  used_variables: string[];
+  context: Record<string, unknown>;
 };
 
 export type NotificationIntegrationSettings = {
@@ -221,9 +510,20 @@ export type NotificationIntegrationSettings = {
 export type FinanceDocumentIntegrity = {
   id: string;
   document_type: string;
-  file: string;
+  document_date: string;
+  reference: string;
   original_name: string;
+  standardized_name: string;
   vendor: string | null;
+  vendor_name: string | null;
+  service: string | null;
+  service_name: string | null;
+  service_account: string | null;
+  account_alias: string | null;
+  account_code: string | null;
+  subscription: string | null;
+  subscription_name: string | null;
+  subscription_code: string | null;
   expense: string | null;
   income: string | null;
   reimbursement: string | null;
@@ -233,6 +533,9 @@ export type FinanceDocumentIntegrity = {
   mime_type: string | null;
   size_bytes: number | null;
   checksum_sha256: string | null;
+  folder_year: number;
+  folder_month: number;
+  content_url: string;
   created_at: string;
 };
 
@@ -283,6 +586,82 @@ export const reportingApi = {
     request<ReportingEnvelope<FounderCapitalRow>>(
       `/api/v1/reporting/founder-capital/${rangeQuery(startDate, endDate)}`,
     ),
+  costIntelligence: (startDate?: string, endDate?: string) =>
+    request<OperationsCostIntelligence>(
+      `/api/v1/reporting/cost-intelligence/${rangeQuery(startDate, endDate)}`,
+    ),
+  costIntelligenceExportUrl: (
+    section: "subscriptions" | "vendors" | "monthly",
+    startDate?: string,
+    endDate?: string,
+  ) => {
+    const params = new URLSearchParams();
+    params.set("section", section);
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    return `/api/v1/reporting/cost-intelligence/export/?${params.toString()}`;
+  },
+};
+
+export const automationApi = {
+  overview: () => request<AutomationOverview>("/api/v1/automation/overview/"),
+  integrations: () =>
+    request<VendorIntegration[]>("/api/v1/automation/vendor-integrations/"),
+  createIntegration: (body: Record<string, unknown>) =>
+    request<VendorIntegration>(
+      "/api/v1/automation/vendor-integrations/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  updateIntegration: (id: string, body: Record<string, unknown>) =>
+    request<VendorIntegration>(
+      `/api/v1/automation/vendor-integrations/${id}/`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  testIntegration: (body: Record<string, unknown>) =>
+    request<{
+      detail: string;
+      http_status: number;
+      cost_amount: string;
+      usage_quantity: string | null;
+      currency: string;
+      usage_unit: string;
+    }>(
+      "/api/v1/automation/vendor-integrations/test/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  syncIntegration: (id: string) =>
+    request<VendorSyncRun>(
+      `/api/v1/automation/vendor-integrations/${id}/sync/`,
+      { method: "POST" },
+      true,
+    ),
+  syncRuns: () =>
+    request<Paginated<VendorSyncRun>>("/api/v1/automation/vendor-sync-runs/"),
+  policies: () =>
+    request<AutomationPolicy[]>("/api/v1/automation/policies/"),
+  createPolicy: (body: Record<string, unknown>) =>
+    request<AutomationPolicy>(
+      "/api/v1/automation/policies/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  updatePolicy: (id: string, body: Record<string, unknown>) =>
+    request<AutomationPolicy>(
+      `/api/v1/automation/policies/${id}/`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  runPolicy: (id: string) =>
+    request<AutomationRun>(
+      `/api/v1/automation/policies/${id}/run/`,
+      { method: "POST" },
+      true,
+    ),
+  runs: () =>
+    request<Paginated<AutomationRun>>("/api/v1/automation/runs/"),
 };
 
 export const reconciliationApi = {
@@ -323,16 +702,99 @@ export const auditApi = {
 };
 
 export const notificationApi = {
-  inbox: (includeResolved = false) =>
-    request<NotificationInbox>(
-      `/api/v1/notifications/${includeResolved ? "?include_resolved=1" : ""}`,
+  emailTemplates: (includeArchived = false) =>
+    request<EmailTemplate[]>(
+      `/api/v1/notifications/email-templates/${includeArchived ? "?include_archived=1" : ""}`,
     ),
+  createEmailTemplate: (body: Record<string, unknown>) =>
+    request<EmailTemplate>(
+      "/api/v1/notifications/email-templates/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  updateEmailTemplate: (id: string, body: Record<string, unknown>) =>
+    request<EmailTemplate>(
+      `/api/v1/notifications/email-templates/${id}/`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  archiveEmailTemplate: (id: string) =>
+    request<EmailTemplate>(
+      `/api/v1/notifications/email-templates/${id}/archive/`,
+      { method: "POST" },
+      true,
+    ),
+  emailTemplateVersions: (id: string) =>
+    request<EmailTemplateVersion[]>(
+      `/api/v1/notifications/email-templates/${id}/versions/`,
+    ),
+  previewEmailTemplate: (body: Record<string, unknown>) =>
+    request<EmailTemplatePreview>(
+      "/api/v1/notifications/email-templates/preview/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  testEmailTemplate: (body: Record<string, unknown>) =>
+    request<{ detail: string; subject: string }>(
+      "/api/v1/notifications/email-templates/test/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+
+  inbox: (
+    includeResolved = false,
+    filters?: { kind?: string; severity?: string; state?: string },
+  ) => {
+    const params = new URLSearchParams();
+    if (includeResolved) params.set("include_resolved", "1");
+    if (filters?.kind) params.set("kind", filters.kind);
+    if (filters?.severity) params.set("severity", filters.severity);
+    if (filters?.state) params.set("state", filters.state);
+    const query = params.toString();
+    return request<NotificationInbox>(`/api/v1/notifications/${query ? `?${query}` : ""}`);
+  },
   markRead: (id: string) =>
     request<Notification>(`/api/v1/notifications/${id}/read/`, { method: "POST" }, true),
+  dismiss: (id: string) =>
+    request<Notification>(`/api/v1/notifications/${id}/dismiss/`, { method: "POST" }, true),
   markAllRead: () =>
     request<{ marked_read: number }>("/api/v1/notifications/read-all/", { method: "POST" }, true),
-  deliveries: () =>
-    request<Paginated<NotificationDelivery>>("/api/v1/notifications/deliveries/"),
+  deliveries: (filters?: { signal?: string; channel?: string; status?: string; alert_rule?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.signal) params.set("signal", filters.signal);
+    if (filters?.channel) params.set("channel", filters.channel);
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.alert_rule) params.set("alert_rule", filters.alert_rule);
+    const query = params.toString();
+    return request<Paginated<NotificationDelivery>>(
+      `/api/v1/notifications/deliveries/${query ? `?${query}` : ""}`,
+    );
+  },
+  retryDelivery: (id: string) =>
+    request<NotificationDelivery>(
+      `/api/v1/notifications/deliveries/${id}/retry/`,
+      { method: "POST" },
+      true,
+    ),
+  rules: () => request<AlertRule[]>("/api/v1/notifications/rules/"),
+  createRule: (body: Record<string, unknown>) =>
+    request<AlertRule>(
+      "/api/v1/notifications/rules/",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    ),
+  updateRule: (id: string, body: Record<string, unknown>) =>
+    request<AlertRule>(
+      `/api/v1/notifications/rules/${id}/`,
+      { method: "PATCH", body: JSON.stringify(body) },
+      true,
+    ),
+  runRulesNow: () =>
+    request<AlertRunResult>(
+      "/api/v1/notifications/rules/run-now/",
+      { method: "POST" },
+      true,
+    ),
   integrations: () =>
     request<NotificationIntegrationSettings>("/api/v1/notifications/integrations/"),
   updateIntegrations: (body: Record<string, unknown>) =>

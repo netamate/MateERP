@@ -25,6 +25,7 @@ class Permission(StrEnum):
     APPROVE_FINANCE = "APPROVE_FINANCE"
     PAY_FINANCE = "PAY_FINANCE"
     MANAGE_FINANCE_DOCUMENTS = "MANAGE_FINANCE_DOCUMENTS"
+    VIEW_SENSITIVE_FINANCE_DOCUMENTS = "VIEW_SENSITIVE_FINANCE_DOCUMENTS"
     VIEW_OPERATIONS = "VIEW_OPERATIONS"
     MANAGE_OPERATIONS = "MANAGE_OPERATIONS"
     VIEW_PLANNING = "VIEW_PLANNING"
@@ -32,6 +33,9 @@ class Permission(StrEnum):
     VIEW_REPORTS = "VIEW_REPORTS"
     VIEW_AUDIT_LOG = "VIEW_AUDIT_LOG"
     VIEW_NOTIFICATIONS = "VIEW_NOTIFICATIONS"
+    MANAGE_NOTIFICATIONS = "MANAGE_NOTIFICATIONS"
+    VIEW_AUTOMATION = "VIEW_AUTOMATION"
+    MANAGE_AUTOMATION = "MANAGE_AUTOMATION"
     VIEW_RECONCILIATION = "VIEW_RECONCILIATION"
     MANAGE_RECONCILIATION = "MANAGE_RECONCILIATION"
 
@@ -55,6 +59,7 @@ FINANCE_PERMISSIONS = frozenset(
         Permission.APPROVE_FINANCE,
         Permission.PAY_FINANCE,
         Permission.MANAGE_FINANCE_DOCUMENTS,
+        Permission.VIEW_SENSITIVE_FINANCE_DOCUMENTS,
         Permission.VIEW_OPERATIONS,
         Permission.MANAGE_OPERATIONS,
         Permission.VIEW_PLANNING,
@@ -62,6 +67,9 @@ FINANCE_PERMISSIONS = frozenset(
         Permission.VIEW_REPORTS,
         Permission.VIEW_AUDIT_LOG,
         Permission.VIEW_NOTIFICATIONS,
+        Permission.MANAGE_NOTIFICATIONS,
+        Permission.VIEW_AUTOMATION,
+        Permission.MANAGE_AUTOMATION,
         Permission.VIEW_RECONCILIATION,
         Permission.MANAGE_RECONCILIATION,
     }
@@ -84,6 +92,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_PLANNING,
             Permission.VIEW_REPORTS,
             Permission.VIEW_NOTIFICATIONS,
+            Permission.VIEW_AUTOMATION,
         }
     ),
     Role.MEMBER: frozenset(
@@ -99,6 +108,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_PLANNING,
             Permission.VIEW_REPORTS,
             Permission.VIEW_NOTIFICATIONS,
+            Permission.VIEW_AUTOMATION,
         }
     ),
     Role.VIEWER: frozenset(
@@ -112,6 +122,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.VIEW_PLANNING,
             Permission.VIEW_REPORTS,
             Permission.VIEW_NOTIFICATIONS,
+            Permission.VIEW_AUTOMATION,
             Permission.VIEW_RECONCILIATION,
         }
     ),

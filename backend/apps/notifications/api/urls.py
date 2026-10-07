@@ -5,8 +5,21 @@ from .email_views import (
     DirectEmailListCreateView,
     DirectEmailSendView,
 )
+from .template_views import (
+    EmailTemplateArchiveView,
+    EmailTemplateDetailView,
+    EmailTemplateListCreateView,
+    EmailTemplatePreviewView,
+    EmailTemplateTestView,
+    EmailTemplateVersionListView,
+)
 from .views import (
+    AlertRuleDetailView,
+    AlertRuleListCreateView,
+    AlertRuleRunNowView,
     NotificationDeliveryListView,
+    NotificationDeliveryRetryView,
+    NotificationDismissView,
     NotificationIntegrationEmailTestView,
     NotificationIntegrationHermesTestView,
     NotificationIntegrationSettingsView,
@@ -16,6 +29,36 @@ from .views import (
 )
 
 urlpatterns = [
+    path(
+        "notifications/email-templates/",
+        EmailTemplateListCreateView.as_view(),
+        name="email-template-list-create",
+    ),
+    path(
+        "notifications/email-templates/preview/",
+        EmailTemplatePreviewView.as_view(),
+        name="email-template-preview",
+    ),
+    path(
+        "notifications/email-templates/test/",
+        EmailTemplateTestView.as_view(),
+        name="email-template-test",
+    ),
+    path(
+        "notifications/email-templates/<uuid:template_id>/",
+        EmailTemplateDetailView.as_view(),
+        name="email-template-detail",
+    ),
+    path(
+        "notifications/email-templates/<uuid:template_id>/archive/",
+        EmailTemplateArchiveView.as_view(),
+        name="email-template-archive",
+    ),
+    path(
+        "notifications/email-templates/<uuid:template_id>/versions/",
+        EmailTemplateVersionListView.as_view(),
+        name="email-template-version-list",
+    ),
     path(
         "notifications/email/",
         DirectEmailListCreateView.as_view(),
@@ -33,9 +76,29 @@ urlpatterns = [
     ),
     path("notifications/", NotificationListView.as_view(), name="notification-list"),
     path(
+        "notifications/rules/",
+        AlertRuleListCreateView.as_view(),
+        name="alert-rule-list-create",
+    ),
+    path(
+        "notifications/rules/run-now/",
+        AlertRuleRunNowView.as_view(),
+        name="alert-rule-run-now",
+    ),
+    path(
+        "notifications/rules/<uuid:rule_id>/",
+        AlertRuleDetailView.as_view(),
+        name="alert-rule-detail",
+    ),
+    path(
         "notifications/<uuid:notification_id>/read/",
         NotificationReadView.as_view(),
         name="notification-read",
+    ),
+    path(
+        "notifications/<uuid:notification_id>/dismiss/",
+        NotificationDismissView.as_view(),
+        name="notification-dismiss",
     ),
     path(
         "notifications/read-all/",
@@ -46,6 +109,11 @@ urlpatterns = [
         "notifications/deliveries/",
         NotificationDeliveryListView.as_view(),
         name="notification-delivery-list",
+    ),
+    path(
+        "notifications/deliveries/<uuid:delivery_id>/retry/",
+        NotificationDeliveryRetryView.as_view(),
+        name="notification-delivery-retry",
     ),
     path(
         "notifications/integrations/",

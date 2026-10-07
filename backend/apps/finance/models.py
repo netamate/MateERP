@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from apps.accounting.models import Account, AccountType, JournalEntry, TaxCode
 from apps.identity.models import LegalEntity
@@ -55,7 +56,16 @@ class DocumentType(models.TextChoices):
     INVOICE = "INVOICE", "Invoice"
     BILL = "BILL", "Bill"
     STATEMENT = "STATEMENT", "Statement"
+    PAYSLIP = "PAYSLIP", "Payslip"
+    PAYMENT_CONFIRMATION = "PAYMENT_CONFIRMATION", "Payment confirmation"
+    CREDIT_NOTE = "CREDIT_NOTE", "Credit note"
     OTHER = "OTHER", "Other"
+
+
+def finance_document_upload_path(instance, filename: str) -> str:
+    document_date = instance.document_date or timezone.localdate()
+    stored_name = instance.standardized_name or filename
+    return f"finance/{document_date.year}/{document_date.month:02d}/{stored_name}"
 
 
 class ApprovalObjectType(models.TextChoices):
@@ -763,11 +773,35 @@ class FinanceDocument(models.Model):
         on_delete=models.PROTECT,
         related_name="finance_documents",
     )
-    document_type = models.CharField(max_length=16, choices=DocumentType.choices)
-    file = models.FileField(upload_to="finance/%Y/%m/")
+    document_type = models.CharField(max_length=24, choices=DocumentType.choices)
+    document_date = models.DateField(default=timezone.localdate)
+    reference = models.CharField(max_length=180, blank=True)
+    file = models.FileField(upload_to=finance_document_upload_path)
     original_name = models.CharField(max_length=255)
+    standardized_name = models.CharField(max_length=255, blank=True)
     vendor = models.ForeignKey(
         Vendor,
+        on_delete=models.PROTECT,
+        related_name="documents",
+        null=True,
+        blank=True,
+    )
+    service = models.ForeignKey(
+        "operations.VendorService",
+        on_delete=models.PROTECT,
+        related_name="documents",
+        null=True,
+        blank=True,
+    )
+    service_account = models.ForeignKey(
+        "operations.ServiceAccount",
+        on_delete=models.PROTECT,
+        related_name="documents",
+        null=True,
+        blank=True,
+    )
+    subscription = models.ForeignKey(
+        "operations.Subscription",
         on_delete=models.PROTECT,
         related_name="documents",
         null=True,
@@ -816,26 +850,75 @@ class FinanceDocument(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-document_date", "-created_at"]
+        indexes = [
+            models.Index(
+                fields=["legal_entity", "document_date"],
+                name="finance_doc_date_idx",
+            ),
+        ]
 
     def __str__(self) -> str:
-        return self.original_name
+        return self.standardized_name or self.original_name
 
     def save(self, *args, **kwargs):
+        if self.subscription_id:
+            if not self.vendor_id:
+                self.vendor_id = self.subscription.vendor_id
+            if not self.service_id:
+                self.service_id = self.subscription.service_id
+            if not self.service_account_id:
+                self.service_account_id = self.subscription.service_account_id
+        if self.service_account_id:
+            if not self.service_id:
+                self.service_id = self.service_account.service_id
+            if not self.vendor_id:
+                self.vendor_id = self.service_account.service.vendor_id
+        if self.service_id and not self.vendor_id:
+            self.vendor_id = self.service.vendor_id
         self.full_clean()
         super().save(*args, **kwargs)
 
     def clean(self):
-        targets = [
-            self.vendor,
+        finance_targets = [
             self.expense,
             self.income,
             self.reimbursement,
             self.transfer,
             self.founder_funding,
         ]
-        selected = [target for target in targets if target is not None]
-        if len(selected) != 1:
-            raise ValidationError("A finance document must link to exactly one finance record.")
-        if selected and selected[0].legal_entity_id != self.legal_entity_id:
-            raise ValidationError("Document target must belong to the same legal entity.")
+        if len([target for target in finance_targets if target is not None]) > 1:
+            raise ValidationError("A finance document can link to at most one transaction record.")
+        scoped_records = [
+            ("Vendor", self.vendor),
+            ("Service", self.service),
+            ("Service account", self.service_account),
+            ("Subscription", self.subscription),
+            ("Expense", self.expense),
+            ("Income", self.income),
+            ("Reimbursement", self.reimbursement),
+            ("Transfer", self.transfer),
+            ("Founder funding", self.founder_funding),
+        ]
+        for label, record in scoped_records:
+            if record and record.legal_entity_id != self.legal_entity_id:
+                raise ValidationError(f"{label} must belong to the same legal entity.")
+
+        if self.service_id and self.vendor_id and self.service.vendor_id != self.vendor_id:
+            raise ValidationError("Document service must belong to the selected vendor.")
+        if (
+            self.service_account_id
+            and self.service_id
+            and self.service_account.service_id != self.service_id
+        ):
+            raise ValidationError("Document account must belong to the selected service.")
+        if self.subscription_id:
+            if self.vendor_id and self.subscription.vendor_id != self.vendor_id:
+                raise ValidationError("Document vendor must match the subscription vendor.")
+            if self.service_id and self.subscription.service_id != self.service_id:
+                raise ValidationError("Document service must match the subscription service.")
+            if (
+                self.service_account_id
+                and self.subscription.service_account_id != self.service_account_id
+            ):
+                raise ValidationError("Document account must match the subscription account.")
