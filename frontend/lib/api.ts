@@ -484,22 +484,25 @@ export type BillingPayment = {
 };
 
 export type BillingDashboard = {
-  currency_scope: "mixed";
-  totals: {
+  totals_by_currency: Array<{
+    currency: string;
     estimated_cost: string;
     current_usage_amount: string;
     actual_billed_amount: string;
     paid_amount: string;
     outstanding_amount: string;
-  };
+  }>;
   missing_invoice_count: number;
   over_budget_period_count: number;
   unpaid_invoice_count: number;
   unreconciled_invoice_count: number;
-  duplicate_risk_count: number;
-  unallocated_payment_amount: string;
+  unallocated_payment_by_currency: Array<{
+    currency: string;
+    amount: string;
+  }>;
   trend: Array<{
     period: string;
+    currency: string;
     estimated_cost: string;
     current_usage_amount: string;
     actual_billed_amount: string;
