@@ -202,15 +202,39 @@ def billing_dashboard(legal_entity):
         ):
             unreconciled_invoices += 1
 
+    serialized_totals = [
+        {
+            "currency": row["currency"],
+            "estimated_cost": str(row["estimated_cost"]),
+            "current_usage_amount": str(row["current_usage_amount"]),
+            "actual_billed_amount": str(row["actual_billed_amount"]),
+            "paid_amount": str(row["paid_amount"]),
+            "outstanding_amount": str(row["outstanding_amount"]),
+        }
+        for row in totals_by_currency.values()
+    ]
+    serialized_trend = [
+        {
+            "period": row["period"],
+            "currency": row["currency"],
+            "estimated_cost": str(row["estimated_cost"]),
+            "current_usage_amount": str(row["current_usage_amount"]),
+            "actual_billed_amount": str(row["actual_billed_amount"]),
+            "paid_amount": str(row["paid_amount"]),
+            "budget": str(row["budget"]),
+        }
+        for row in trend_map.values()
+    ]
+
     return {
-        "totals_by_currency": list(totals_by_currency.values()),
+        "totals_by_currency": serialized_totals,
         "missing_invoice_count": sum(1 for _, snapshot in snapshots if snapshot["missing_invoice"]),
         "over_budget_period_count": sum(1 for _, snapshot in snapshots if snapshot["over_budget"]),
         "unpaid_invoice_count": unpaid_invoice_count,
         "unreconciled_invoice_count": unreconciled_invoices,
         "unallocated_payment_by_currency": [
-            {"currency": currency, "amount": amount}
+            {"currency": currency, "amount": str(amount)}
             for currency, amount in sorted(unallocated_by_currency.items())
         ],
-        "trend": list(trend_map.values())[-24:],
+        "trend": serialized_trend[-24:],
     }
