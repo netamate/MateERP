@@ -412,6 +412,8 @@ class NotificationDelivery(models.Model):
         "identity.LegalEntity",
         on_delete=models.PROTECT,
         related_name="notification_deliveries",
+        null=True,
+        blank=True,
     )
     subscription = models.ForeignKey(
         "operations.Subscription",
