@@ -1,6 +1,9 @@
 from decimal import Decimal
 
 import pytest
+from django.core.exceptions import ValidationError
+from django.test import Client
+
 from apps.automation.models import (
     AutomationKind,
     AutomationPolicy,
@@ -8,6 +11,13 @@ from apps.automation.models import (
     RunTrigger,
     SyncStatus,
     VendorIntegration,
+)
+from apps.automation.services import (
+    VendorIntegrationError,
+    ensure_default_automation_policies,
+    fetch_vendor_payload,
+    run_automation_policy,
+    sync_vendor_integration,
 )
 from apps.finance.models import Expense, Vendor
 from apps.identity.models import User
@@ -17,16 +27,6 @@ from apps.operations.models import (
     Subscription,
     SubscriptionBillingPeriod,
     SubscriptionInvoice,
-)
-from django.core.exceptions import ValidationError
-from django.test import Client
-
-from apps.automation.services import (
-    VendorIntegrationError,
-    ensure_default_automation_policies,
-    fetch_vendor_payload,
-    run_automation_policy,
-    sync_vendor_integration,
 )
 
 
