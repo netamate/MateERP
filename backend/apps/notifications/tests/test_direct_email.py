@@ -4,11 +4,6 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.core import mail
-from django.core.management import call_command
-from django.test import override_settings
-from django.utils import timezone
-
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
 from apps.notifications.crypto import encrypt_secret
@@ -21,6 +16,10 @@ from apps.notifications.models import (
 )
 from apps.notifications.services import deliver_hermes
 from apps.operations.models import ServiceType, Subscription
+from django.core import mail
+from django.core.management import call_command
+from django.test import override_settings
+from django.utils import timezone
 
 
 @pytest.mark.django_db

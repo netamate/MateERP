@@ -11,9 +11,7 @@ STALE_SENDING_AFTER = timedelta(minutes=15)
 
 def deliver_direct_email(notification_id) -> DirectEmailNotification:
     with transaction.atomic():
-        notification = DirectEmailNotification.objects.select_for_update().get(
-            id=notification_id
-        )
+        notification = DirectEmailNotification.objects.select_for_update().get(id=notification_id)
         if notification.status in {
             DirectEmailStatus.SENT,
             DirectEmailStatus.CANCELLED,
@@ -23,9 +21,7 @@ def deliver_direct_email(notification_id) -> DirectEmailNotification:
         notification.status = DirectEmailStatus.SENDING
         notification.attempt_count += 1
         notification.last_error = ""
-        notification.save(
-            update_fields=["status", "attempt_count", "last_error", "updated_at"]
-        )
+        notification.save(update_fields=["status", "attempt_count", "last_error", "updated_at"])
 
     try:
         _send_email(
@@ -61,8 +57,7 @@ def recover_stale_direct_emails() -> int:
     ).update(
         status=DirectEmailStatus.FAILED,
         last_error=(
-            "The previous send attempt did not complete. "
-            "Review the message and retry it manually."
+            "The previous send attempt did not complete. Review the message and retry it manually."
         ),
         updated_at=timezone.now(),
     )

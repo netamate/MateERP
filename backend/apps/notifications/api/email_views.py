@@ -1,13 +1,12 @@
+from apps.audit.services import record_audit_event
+from apps.identity.models import Membership, MembershipStatus
+from apps.identity.policy import Permission, has_permission
+from apps.identity.selectors import accessible_legal_entities
 from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.audit.services import record_audit_event
-from apps.identity.models import Membership, MembershipStatus
-from apps.identity.policy import Permission, has_permission
-from apps.identity.selectors import accessible_legal_entities
 
 from ..direct_email import deliver_direct_email
 from ..models import DirectEmailNotification, DirectEmailStatus
@@ -62,9 +61,7 @@ class DirectEmailListCreateView(APIView):
         validated = dict(serializer.validated_data)
         action = validated.pop("action", "DRAFT")
         email_status = (
-            DirectEmailStatus.SCHEDULED
-            if action == "SCHEDULE"
-            else DirectEmailStatus.DRAFT
+            DirectEmailStatus.SCHEDULED if action == "SCHEDULE" else DirectEmailStatus.DRAFT
         )
         if action == "SEND_NOW":
             validated["scheduled_for"] = None
@@ -91,9 +88,7 @@ class DirectEmailListCreateView(APIView):
                 "to_recipients": notification.to_recipients,
                 "subject": notification.subject,
                 "scheduled_for": (
-                    notification.scheduled_for.isoformat()
-                    if notification.scheduled_for
-                    else None
+                    notification.scheduled_for.isoformat() if notification.scheduled_for else None
                 ),
             },
             request=request,

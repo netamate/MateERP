@@ -5,7 +5,6 @@ from .email_views import (
     DirectEmailListCreateView,
     DirectEmailSendView,
 )
-
 from .views import (
     NotificationDeliveryListView,
     NotificationIntegrationEmailTestView,

@@ -186,7 +186,6 @@ class NotificationIntegrationSettings(models.Model):
         return f"{self.organization.name} integrations"
 
 
-
 class DirectEmailNotification(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(

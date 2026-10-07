@@ -1,11 +1,10 @@
-from django.core.management.base import BaseCommand
-from django.utils import timezone
-
 from apps.notifications.direct_email import (
     deliver_direct_email,
     recover_stale_direct_emails,
 )
 from apps.notifications.models import DirectEmailNotification, DirectEmailStatus
+from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 
 class Command(BaseCommand):
