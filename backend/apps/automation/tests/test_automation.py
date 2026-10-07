@@ -313,3 +313,76 @@ def test_entity_override_policy_is_unique_per_kind():
             created_by=owner,
             updated_by=owner,
         )
+
+
+@pytest.mark.django_db
+def test_disabled_entity_override_suppresses_organization_default_vendor_sync(monkeypatch):
+    _, owner, organization, entity, _ = signed_in_owner("override-sync-disable@example.com")
+    vendor, subscription = payg_subscription(entity)
+    VendorIntegration.objects.create(
+        organization=organization,
+        legal_entity=entity,
+        vendor=vendor,
+        subscription=subscription,
+        name="Suppressed entity sync",
+        endpoint_url="https://api.vendor.example/usage",
+        cost_json_path="cost",
+    )
+    default = next(
+        policy
+        for policy in ensure_default_automation_policies(organization, actor=owner)
+        if policy.kind == AutomationKind.SYNC_VENDOR_USAGE
+    )
+    AutomationPolicy.objects.create(
+        organization=organization,
+        legal_entity=entity,
+        name="Disable entity vendor sync",
+        kind=AutomationKind.SYNC_VENDOR_USAGE,
+        enabled=False,
+        created_by=owner,
+        updated_by=owner,
+    )
+
+    monkeypatch.setattr(
+        "apps.automation.services.sync_vendor_integration",
+        lambda *args, **kwargs: pytest.fail("Organization default must not sync an overridden entity."),
+    )
+
+    run = run_automation_policy(default, actor=owner)
+
+    assert run.status == RunStatus.SUCCESS
+    assert run.summary == {"integrations": 0, "success": 0, "failed": 0}
+
+
+@pytest.mark.django_db
+def test_disabled_entity_override_suppresses_organization_default_alert_refresh(monkeypatch):
+    _, owner, organization, entity, _ = signed_in_owner("override-alert-disable@example.com")
+    default = next(
+        policy
+        for policy in ensure_default_automation_policies(organization, actor=owner)
+        if policy.kind == AutomationKind.REFRESH_ALERTS
+    )
+    AutomationPolicy.objects.create(
+        organization=organization,
+        legal_entity=entity,
+        name="Disable entity alert refresh",
+        kind=AutomationKind.REFRESH_ALERTS,
+        enabled=False,
+        created_by=owner,
+        updated_by=owner,
+    )
+
+    monkeypatch.setattr(
+        "apps.automation.services.run_alert_rules",
+        lambda *args, **kwargs: pytest.fail("Organization default must not refresh an overridden entity."),
+    )
+
+    run = run_automation_policy(default, actor=owner)
+
+    assert run.status == RunStatus.SUCCESS
+    assert run.summary == {
+        "rules_evaluated": 0,
+        "active_events": 0,
+        "deliveries_sent": 0,
+        "deliveries_failed": 0,
+    }
