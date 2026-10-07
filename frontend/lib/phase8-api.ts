@@ -153,6 +153,9 @@ export type Notification = {
   severity: string;
   title: string;
   message: string;
+  email_subject: string;
+  email_text_body: string;
+  email_html_body: string;
   link: string;
   due_date: string | null;
   read_at: string | null;
@@ -170,6 +173,9 @@ export type NotificationDelivery = {
   subscription_name: string | null;
   alert_rule: string | null;
   alert_rule_name: string | null;
+  email_template: string | null;
+  email_template_name: string | null;
+  email_template_version: number | null;
   signal: string;
   source_type: string;
   source_id: string;
