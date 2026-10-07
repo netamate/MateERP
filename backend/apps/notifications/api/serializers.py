@@ -1,8 +1,8 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from apps.identity.models import Membership, MembershipStatus
 from rest_framework import serializers
 
-from apps.identity.models import Membership, MembershipStatus
 from apps.identity.policy import Permission, has_permission
 
 from ..models import (

@@ -2,13 +2,19 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
+from apps.finance.models import Vendor
+from apps.identity.models import User
+from apps.identity.services import create_organization_with_owner
+from apps.operations.models import (
+    BillingMode,
+    Subscription,
+    SubscriptionBillingPeriod,
+    SubscriptionInvoice,
+)
 from django.core.management import call_command
 from django.test import Client
 from django.utils import timezone
 
-from apps.finance.models import Vendor
-from apps.identity.models import User
-from apps.identity.services import create_organization_with_owner
 from apps.notifications.models import (
     AlertFrequency,
     AlertRule,
@@ -18,12 +24,6 @@ from apps.notifications.models import (
     NotificationKind,
 )
 from apps.notifications.services import alert_rule_is_due, ensure_default_alert_rules
-from apps.operations.models import (
-    BillingMode,
-    Subscription,
-    SubscriptionBillingPeriod,
-    SubscriptionInvoice,
-)
 
 
 def signed_in_owner(email="alerts-owner@example.com"):
@@ -51,9 +51,7 @@ def test_default_alert_rules_are_seeded_and_exposed():
     assert response.status_code == 200
     rows = response.json()
     assert len(rows) == 5
-    assert {
-        row["signal"] for row in rows
-    } == {
+    assert {row["signal"] for row in rows} == {
         NotificationKind.RENEWAL_DUE,
         NotificationKind.BUDGET_THRESHOLD,
         NotificationKind.MISSING_INVOICE,
@@ -114,13 +112,16 @@ def test_budget_threshold_alerts_are_idempotent_and_resolve_when_condition_clear
         content_type="application/json",
     )
     assert second.status_code == 200
-    assert Notification.objects.filter(
-        organization=organization,
-        kind=NotificationKind.BUDGET_THRESHOLD,
-    ).count() == 2
-    assert NotificationDelivery.objects.filter(
-        signal=NotificationKind.BUDGET_THRESHOLD
-    ).count() == 2
+    assert (
+        Notification.objects.filter(
+            organization=organization,
+            kind=NotificationKind.BUDGET_THRESHOLD,
+        ).count()
+        == 2
+    )
+    assert (
+        NotificationDelivery.objects.filter(signal=NotificationKind.BUDGET_THRESHOLD).count() == 2
+    )
 
     period.current_usage_amount = Decimal("40")
     period.save()
@@ -130,11 +131,14 @@ def test_budget_threshold_alerts_are_idempotent_and_resolve_when_condition_clear
         content_type="application/json",
     )
     assert third.status_code == 200
-    assert Notification.objects.filter(
-        organization=organization,
-        kind=NotificationKind.BUDGET_THRESHOLD,
-        resolved_at__isnull=True,
-    ).count() == 0
+    assert (
+        Notification.objects.filter(
+            organization=organization,
+            kind=NotificationKind.BUDGET_THRESHOLD,
+            resolved_at__isnull=True,
+        ).count()
+        == 0
+    )
 
 
 @pytest.mark.django_db
@@ -237,19 +241,23 @@ def test_overdue_and_reconciliation_signals_are_separate():
         content_type="application/json",
     )
     assert response.status_code == 200
-    assert Notification.objects.filter(
-        organization=organization,
-        kind=NotificationKind.INVOICE_OVERDUE,
-        resolved_at__isnull=True,
-    ).count() == 1
-    assert Notification.objects.filter(
-        organization=organization,
-        kind=NotificationKind.RECONCILIATION_NEEDED,
-        resolved_at__isnull=True,
-    ).count() == 1
-    assert "outstanding" in Notification.objects.get(
-        kind=NotificationKind.INVOICE_OVERDUE
-    ).message
+    assert (
+        Notification.objects.filter(
+            organization=organization,
+            kind=NotificationKind.INVOICE_OVERDUE,
+            resolved_at__isnull=True,
+        ).count()
+        == 1
+    )
+    assert (
+        Notification.objects.filter(
+            organization=organization,
+            kind=NotificationKind.RECONCILIATION_NEEDED,
+            resolved_at__isnull=True,
+        ).count()
+        == 1
+    )
+    assert "outstanding" in Notification.objects.get(kind=NotificationKind.INVOICE_OVERDUE).message
     assert invoice.expense_id is None
 
 

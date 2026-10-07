@@ -1,6 +1,8 @@
 from email.utils import parseaddr
 from smtplib import SMTPAuthenticationError, SMTPException
 
+from apps.audit.services import record_audit_event
+from apps.identity.models import Membership, MembershipStatus
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
@@ -10,8 +12,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.audit.services import record_audit_event
-from apps.identity.models import Membership, MembershipStatus
 from apps.identity.policy import Permission, has_permission
 
 from ..crypto import encrypt_secret
@@ -273,9 +273,7 @@ class AlertRuleRunNowView(APIView):
         legal_entity = None
         legal_entity_id = request.session.get("active_legal_entity_id")
         if legal_entity_id:
-            legal_entity = membership.organization.legal_entities.filter(
-                id=legal_entity_id
-            ).first()
+            legal_entity = membership.organization.legal_entities.filter(id=legal_entity_id).first()
         result = run_alert_rules(
             organization=membership.organization,
             legal_entity=legal_entity,
