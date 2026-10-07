@@ -20,6 +20,7 @@ import {
   Search,
   Settings,
   Users,
+  Workflow,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -64,6 +65,7 @@ const navGroups: NavGroup[] = [
       { label: "Notification Center", href: "/administration/notifications", icon: Bell },
       { label: "Email Notifications", href: "/administration/email-notifications", icon: Mail },
       { label: "Email Templates", href: "/administration/email-templates", icon: FileCode2 },
+      { label: "Automation & Integrations", href: "/administration/automation", icon: Workflow },
       { label: "Members & Access", href: "/administration/members", icon: Users },
       { label: "Settings", href: "/administration/settings", icon: Settings },
     ],
@@ -79,6 +81,7 @@ const quickActions: Array<[string, string]> = [
   ["Document", "/documents"],
   ["Email Notification", "/administration/email-notifications"],
   ["Email Template", "/administration/email-templates"],
+  ["Vendor Integration", "/administration/automation"],
 ];
 
 type AppShellProps = {
