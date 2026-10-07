@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class NotificationKind(models.TextChoices):
@@ -185,6 +186,25 @@ class DirectEmailStatus(models.TextChoices):
     SENT = "SENT", "Sent"
     FAILED = "FAILED", "Failed"
     CANCELLED = "CANCELLED", "Cancelled"
+
+
+class CentralEmailRecipientType(models.TextChoices):
+    TO = "TO", "To"
+    CC = "CC", "Cc"
+    BCC = "BCC", "Bcc"
+
+
+class CentralEmailEvent(models.TextChoices):
+    DOCUMENT_UPLOADED = "DOCUMENT_UPLOADED", "Document uploaded"
+    RENEWAL_DUE = "RENEWAL_DUE", "Renewal due"
+    INVOICE_RECORDED = "INVOICE_RECORDED", "Invoice recorded"
+    PAYMENT_RECORDED = "PAYMENT_RECORDED", "Payment recorded"
+    BUDGET_THRESHOLD = "BUDGET_THRESHOLD", "Budget threshold"
+    MISSING_INVOICE = "MISSING_INVOICE", "Missing invoice"
+    INVOICE_OVERDUE = "INVOICE_OVERDUE", "Invoice overdue"
+    RECONCILIATION_NEEDED = "RECONCILIATION_NEEDED", "Reconciliation needed"
+    AUTOMATION_FAILURE = "AUTOMATION_FAILURE", "Automation failure"
+    SYSTEM = "SYSTEM", "System"
 
 
 class Notification(models.Model):
@@ -510,6 +530,79 @@ class NotificationIntegrationSettings(models.Model):
 
     def __str__(self) -> str:
         return f"{self.organization.name} integrations"
+
+
+class CentralEmailRecipient(models.Model):
+    """Organization-wide email recipient and event routing preference."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "identity.Organization",
+        on_delete=models.CASCADE,
+        related_name="central_email_recipients",
+    )
+    name = models.CharField(max_length=180, blank=True)
+    email = models.EmailField()
+    recipient_type = models.CharField(
+        max_length=8,
+        choices=CentralEmailRecipientType.choices,
+        default=CentralEmailRecipientType.TO,
+    )
+    enabled = models.BooleanField(default=True)
+    event_types = models.JSONField(default=list, blank=True)
+    attach_documents = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_central_email_recipients",
+        null=True,
+        blank=True,
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="updated_central_email_recipients",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["email"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                "organization",
+                name="uniq_central_email_recipient_ci",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["organization", "enabled"],
+                name="central_email_org_enabled_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.name or self.email
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.strip().lower()
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        if not isinstance(self.event_types, list):
+            raise ValidationError("Central email event types must be a list.")
+        allowed = {value for value, _ in CentralEmailEvent.choices}
+        normalized = []
+        for value in self.event_types:
+            if value not in allowed:
+                raise ValidationError(f"Unsupported central email event type: {value}")
+            if value not in normalized:
+                normalized.append(value)
+        self.event_types = normalized
 
 
 class DirectEmailNotification(models.Model):
