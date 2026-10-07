@@ -2,6 +2,8 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.test import Client
+
 from apps.automation.models import AutomationKind, AutomationPolicy, VendorIntegration
 from apps.finance.models import Vendor
 from apps.identity.models import User
@@ -14,8 +16,6 @@ from apps.operations.models import (
     SubscriptionBillingPeriod,
     SubscriptionInvoice,
 )
-from django.test import Client
-
 from apps.reporting.selectors import operations_cost_intelligence
 
 
