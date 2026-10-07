@@ -68,7 +68,7 @@ const commandItems: NavItem[] = navGroups.flatMap((group) => group.items);
 const quickActions: Array<[string, string]> = [
   ["Subscription", "/operations/subscriptions"],
   ["Vendor", "/vendors?new=1"],
-  ["Document", "/documents?new=1"],
+  ["Document", "/documents"],
   ["Email Notification", "/administration/email-notifications"],
 ];
 
