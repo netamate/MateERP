@@ -10,7 +10,7 @@ from urllib import error, request
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.core.mail import EmailMessage, get_connection
+from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
 from django.db.models import F
 from django.utils import timezone
 
@@ -33,6 +33,7 @@ from apps.operations.models import (
 )
 
 from .crypto import decrypt_secret
+from .email_templates import get_default_email_template, render_template
 from .models import (
     AlertFrequency,
     AlertRule,
@@ -222,6 +223,7 @@ def _send_email(
     destinations: list[str] | None = None,
     cc: list[str] | None = None,
     bcc: list[str] | None = None,
+    html_message: str | None = None,
     config_override: dict | None = None,
 ) -> None:
     recipients = list(destinations or ([] if destination is None else [destination]))
@@ -239,15 +241,28 @@ def _send_email(
         use_ssl=config["use_ssl"],
         timeout=15,
     )
-    EmailMessage(
-        subject=subject,
-        body=message,
-        from_email=config["from_email"],
-        to=recipients,
-        cc=list(cc or []),
-        bcc=list(bcc or []),
-        connection=connection,
-    ).send(fail_silently=False)
+    if html_message:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=config["from_email"],
+            to=recipients,
+            cc=list(cc or []),
+            bcc=list(bcc or []),
+            connection=connection,
+        )
+        email.attach_alternative(html_message, "text/html")
+    else:
+        email = EmailMessage(
+            subject=subject,
+            body=message,
+            from_email=config["from_email"],
+            to=recipients,
+            cc=list(cc or []),
+            bcc=list(bcc or []),
+            connection=connection,
+        )
+    email.send(fail_silently=False)
 
 
 def send_test_email(*, organization, destination: str, proposed: dict) -> None:
