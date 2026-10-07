@@ -323,22 +323,24 @@ class SubscriptionBillingPeriodSerializer(serializers.ModelSerializer):
         return self._snapshot(obj)["status"]
 
     def get_actual_billed_amount(self, obj):
-        return self._snapshot(obj)["actual_billed_amount"]
+        return str(self._snapshot(obj)["actual_billed_amount"])
 
     def get_paid_amount(self, obj):
-        return self._snapshot(obj)["paid_amount"]
+        return str(self._snapshot(obj)["paid_amount"])
 
     def get_outstanding_amount(self, obj):
-        return self._snapshot(obj)["outstanding_amount"]
+        return str(self._snapshot(obj)["outstanding_amount"])
 
     def get_variance_from_estimate(self, obj):
-        return self._snapshot(obj)["variance_from_estimate"]
+        return str(self._snapshot(obj)["variance_from_estimate"])
 
     def get_monthly_budget(self, obj):
-        return self._snapshot(obj)["monthly_budget"]
+        value = self._snapshot(obj)["monthly_budget"]
+        return str(value) if value is not None else None
 
     def get_budget_percent(self, obj):
-        return self._snapshot(obj)["budget_percent"]
+        value = self._snapshot(obj)["budget_percent"]
+        return str(value) if value is not None else None
 
     def get_budget_thresholds_reached(self, obj):
         return self._snapshot(obj)["budget_thresholds_reached"]
@@ -421,6 +423,7 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionInvoice
         exclude = ["legal_entity", "created_by"]
+        extra_kwargs = {"vendor": {"required": False}}
         read_only_fields = [
             "id",
             "status",
@@ -441,10 +444,10 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
         ]
 
     def get_paid_amount(self, obj):
-        return invoice_paid_amount(obj)
+        return str(invoice_paid_amount(obj))
 
     def get_outstanding_amount(self, obj):
-        return max(obj.total_amount - invoice_paid_amount(obj), Decimal("0"))
+        return str(max(obj.total_amount - invoice_paid_amount(obj), Decimal("0")))
 
     def get_expense_reconciliation_status(self, obj):
         if not obj.expense_id:
@@ -456,7 +459,7 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
     def get_expense_difference(self, obj):
         if not obj.expense_id or obj.expense.currency != obj.currency:
             return None
-        return obj.expense.amount - obj.total_amount
+        return str(obj.expense.amount - obj.total_amount)
 
     def validate(self, attrs):
         entity = self.context.get("legal_entity")
@@ -609,13 +612,18 @@ class BillingPaymentSerializer(serializers.ModelSerializer):
         ]
 
     def get_allocated_amount(self, obj):
-        return sum(
+        amount = sum(
             (allocation.amount for allocation in obj.allocations.all()),
             Decimal("0"),
         )
+        return str(amount)
 
     def get_unallocated_amount(self, obj):
-        return obj.amount - self.get_allocated_amount(obj)
+        allocated = sum(
+            (allocation.amount for allocation in obj.allocations.all()),
+            Decimal("0"),
+        )
+        return str(obj.amount - allocated)
 
     def get_reconciliation_status(self, obj):
         if obj.expense_payment_id:
