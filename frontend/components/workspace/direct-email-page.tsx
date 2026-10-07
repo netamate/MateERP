@@ -5,6 +5,7 @@ import { LayoutTemplate, MailPlus, Send, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
+import { CentralEmailRoutingPanel } from "@/components/workspace/central-email-routing-panel";
 import {
   DataTable,
   ErrorState,
@@ -241,7 +242,7 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
       <PageHeader
         eyebrow="Alerts & Delivery"
         title="Email Notifications"
-        description="Send or schedule direct SMTP email, optionally starting from a versioned reusable template."
+        description="Control centralized automatic email routing, review delivery history, and send direct SMTP email when needed."
         actions={
           manageAllowed ? (
             <button
@@ -271,6 +272,8 @@ export function DirectEmailPage({ session }: { session: SessionPayload }) {
         ]}
       />
       <div className="space-y-4 p-4 lg:p-6">
+        <CentralEmailRoutingPanel session={session} smtpReady={smtpReady} />
+
         {!smtpReady ? (
           <PermissionNotice>
             Direct Email SMTP is not enabled. Configure the mailbox in{" "}
