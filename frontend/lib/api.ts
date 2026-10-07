@@ -378,6 +378,7 @@ export type Subscription = {
   auto_renew: boolean;
   reminder_days: number[];
   reminder_in_app: boolean;
+  email_notifications_enabled: boolean;
   reminder_email: boolean;
   reminder_hermes: boolean;
   reminder_email_recipients: string[];
