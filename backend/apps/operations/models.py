@@ -239,6 +239,7 @@ class Subscription(models.Model):
         if self.service_account_id and not self.service_id:
             raise ValidationError("A service account requires a selected service.")
         if self.service_id:
+            self.service_type = self.service.service_type
             if self.vendor_id is None:
                 self.vendor = self.service.vendor
             elif self.vendor_id != self.service.vendor_id:
