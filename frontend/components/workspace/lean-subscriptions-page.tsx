@@ -224,6 +224,7 @@ function SubscriptionForm({
       account.status === "ACTIVE" || account.id === accountId
     ),
   );
+  const selectedVendorService = services.find((service) => service.id === serviceId);
 
   return (
     <form
@@ -235,22 +236,33 @@ function SubscriptionForm({
       }}
     >
       <Field defaultValue={subscription?.name} label="Name" name="name" required />
-      <SelectField
-        defaultValue={subscription?.service_type ?? "SAAS"}
-        label="Type"
-        name="service_type"
-      >
-        <option value="DOMAIN">Domain</option>
-        <option value="VPS">VPS / Server</option>
-        <option value="CLOUD">Cloud</option>
-        <option value="HOSTING">Hosting</option>
-        <option value="SAAS">SaaS / Software</option>
-        <option value="API">API / Usage Service</option>
-        <option value="STORAGE">Storage / Backup</option>
-        <option value="EMAIL">Email Service</option>
-        <option value="AI">AI Service</option>
-        <option value="OTHER">Other</option>
-      </SelectField>
+      {selectedVendorService ? (
+        <label className="block text-xs font-medium">
+          <span className="mb-1 block text-[var(--color-text-muted)]">Type</span>
+          <input className="erp-field" name="service_type" readOnly
+            value={selectedVendorService.service_type.replaceAll("_", " ")} />
+          <span className="mt-1 block text-[11px] text-[var(--color-text-muted)]">
+            Inherited from the selected vendor service.
+          </span>
+        </label>
+      ) : (
+        <SelectField
+          defaultValue={subscription?.service_type ?? "SAAS"}
+          label="Type"
+          name="service_type"
+        >
+          <option value="DOMAIN">Domain</option>
+          <option value="VPS">VPS / Server</option>
+          <option value="CLOUD">Cloud</option>
+          <option value="HOSTING">Hosting</option>
+          <option value="SAAS">SaaS / Software</option>
+          <option value="API">API / Usage Service</option>
+          <option value="STORAGE">Storage / Backup</option>
+          <option value="EMAIL">Email Service</option>
+          <option value="AI">AI Service</option>
+          <option value="OTHER">Other</option>
+        </SelectField>
+      )}
       <label className="block text-xs font-medium">
         <span className="mb-1 block text-[var(--color-text-muted)]">Vendor</span>
         <select className="erp-field" name="vendor" value={vendorId}
