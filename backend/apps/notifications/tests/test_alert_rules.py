@@ -18,7 +18,6 @@ from apps.notifications.models import (
     NotificationKind,
 )
 from apps.notifications.services import alert_rule_is_due, ensure_default_alert_rules
-
 from apps.operations.models import (
     BillingMode,
     Subscription,
