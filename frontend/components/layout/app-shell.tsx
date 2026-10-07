@@ -71,13 +71,9 @@ type AppShellProps = {
   children: ReactNode;
   session: SessionPayload;
   onLogout: () => Promise<void>;
-  onContextChange: (
-    organizationId: string,
-    legalEntityId: string | null,
-  ) => Promise<void>;
 };
 
-export function AppShell({ children, session, onLogout, onContextChange }: AppShellProps) {
+export function AppShell({ children, session, onLogout }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -89,9 +85,6 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
 
   const activeOrganization = session.organizations.find(
     (organization) => organization.id === session.active_organization_id,
-  );
-  const activeEntity = session.active_legal_entities.find(
-    (entity) => entity.id === session.active_legal_entity_id,
   );
   const activeMembership = session.memberships.find(
     (membership) => membership.organization_id === session.active_organization_id,
@@ -119,15 +112,6 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  async function changeOrganization(organizationId: string) {
-    await onContextChange(organizationId, null);
-  }
-
-  async function changeLegalEntity(legalEntityId: string) {
-    if (!session.active_organization_id) return;
-    await onContextChange(session.active_organization_id, legalEntityId || null);
-  }
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -274,30 +258,6 @@ export function AppShell({ children, session, onLogout, onContextChange }: AppSh
             <span className="truncate">Search MateERP...</span>
             <span className="ml-auto hidden border border-[var(--color-border)] bg-white px-1.5 py-0.5 text-[9px] sm:inline">Ctrl K</span>
           </button>
-
-          <select
-            aria-label="Organization"
-            className="hidden h-8 max-w-48 border border-[var(--color-border)] bg-white px-2 text-xs md:block"
-            onChange={(event) => void changeOrganization(event.target.value)}
-            value={session.active_organization_id ?? ""}
-          >
-            {session.organizations.map((organization) => (
-              <option key={organization.id} value={organization.id}>{organization.name}</option>
-            ))}
-          </select>
-
-          <select
-            aria-label="Legal entity"
-            className="hidden h-8 max-w-48 border border-[var(--color-border)] bg-white px-2 text-xs md:block"
-            disabled={!activeOrganization}
-            onChange={(event) => void changeLegalEntity(event.target.value)}
-            value={session.active_legal_entity_id ?? ""}
-          >
-            <option value="">Organization scope</option>
-            {session.active_legal_entities.map((entity) => (
-              <option key={entity.id} value={entity.id}>{entity.name}</option>
-            ))}
-          </select>
 
           <div className="relative">
             <button
