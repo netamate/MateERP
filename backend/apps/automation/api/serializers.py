@@ -1,10 +1,9 @@
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from rest_framework import serializers
-
 from apps.notifications.crypto import encrypt_secret
 from apps.operations.models import BillingMode, Subscription
+from rest_framework import serializers
 
 from ..models import (
     AutomationPolicy,
@@ -82,9 +81,7 @@ class VendorIntegrationSerializer(serializers.ModelSerializer):
         clear_secret = attrs.pop("clear_secret", False)
 
         if vendor and vendor.legal_entity_id != entity.id:
-            raise serializers.ValidationError(
-                {"vendor": "Vendor belongs to another legal entity."}
-            )
+            raise serializers.ValidationError({"vendor": "Vendor belongs to another legal entity."})
         if subscription:
             if subscription.legal_entity_id != entity.id:
                 raise serializers.ValidationError(
@@ -190,9 +187,7 @@ class VendorIntegrationTestSerializer(serializers.Serializer):
             raise serializers.ValidationError("Custom headers must be a JSON object.")
         protected = {"authorization", "cookie", "host", "content-length"}
         if any(str(key).lower() in protected for key in value):
-            raise serializers.ValidationError(
-                "Protected HTTP headers cannot be overridden."
-            )
+            raise serializers.ValidationError("Protected HTTP headers cannot be overridden.")
         return {str(key): str(item) for key, item in value.items()}
 
     def validate(self, attrs):

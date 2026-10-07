@@ -8,9 +8,6 @@ from decimal import Decimal, InvalidOperation
 from urllib import error, parse, request
 from zoneinfo import ZoneInfo
 
-from django.db import transaction
-from django.utils import timezone
-
 from apps.audit.services import record_audit_event
 from apps.identity.models import LegalEntity, Organization
 from apps.notifications.crypto import decrypt_secret
@@ -21,6 +18,8 @@ from apps.operations.models import (
     Subscription,
     SubscriptionBillingPeriod,
 )
+from django.db import transaction
+from django.utils import timezone
 
 from .models import (
     AutomationFrequency,
@@ -166,8 +165,7 @@ def extract_vendor_usage(config: dict, payload, *, subscription) -> dict:
         currency = str(_json_path(payload, config["currency_json_path"])).strip().upper()
     if currency != subscription.currency:
         raise VendorIntegrationError(
-            f"Vendor returned {currency}, but the subscription currency is "
-            f"{subscription.currency}."
+            f"Vendor returned {currency}, but the subscription currency is {subscription.currency}."
         )
     usage_unit = subscription.usage_unit
     if config.get("usage_unit_json_path"):
@@ -245,9 +243,8 @@ def sync_vendor_integration(
     try:
         if not integration.enabled:
             raise VendorIntegrationError("Vendor integration is disabled.")
-        subscription = (
-            Subscription.objects.select_related("legal_entity", "vendor")
-            .get(pk=integration.subscription_id)
+        subscription = Subscription.objects.select_related("legal_entity", "vendor").get(
+            pk=integration.subscription_id
         )
         if subscription.status != OperationalStatus.ACTIVE:
             raise VendorIntegrationError("Subscription is not active.")
@@ -380,8 +377,7 @@ def automation_policy_is_due(policy, *, now=None):
     local_now = now.astimezone(ZoneInfo(policy.schedule_timezone))
     if policy.last_run_at is None:
         return (
-            policy.frequency == AutomationFrequency.HOURLY
-            or local_now.hour >= policy.schedule_hour
+            policy.frequency == AutomationFrequency.HOURLY or local_now.hour >= policy.schedule_hour
         )
     last_local = policy.last_run_at.astimezone(ZoneInfo(policy.schedule_timezone))
     if policy.frequency == AutomationFrequency.HOURLY:

@@ -1,9 +1,6 @@
 from decimal import Decimal
 
 import pytest
-from django.core.exceptions import ValidationError
-from django.test import Client
-
 from apps.automation.models import (
     AutomationKind,
     AutomationPolicy,
@@ -11,13 +8,6 @@ from apps.automation.models import (
     RunTrigger,
     SyncStatus,
     VendorIntegration,
-)
-from apps.automation.services import (
-    VendorIntegrationError,
-    ensure_default_automation_policies,
-    fetch_vendor_payload,
-    run_automation_policy,
-    sync_vendor_integration,
 )
 from apps.finance.models import Expense, Vendor
 from apps.identity.models import User
@@ -27,6 +17,16 @@ from apps.operations.models import (
     Subscription,
     SubscriptionBillingPeriod,
     SubscriptionInvoice,
+)
+from django.core.exceptions import ValidationError
+from django.test import Client
+
+from apps.automation.services import (
+    VendorIntegrationError,
+    ensure_default_automation_policies,
+    fetch_vendor_payload,
+    run_automation_policy,
+    sync_vendor_integration,
 )
 
 
@@ -151,9 +151,7 @@ def test_automation_policy_creates_only_missing_payg_periods():
     _, owner, organization, entity, _ = signed_in_owner("policy-run@example.com")
     _, subscription = payg_subscription(entity)
     policies = ensure_default_automation_policies(organization, actor=owner)
-    policy = next(
-        item for item in policies if item.kind == AutomationKind.ENSURE_PAYG_PERIODS
-    )
+    policy = next(item for item in policies if item.kind == AutomationKind.ENSURE_PAYG_PERIODS)
 
     first = run_automation_policy(policy, actor=owner)
     second = run_automation_policy(policy, actor=owner)

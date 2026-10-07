@@ -2,8 +2,6 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from django.test import Client
-
 from apps.automation.models import AutomationKind, AutomationPolicy, VendorIntegration
 from apps.finance.models import Vendor
 from apps.identity.models import User
@@ -16,6 +14,8 @@ from apps.operations.models import (
     SubscriptionBillingPeriod,
     SubscriptionInvoice,
 )
+from django.test import Client
+
 from apps.reporting.selectors import operations_cost_intelligence
 
 
@@ -135,9 +135,7 @@ def test_cost_intelligence_keeps_currencies_separate_and_surfaces_health():
     assert by_currency["USD"]["outstanding"] == "8.00"
     assert by_currency["EUR"]["current_usage"] == "9.00"
 
-    usd_row = next(
-        row for row in data["subscriptions"] if row["subscription_id"] == str(usd.id)
-    )
+    usd_row = next(row for row in data["subscriptions"] if row["subscription_id"] == str(usd.id))
     assert usd_row["forecast"] == "30.00"
     assert usd_row["over_budget_forecast"] is True
     assert usd_row["forecast_variance"] == "5.00"
