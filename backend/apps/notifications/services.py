@@ -1051,9 +1051,7 @@ def _candidate_email_context(
         "organization_name": rule.organization.name,
         "legal_entity_name": candidate.legal_entity.name,
         "recipient_name": (
-            recipient.display_name or recipient.email
-            if recipient is not None
-            else destination
+            recipient.display_name or recipient.email if recipient is not None else destination
         ),
         "recipient_email": destination,
         "current_date": str(timezone.localdate()),
