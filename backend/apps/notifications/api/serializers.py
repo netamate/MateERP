@@ -7,6 +7,8 @@ from apps.identity.policy import Permission, has_permission
 
 from ..models import (
     AlertRule,
+    CentralEmailEvent,
+    CentralEmailRecipient,
     Notification,
     NotificationDelivery,
     NotificationKind,
@@ -247,6 +249,44 @@ class AlertRuleSerializer(serializers.ModelSerializer):
                             "Organization-level rules can use organization-level templates only."
                         )
                     }
+                )
+        return attrs
+
+
+class CentralEmailRecipientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CentralEmailRecipient
+        exclude = ["organization", "created_by", "updated_by"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+    def validate_event_types(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Event types must be a list.")
+        allowed = {choice for choice, _ in CentralEmailEvent.choices}
+        normalized = []
+        for item in value:
+            if item not in allowed:
+                raise serializers.ValidationError(f"Unsupported email event type: {item}")
+            if item not in normalized:
+                normalized.append(item)
+        return normalized
+
+    def validate(self, attrs):
+        organization = self.context.get("organization")
+        email = attrs.get("email", getattr(self.instance, "email", "")).strip().lower()
+        if organization and email:
+            existing = CentralEmailRecipient.objects.filter(
+                organization=organization,
+                email__iexact=email,
+            )
+            if self.instance:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise serializers.ValidationError(
+                    {"email": "This email address is already configured for the organization."}
                 )
         return attrs
 
