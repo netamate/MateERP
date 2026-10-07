@@ -8,6 +8,10 @@ from django.db.models.functions import Lower
 
 
 class NotificationKind(models.TextChoices):
+    DOCUMENT_UPLOADED = "DOCUMENT_UPLOADED", "Document uploaded"
+    INVOICE_RECORDED = "INVOICE_RECORDED", "Invoice recorded"
+    PAYMENT_RECORDED = "PAYMENT_RECORDED", "Payment recorded"
+    AUTOMATION_FAILURE = "AUTOMATION_FAILURE", "Automation failure"
     RENEWAL_DUE = "RENEWAL_DUE", "Renewal due"
     EXPENSE_APPROVAL = "EXPENSE_APPROVAL", "Expense approval"
     REIMBURSEMENT_APPROVAL = "REIMBURSEMENT_APPROVAL", "Reimbursement approval"
