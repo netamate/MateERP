@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarDays,
   FileArchive,
+  FileCode2,
   Gauge,
   ChevronDown,
   LayoutDashboard,
@@ -62,6 +63,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Notification Center", href: "/administration/notifications", icon: Bell },
       { label: "Email Notifications", href: "/administration/email-notifications", icon: Mail },
+      { label: "Email Templates", href: "/administration/email-templates", icon: FileCode2 },
       { label: "Members & Access", href: "/administration/members", icon: Users },
       { label: "Settings", href: "/administration/settings", icon: Settings },
     ],
@@ -76,6 +78,7 @@ const quickActions: Array<[string, string]> = [
   ["Vendor", "/vendors?new=1"],
   ["Document", "/documents"],
   ["Email Notification", "/administration/email-notifications"],
+  ["Email Template", "/administration/email-templates"],
 ];
 
 type AppShellProps = {
