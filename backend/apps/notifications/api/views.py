@@ -441,10 +441,7 @@ class CentralEmailEventListView(APIView):
     def get(self, request):
         _membership(request, Permission.VIEW_NOTIFICATIONS)
         return Response(
-            [
-                {"value": value, "label": label}
-                for value, label in CentralEmailEvent.choices
-            ]
+            [{"value": value, "label": label} for value, label in CentralEmailEvent.choices]
         )
 
 
