@@ -47,7 +47,7 @@ def test_smtp_preview_uses_unsaved_fields_and_does_not_persist():
     client, organization = owner_client()
     with (
         patch("apps.notifications.services.get_connection") as get_connection,
-        patch("apps.notifications.services.EmailMessage") as email_class,
+        patch("apps.notifications.services.EmailMultiAlternatives") as email_class,
     ):
         response = client.post(
             "/api/v1/notifications/integrations/test-email/",
@@ -94,7 +94,7 @@ def test_smtp_preview_reuses_stored_password_without_overwriting_settings():
     body.pop("smtp_password")
     with (
         patch("apps.notifications.services.get_connection") as get_connection,
-        patch("apps.notifications.services.EmailMessage"),
+        patch("apps.notifications.services.EmailMultiAlternatives"),
     ):
         response = client.post(
             "/api/v1/notifications/integrations/test-email/",
