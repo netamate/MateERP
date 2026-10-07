@@ -138,10 +138,6 @@ class VendorIntegration(models.Model):
     def __str__(self) -> str:
         return f"{self.vendor.name} · {self.name}"
 
-    def __str__(self) -> str:
-        scope = self.legal_entity.name if self.legal_entity_id else self.organization.name
-        return f"{scope} · {self.name}"
-
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
@@ -293,6 +289,10 @@ class AutomationPolicy(models.Model):
                 name="automation_org_kind_idx",
             )
         ]
+
+    def __str__(self) -> str:
+        scope = self.legal_entity.name if self.legal_entity_id else self.organization.name
+        return f"{scope} · {self.name}"
 
     def save(self, *args, **kwargs):
         self.full_clean()
