@@ -22,6 +22,140 @@ class AlertFrequency(models.TextChoices):
     DAILY = "DAILY", "Daily"
 
 
+class EmailTemplateStatus(models.TextChoices):
+    ACTIVE = "ACTIVE", "Active"
+    ARCHIVED = "ARCHIVED", "Archived"
+
+
+class EmailTemplate(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "identity.Organization",
+        on_delete=models.CASCADE,
+        related_name="email_templates",
+    )
+    legal_entity = models.ForeignKey(
+        "identity.LegalEntity",
+        on_delete=models.CASCADE,
+        related_name="email_templates",
+        null=True,
+        blank=True,
+    )
+    template_key = models.CharField(max_length=120)
+    name = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    signal = models.CharField(
+        max_length=32,
+        choices=NotificationKind.choices,
+        null=True,
+        blank=True,
+    )
+    subject_template = models.CharField(max_length=255)
+    html_body_template = models.TextField(blank=True)
+    text_body_template = models.TextField()
+    status = models.CharField(
+        max_length=16,
+        choices=EmailTemplateStatus.choices,
+        default=EmailTemplateStatus.ACTIVE,
+    )
+    current_version = models.PositiveIntegerField(default=1)
+    is_system_default = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_email_templates",
+        null=True,
+        blank=True,
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="updated_email_templates",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["signal", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "template_key"],
+                name="uniq_email_template_org_key",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["organization", "status", "signal"],
+                name="email_tpl_org_signal_idx",
+            ),
+            models.Index(
+                fields=["legal_entity", "status"],
+                name="email_tpl_entity_status_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} · v{self.current_version}"
+
+    def save(self, *args, **kwargs):
+        self.template_key = self.template_key.strip().lower()
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        if self.legal_entity_id and self.legal_entity.organization_id != self.organization_id:
+            raise ValidationError("Template legal entity must belong to the organization.")
+        if not self.template_key:
+            raise ValidationError("Template key is required.")
+        if not self.subject_template.strip():
+            raise ValidationError("Template subject is required.")
+        if not self.text_body_template.strip():
+            raise ValidationError("Plain-text fallback is required.")
+
+
+class EmailTemplateVersion(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    template = models.ForeignKey(
+        EmailTemplate,
+        on_delete=models.CASCADE,
+        related_name="versions",
+    )
+    version_number = models.PositiveIntegerField()
+    name = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    signal = models.CharField(
+        max_length=32,
+        choices=NotificationKind.choices,
+        null=True,
+        blank=True,
+    )
+    subject_template = models.CharField(max_length=255)
+    html_body_template = models.TextField(blank=True)
+    text_body_template = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_email_template_versions",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-version_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["template", "version_number"],
+                name="uniq_email_template_version",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.template.name} · v{self.version_number}"
+
+
 def default_renewal_days():
     return [30, 15, 7, 3, 1, 0]
 
@@ -81,6 +215,9 @@ class Notification(models.Model):
     dedupe_key = models.CharField(max_length=180)
     title = models.CharField(max_length=180)
     message = models.TextField()
+    email_subject = models.CharField(max_length=255, blank=True)
+    email_text_body = models.TextField(blank=True)
+    email_html_body = models.TextField(blank=True)
     link = models.CharField(max_length=255, blank=True)
     due_date = models.DateField(null=True, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
@@ -149,6 +286,13 @@ class AlertRule(models.Model):
     renewal_days = models.JSONField(default=default_renewal_days)
     grace_days = models.PositiveSmallIntegerField(default=1)
     respect_subscription_channels = models.BooleanField(default=False)
+    email_template = models.ForeignKey(
+        EmailTemplate,
+        on_delete=models.PROTECT,
+        related_name="alert_rules",
+        null=True,
+        blank=True,
+    )
     last_evaluated_at = models.DateTimeField(null=True, blank=True)
     last_delivery_count = models.PositiveIntegerField(default=0)
     last_failure_count = models.PositiveIntegerField(default=0)
@@ -248,6 +392,14 @@ class NotificationDelivery(models.Model):
         null=True,
         blank=True,
     )
+    email_template = models.ForeignKey(
+        EmailTemplate,
+        on_delete=models.SET_NULL,
+        related_name="notification_deliveries",
+        null=True,
+        blank=True,
+    )
+    email_template_version = models.PositiveIntegerField(null=True, blank=True)
     delivery_key = models.CharField(max_length=255, unique=True)
     signal = models.CharField(
         max_length=32,
@@ -363,8 +515,17 @@ class DirectEmailNotification(models.Model):
     to_recipients = models.JSONField(default=list)
     cc_recipients = models.JSONField(default=list, blank=True)
     bcc_recipients = models.JSONField(default=list, blank=True)
+    template = models.ForeignKey(
+        EmailTemplate,
+        on_delete=models.SET_NULL,
+        related_name="direct_email_notifications",
+        null=True,
+        blank=True,
+    )
+    template_version = models.PositiveIntegerField(null=True, blank=True)
     subject = models.CharField(max_length=255)
     body = models.TextField()
+    html_body = models.TextField(blank=True)
     scheduled_for = models.DateTimeField(null=True, blank=True)
     schedule_timezone = models.CharField(max_length=64, default="UTC")
     status = models.CharField(
