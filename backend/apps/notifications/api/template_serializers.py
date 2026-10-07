@@ -51,8 +51,6 @@ class EmailTemplateSerializer(serializers.ModelSerializer):
             "id",
             "current_version",
             "is_system_default",
-            "created_by",
-            "updated_by",
             "created_at",
             "updated_at",
             "legal_entity_name",
