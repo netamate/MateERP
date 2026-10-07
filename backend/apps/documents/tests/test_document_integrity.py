@@ -1,13 +1,13 @@
 import hashlib
 
 import pytest
-from apps.identity.models import User
-from apps.identity.services import create_organization_with_owner
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 
 from apps.documents.services import create_finance_document_with_metadata
 from apps.finance.models import Vendor
+from apps.identity.models import User
+from apps.identity.services import create_organization_with_owner
 
 
 @pytest.mark.django_db
