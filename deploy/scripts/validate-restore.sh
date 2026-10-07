@@ -27,14 +27,29 @@ docker run -d --rm \
   -v "${backup_path}:/backup.dump:ro" \
   postgres:17-alpine >/dev/null
 
-for _ in $(seq 1 30); do
-  if docker exec "${container_name}" pg_isready -U postgres -d restorecheck >/dev/null 2>&1; then
+ready=false
+for _ in $(seq 1 60); do
+  # The official PostgreSQL image briefly starts a temporary server while it
+  # initializes an empty data directory. pg_isready can succeed during that
+  # phase, immediately before the entrypoint shuts the temporary server down.
+  # Wait until PID 1 has exec'd the final postgres process and it accepts SQL.
+  if docker exec "${container_name}" sh -ec '
+    [ "$(cat /proc/1/comm)" = "postgres" ] &&
+    pg_isready -U postgres -d restorecheck >/dev/null 2>&1 &&
+    [ "$(psql -U postgres -d restorecheck -Atqc "SELECT 1")" = "1" ]
+  '; then
+    ready=true
     break
   fi
   sleep 1
 done
 
-docker exec "${container_name}" pg_isready -U postgres -d restorecheck >/dev/null
+if [[ "${ready}" != "true" ]]; then
+  docker logs "${container_name}" >&2 || true
+  echo "Disposable PostgreSQL restore target did not reach final readiness." >&2
+  exit 1
+fi
+
 docker exec "${container_name}" pg_restore \
   -U postgres \
   -d restorecheck \

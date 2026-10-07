@@ -20,9 +20,11 @@ test -f .env
 backend_image="ghcr.io/netamate/mateerp-backend:${DEPLOY_SHA}"
 frontend_image="ghcr.io/netamate/mateerp-frontend:${DEPLOY_SHA}"
 
-sed -i -E "s|^MATEERP_BACKEND_IMAGE=.*|MATEERP_BACKEND_IMAGE=${backend_image}|" .env
-sed -i -E "s|^MATEERP_FRONTEND_IMAGE=.*|MATEERP_FRONTEND_IMAGE=${frontend_image}|" .env
-chmod 600 .env
+# Override Compose image interpolation for this deployment without mutating
+# the persisted release pointer. If backup/restore validation or migrations
+# fail, a reboot/restart must still resolve to the last verified release.
+export MATEERP_BACKEND_IMAGE="${backend_image}"
+export MATEERP_FRONTEND_IMAGE="${frontend_image}"
 
 docker compose pull
 docker compose up -d database
@@ -62,6 +64,12 @@ backend_cid="$(docker compose ps -q backend)"
 frontend_cid="$(docker compose ps -q frontend)"
 [[ "$(docker inspect -f '{{.Config.Image}}' "${backend_cid}")" == "${backend_image}" ]]
 [[ "$(docker inspect -f '{{.Config.Image}}' "${frontend_cid}")" == "${frontend_image}" ]]
+
+# Persist the release pointer only after both services are healthy on the
+# exact requested images.
+sed -i -E "s|^MATEERP_BACKEND_IMAGE=.*|MATEERP_BACKEND_IMAGE=${backend_image}|" .env
+sed -i -E "s|^MATEERP_FRONTEND_IMAGE=.*|MATEERP_FRONTEND_IMAGE=${frontend_image}|" .env
+chmod 600 .env
 
 docker compose ps
 curl --fail --silent --show-error http://127.0.0.1:8035/api/v1/health/ >/dev/null
