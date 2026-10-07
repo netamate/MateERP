@@ -4,6 +4,7 @@ import re
 from django.db import transaction
 
 from apps.finance.models import FinanceDocument
+from apps.notifications.services import dispatch_document_uploaded_event
 
 from .models import FinanceDocumentMetadata
 
@@ -162,6 +163,9 @@ def create_finance_document_with_metadata(
     document.file = upload
     document.save()
     FinanceDocumentMetadata.objects.create(document=document, **integrity)
+    transaction.on_commit(
+        lambda document_id=document.id: dispatch_document_uploaded_event(document_id)
+    )
     return document
 
 
