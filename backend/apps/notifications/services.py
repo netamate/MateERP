@@ -10,7 +10,8 @@ from urllib import error, request
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db.models import F
 from django.utils import timezone
 
@@ -252,10 +253,13 @@ def _send_email(
     cc: list[str] | None = None,
     bcc: list[str] | None = None,
     html_message: str | None = None,
+    attachments: list[tuple[str, bytes, str]] | None = None,
     config_override: dict | None = None,
 ) -> None:
     recipients = list(destinations or ([] if destination is None else [destination]))
-    if not recipients:
+    cc_recipients = list(cc or [])
+    bcc_recipients = list(bcc or [])
+    if not recipients and not cc_recipients and not bcc_recipients:
         raise RuntimeError("At least one email recipient is required.")
     config = config_override if config_override is not None else _email_config(organization)
     connection = get_connection(
@@ -269,28 +273,369 @@ def _send_email(
         use_ssl=config["use_ssl"],
         timeout=15,
     )
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=message,
+        from_email=config["from_email"],
+        to=recipients,
+        cc=cc_recipients,
+        bcc=bcc_recipients,
+        connection=connection,
+    )
     if html_message:
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body=message,
-            from_email=config["from_email"],
-            to=recipients,
-            cc=list(cc or []),
-            bcc=list(bcc or []),
-            connection=connection,
-        )
         email.attach_alternative(html_message, "text/html")
-    else:
-        email = EmailMessage(
-            subject=subject,
-            body=message,
-            from_email=config["from_email"],
-            to=recipients,
-            cc=list(cc or []),
-            bcc=list(bcc or []),
-            connection=connection,
-        )
+    for filename, content, mimetype in attachments or []:
+        email.attach(filename, content, mimetype)
     email.send(fail_silently=False)
+
+
+MAX_EMAIL_ATTACHMENT_BYTES = 20 * 1024 * 1024
+
+
+def _central_recipients_for_event(*, organization, event_type: str):
+    allowed = {value for value, _ in CentralEmailEvent.choices}
+    if event_type not in allowed:
+        raise ValueError(f"Unsupported central email event type: {event_type}")
+    return [
+        recipient
+        for recipient in CentralEmailRecipient.objects.filter(
+            organization=organization,
+            enabled=True,
+        ).order_by("email")
+        if event_type in recipient.event_types
+    ]
+
+
+def _format_file_size(size_bytes: int | None) -> str:
+    if not size_bytes:
+        return "0 B"
+    size = float(size_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} B"
+        size /= 1024
+    return f"{size_bytes} B"
+
+
+def _central_email_context(
+    *,
+    organization,
+    legal_entity,
+    recipient,
+    title: str,
+    message: str,
+    link: str,
+    event_context: dict,
+) -> dict:
+    return {
+        "organization_name": organization.name,
+        "legal_entity_name": getattr(legal_entity, "name", "") or "",
+        "recipient_name": recipient.name or recipient.email,
+        "recipient_email": recipient.email,
+        "current_date": str(timezone.localdate()),
+        "alert_title": title,
+        "alert_message": message,
+        "severity": NotificationSeverity.INFO,
+        "relevant_date": str(timezone.localdate()),
+        "action_url": link,
+        **event_context,
+    }
+
+
+def _central_attachment(delivery: NotificationDelivery) -> list[tuple[str, bytes, str]]:
+    context = delivery.context or {}
+    if not context.get("attach_document"):
+        return []
+    document_id = context.get("document_id")
+    if not document_id:
+        return []
+
+    from apps.finance.models import FinanceDocument
+
+    document = (
+        FinanceDocument.objects.filter(id=document_id).select_related("integrity_metadata").first()
+    )
+    if document is None:
+        raise RuntimeError("The document attachment no longer exists.")
+
+    try:
+        metadata = document.integrity_metadata
+    except ObjectDoesNotExist:
+        metadata = None
+    if metadata and metadata.size_bytes > MAX_EMAIL_ATTACHMENT_BYTES:
+        return []
+
+    filename = document.standardized_name or document.original_name
+    mimetype = getattr(metadata, "mime_type", None) or "application/octet-stream"
+    document.file.open("rb")
+    try:
+        content = document.file.read()
+    finally:
+        document.file.close()
+    if len(content) > MAX_EMAIL_ATTACHMENT_BYTES:
+        return []
+    return [(filename, content, mimetype)]
+
+
+def _attempt_central_email_delivery(delivery: NotificationDelivery) -> NotificationDelivery:
+    if delivery.status == DeliveryStatus.SENT:
+        return delivery
+    context = delivery.context or {}
+    recipient_type = context.get("recipient_type", CentralEmailRecipientType.TO)
+    to = [delivery.destination] if recipient_type == CentralEmailRecipientType.TO else []
+    cc = [delivery.destination] if recipient_type == CentralEmailRecipientType.CC else []
+    bcc = [delivery.destination] if recipient_type == CentralEmailRecipientType.BCC else []
+    try:
+        _send_email(
+            organization=delivery.organization,
+            destinations=to,
+            cc=cc,
+            bcc=bcc,
+            subject=delivery.email_subject or delivery.title,
+            message=delivery.email_text_body or delivery.message,
+            html_message=delivery.email_html_body or None,
+            attachments=_central_attachment(delivery),
+        )
+        return _mark_sent(delivery)
+    except Exception as exc:
+        return _mark_failed(delivery, exc)
+
+
+def dispatch_central_email_event(
+    *,
+    organization,
+    legal_entity,
+    event_type: str,
+    source_type: str,
+    source_id,
+    title: str,
+    message: str,
+    link: str,
+    subscription=None,
+    event_context: dict | None = None,
+    attachment_document=None,
+    template=None,
+) -> list[NotificationDelivery]:
+    if subscription is not None and not subscription.email_notifications_enabled:
+        return []
+
+    recipients = _central_recipients_for_event(
+        organization=organization,
+        event_type=event_type,
+    )
+    if not recipients:
+        return []
+
+    template = template or get_default_email_template(organization, event_type)
+    event_context = dict(event_context or {})
+    deliveries = []
+    for recipient in recipients:
+        context = _central_email_context(
+            organization=organization,
+            legal_entity=legal_entity,
+            recipient=recipient,
+            title=title,
+            message=message,
+            link=link,
+            event_context=event_context,
+        )
+        rendered = render_template(template, context=context) if template else None
+        delivery_context = {
+            **event_context,
+            "central_email_event": event_type,
+            "recipient_type": recipient.recipient_type,
+            "attach_document": False,
+        }
+        if attachment_document is not None:
+            try:
+                metadata = attachment_document.integrity_metadata
+            except ObjectDoesNotExist:
+                metadata = None
+            size_bytes = getattr(metadata, "size_bytes", None)
+            can_attach = bool(
+                recipient.attach_documents
+                and size_bytes is not None
+                and size_bytes <= MAX_EMAIL_ATTACHMENT_BYTES
+            )
+            delivery_context.update(
+                {
+                    "document_id": str(attachment_document.id),
+                    "attach_document": can_attach,
+                    "attachment_requested": recipient.attach_documents,
+                    "attachment_skipped_reason": (
+                        ""
+                        if can_attach or not recipient.attach_documents
+                        else "Document exceeds the 20 MB email attachment limit."
+                    ),
+                }
+            )
+
+        raw_key = f"{event_type}:{source_type}:{source_id}:{recipient.id}"
+        delivery_key = f"central:{hashlib.sha256(raw_key.encode('utf-8')).hexdigest()}"
+        delivery, _ = NotificationDelivery.objects.get_or_create(
+            delivery_key=delivery_key,
+            defaults={
+                "organization": organization,
+                "legal_entity": legal_entity,
+                "subscription": subscription,
+                "email_template": template,
+                "email_template_version": (rendered["template_version"] if rendered else None),
+                "signal": event_type,
+                "source_type": source_type,
+                "source_id": str(source_id),
+                "channel": DeliveryChannel.EMAIL,
+                "destination": recipient.email,
+                "severity": NotificationSeverity.INFO,
+                "title": title,
+                "message": message,
+                "email_subject": rendered["subject"] if rendered else title,
+                "email_text_body": rendered["text_body"] if rendered else message,
+                "email_html_body": rendered["html_body"] if rendered else "",
+                "link": link,
+                "context": delivery_context,
+            },
+        )
+        deliveries.append(_attempt_central_email_delivery(delivery))
+    return deliveries
+
+
+def dispatch_document_uploaded_event(document_id) -> list[NotificationDelivery]:
+    from apps.finance.models import FinanceDocument
+
+    document = (
+        FinanceDocument.objects.filter(id=document_id)
+        .select_related(
+            "legal_entity__organization",
+            "integrity_metadata",
+            "vendor",
+            "subscription",
+            "uploaded_by",
+        )
+        .first()
+    )
+    if document is None:
+        return []
+
+    filename = document.standardized_name or document.original_name
+    vendor_name = document.vendor.name if document.vendor_id else ""
+    subscription_name = document.subscription.name if document.subscription_id else ""
+    title = f"New {document.get_document_type_display()} uploaded"
+    message = f"{filename} was uploaded to the MateERP document library."
+    event_context = {
+        "document_name": filename,
+        "document_type": document.document_type,
+        "document_date": str(document.document_date),
+        "document_reference": document.reference,
+        "vendor_name": vendor_name,
+        "subscription_name": subscription_name,
+        "subscription_code": (
+            document.subscription.subscription_code if document.subscription_id else ""
+        ),
+        "uploaded_by": document.uploaded_by.email,
+        "file_size": _format_file_size(document.integrity_metadata.size_bytes),
+    }
+    return dispatch_central_email_event(
+        organization=document.legal_entity.organization,
+        legal_entity=document.legal_entity,
+        event_type=CentralEmailEvent.DOCUMENT_UPLOADED,
+        source_type="FinanceDocument",
+        source_id=document.id,
+        title=title,
+        message=message,
+        link="/finance/documents",
+        subscription=document.subscription,
+        event_context=event_context,
+        attachment_document=document,
+    )
+
+
+def dispatch_invoice_recorded_event(invoice_id) -> list[NotificationDelivery]:
+    invoice = (
+        SubscriptionInvoice.objects.filter(id=invoice_id)
+        .select_related(
+            "legal_entity__organization",
+            "billing_period__subscription",
+            "vendor",
+            "document__integrity_metadata",
+        )
+        .first()
+    )
+    if invoice is None:
+        return []
+    subscription = invoice.billing_period.subscription
+    return dispatch_central_email_event(
+        organization=invoice.legal_entity.organization,
+        legal_entity=invoice.legal_entity,
+        event_type=CentralEmailEvent.INVOICE_RECORDED,
+        source_type="SubscriptionInvoice",
+        source_id=invoice.id,
+        title=f"Invoice recorded · {invoice.invoice_number}",
+        message=(
+            f"{invoice.vendor.name} invoice {invoice.invoice_number} was recorded "
+            f"for {subscription.name}."
+        ),
+        link="/operations/billing",
+        subscription=subscription,
+        event_context={
+            "subscription_name": subscription.name,
+            "subscription_code": subscription.subscription_code,
+            "invoice_number": invoice.invoice_number,
+            "vendor_name": invoice.vendor.name,
+            "amount": str(invoice.total_amount),
+            "currency": invoice.currency,
+            "due_date": str(invoice.due_date or ""),
+        },
+        attachment_document=invoice.document,
+    )
+
+
+def dispatch_payment_recorded_event(
+    *,
+    source_type: str,
+    source_id,
+    subscription,
+    payment_code: str,
+    amount,
+    currency: str,
+    payment_date,
+) -> list[NotificationDelivery]:
+    return dispatch_central_email_event(
+        organization=subscription.legal_entity.organization,
+        legal_entity=subscription.legal_entity,
+        event_type=CentralEmailEvent.PAYMENT_RECORDED,
+        source_type=source_type,
+        source_id=source_id,
+        title=f"Payment recorded · {subscription.name}",
+        message=f"A {currency} {amount} payment was recorded for {subscription.name}.",
+        link="/operations/billing",
+        subscription=subscription,
+        event_context={
+            "subscription_name": subscription.name,
+            "subscription_code": subscription.subscription_code,
+            "payment_code": payment_code,
+            "amount": str(amount),
+            "currency": currency,
+            "payment_date": str(payment_date),
+        },
+    )
+
+
+def dispatch_automation_failure_event(*, policy, run) -> list[NotificationDelivery]:
+    return dispatch_central_email_event(
+        organization=policy.organization,
+        legal_entity=policy.legal_entity,
+        event_type=CentralEmailEvent.AUTOMATION_FAILURE,
+        source_type="AutomationRun",
+        source_id=run.id,
+        title=f"Automation failed · {policy.name}",
+        message=run.error or "The automation run failed.",
+        link="/automation",
+        event_context={
+            "automation_name": policy.name,
+            "automation_kind": policy.kind,
+            "error_message": run.error,
+        },
+    )
 
 
 def send_test_email(*, organization, destination: str, proposed: dict) -> None:
@@ -1183,6 +1528,8 @@ def _attempt_rule_delivery(
 ) -> NotificationDelivery:
     if delivery.status == DeliveryStatus.SENT:
         return delivery
+    if delivery.channel == DeliveryChannel.EMAIL and delivery.context.get("central_email_event"):
+        return _attempt_central_email_delivery(delivery)
     try:
         if delivery.channel == DeliveryChannel.IN_APP:
             if recipient is None:
@@ -1248,6 +1595,50 @@ def dismiss_notification(notification: Notification) -> Notification:
     return notification
 
 
+def _central_alert_deliveries(
+    rule: AlertRule,
+    candidate: AlertCandidate,
+) -> list[NotificationDelivery]:
+    allowed = {value for value, _ in CentralEmailEvent.choices}
+    if candidate.signal not in allowed:
+        return []
+
+    subscription = candidate.subscription
+    event_context = {
+        **candidate.context,
+        "relevant_date": str(candidate.due_date or timezone.localdate()),
+    }
+    if subscription is not None:
+        event_context.update(
+            {
+                "subscription_name": subscription.name,
+                "subscription_code": subscription.subscription_code,
+                "vendor_name": subscription.vendor.name if subscription.vendor else "",
+                "amount": str(
+                    subscription.estimated_cost
+                    if subscription.billing_mode == BillingMode.PAYG
+                    else subscription.amount
+                ),
+                "currency": subscription.currency,
+                "due_date": str(subscription.next_renewal_date or candidate.due_date or ""),
+                "payment_method": subscription.payment_method,
+            }
+        )
+    return dispatch_central_email_event(
+        organization=rule.organization,
+        legal_entity=candidate.legal_entity,
+        event_type=candidate.signal,
+        source_type=candidate.source_type,
+        source_id=candidate.source_id,
+        title=candidate.title,
+        message=candidate.message,
+        link=candidate.link,
+        subscription=subscription,
+        event_context=event_context,
+        template=rule.email_template,
+    )
+
+
 def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
     deliveries = []
     active_notification_keys = []
@@ -1271,25 +1662,7 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
                 deliveries.append(delivery)
                 active_notification_keys.append(delivery.delivery_key)
 
-        if subscription.reminder_email:
-            recipients = subscription.reminder_email_recipients or [
-                membership.user.email for membership in viewers
-            ]
-            for destination in dict.fromkeys(recipients):
-                delivery = deliver_email(
-                    subscription=subscription,
-                    destination=destination,
-                    days_before=candidate.reminder_days_before,
-                    due_date=candidate.due_date,
-                    title=candidate.title,
-                    message=candidate.message,
-                    rule=rule,
-                    candidate=candidate,
-                )
-                if delivery.alert_rule_id is None:
-                    delivery.alert_rule = rule
-                    delivery.save(update_fields=["alert_rule", "updated_at"])
-                deliveries.append(delivery)
+        deliveries.extend(_central_alert_deliveries(rule, candidate))
 
         if subscription.reminder_hermes:
             delivery = deliver_hermes(
@@ -1317,7 +1690,9 @@ def _deliver_candidate(rule: AlertRule, candidate: AlertCandidate, viewers):
             deliveries.append(_attempt_rule_delivery(delivery=delivery, recipient=membership.user))
             active_notification_keys.append(_notification_key(rule, candidate))
 
-    if rule.email_enabled:
+    central_email_deliveries = _central_alert_deliveries(rule, candidate)
+    deliveries.extend(central_email_deliveries)
+    if rule.email_enabled and not central_email_deliveries:
         recipients = rule.email_recipients or [membership.user.email for membership in viewers]
         for destination in dict.fromkeys(recipients):
             delivery = _rule_delivery(
