@@ -1,9 +1,9 @@
-# Refresh MateERP notifications once per day and catch up after downtime.
+# Evaluate MateERP alert rules hourly and catch up after downtime.
 [Unit]
-Description=Schedule MateERP notification refresh
+Description=Schedule MateERP alert rule evaluation
 
 [Timer]
-OnCalendar=*-*-* 00:15:00 UTC
+OnCalendar=hourly
 Persistent=true
 RandomizedDelaySec=5m
 Unit=mateerp-notifications.service
