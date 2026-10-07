@@ -293,3 +293,86 @@ def test_organization_level_automation_failure_can_be_delivered(monkeypatch):
     assert delivery.legal_entity is None
     assert delivery.status == DeliveryStatus.SENT
     assert "forced automation failure" in delivery.message
+
+
+@pytest.mark.django_db
+def test_central_delivery_history_filter_exposes_context_and_scope():
+    client, _, organization, entity, _ = signed_in_owner("central-history@example.com")
+    central = NotificationDelivery.objects.create(
+        organization=organization,
+        legal_entity=entity,
+        delivery_key="central:history-one",
+        signal=NotificationKind.DOCUMENT_UPLOADED,
+        source_type="FinanceDocument",
+        source_id="doc-1",
+        channel=DeliveryChannel.EMAIL,
+        destination="finance@example.com",
+        title="Document uploaded",
+        message="A document was uploaded.",
+        context={
+            "central_email_event": CentralEmailEvent.DOCUMENT_UPLOADED,
+            "recipient_type": "TO",
+            "attachment_requested": True,
+            "attach_document": True,
+        },
+    )
+    NotificationDelivery.objects.create(
+        organization=organization,
+        legal_entity=entity,
+        delivery_key="legacy:history-two",
+        signal=NotificationKind.RENEWAL_DUE,
+        source_type="Subscription",
+        source_id="sub-1",
+        channel=DeliveryChannel.EMAIL,
+        destination="legacy@example.com",
+        title="Legacy delivery",
+        message="Legacy delivery",
+    )
+
+    response = client.get("/api/v1/notifications/deliveries/?central_only=true&channel=EMAIL")
+
+    assert response.status_code == 200, response.content
+    rows = response.json()["results"]
+    assert [row["id"] for row in rows] == [str(central.id)]
+    assert rows[0]["central_delivery"] is True
+    assert rows[0]["legal_entity"] == str(entity.id)
+    assert rows[0]["legal_entity_name"] == entity.name
+    assert rows[0]["context"]["attach_document"] is True
+    assert rows[0]["context"]["recipient_type"] == "TO"
+
+
+@pytest.mark.django_db
+def test_organization_level_central_delivery_can_retry_with_active_entity(monkeypatch):
+    client, _, organization, _, _ = signed_in_owner("central-org-retry@example.com")
+    delivery = NotificationDelivery.objects.create(
+        organization=organization,
+        legal_entity=None,
+        delivery_key="central:org-retry",
+        signal=NotificationKind.AUTOMATION_FAILURE,
+        source_type="AutomationRun",
+        source_id="run-1",
+        channel=DeliveryChannel.EMAIL,
+        destination="ops@example.com",
+        title="Automation failed",
+        message="Retry me",
+        email_subject="Automation failed",
+        email_text_body="Retry me",
+        status=DeliveryStatus.FAILED,
+        last_error="Temporary SMTP failure",
+        context={
+            "central_email_event": CentralEmailEvent.AUTOMATION_FAILURE,
+            "recipient_type": "TO",
+        },
+    )
+
+    monkeypatch.setattr(
+        "apps.notifications.services._send_email",
+        lambda **kwargs: None,
+    )
+    response = client.post(f"/api/v1/notifications/deliveries/{delivery.id}/retry/")
+
+    assert response.status_code == 200, response.content
+    payload = response.json()
+    assert payload["status"] == DeliveryStatus.SENT
+    assert payload["central_delivery"] is True
+    assert payload["attempt_count"] == 1
