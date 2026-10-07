@@ -2,6 +2,8 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.test import Client
+
 from apps.accounting.models import Account, AccountType, FiscalPeriod, NormalBalance
 from apps.finance.models import (
     Expense,
@@ -12,8 +14,6 @@ from apps.finance.models import (
 from apps.finance.services import approve_expense, pay_expense, submit_expense
 from apps.identity.models import User
 from apps.identity.services import create_organization_with_owner
-from django.test import Client
-
 from apps.operations.models import (
     BillingInvoiceStatus,
     BillingMode,
