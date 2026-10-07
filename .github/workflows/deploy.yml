@@ -164,6 +164,11 @@ jobs:
           done
           [[ "$(docker inspect -f '{{.State.Health.Status}}' mateerp-database-1)" == "healthy" ]]
           if [[ "$RUN_MIGRATIONS" == "true" ]]; then
+            backup_output="$(/opt/MateERP/scripts/backup-db.sh)"
+            printf '%s\n' "$backup_output"
+            backup_path="$(printf '%s\n' "$backup_output" | sed -n 's/^MateERP database backup created: //p' | tail -n 1)"
+            test -n "$backup_path"
+            /opt/MateERP/scripts/validate-restore.sh "$backup_path"
             docker compose run --rm -T backend python manage.py migrate --noinput </dev/null
             docker compose run --rm -T backend python manage.py backfill_document_metadata </dev/null
           fi
